@@ -95,13 +95,15 @@ class StorageSpoke(NormalTUISpoke):
         self.errors = []
         self.warnings = []
 
-        if self.data.zerombr.zerombr and arch.is_s390():
-            # if zerombr is specified in a ks file and there are unformatted
-            # dasds, automatically format them. pass in storage.devicetree here
-            # instead of storage.disks since media_present is checked on disks;
-            # a dasd needing dasdfmt will fail this media check though
+        if arch.is_s390() and (self.data.zerombr.zerombr or self.data.clearpart.cdl):
+            # If zerombr or clearpart.cdl are specified in a ks file and there
+            # are unformatted/ldl dasds, automatically format them.
+            # Pass in storage.devicetree here instead of storage.disks since
+            # media_present is checked on disks; a dasd needing dasdfmt will fail
+            # this media check though.
             to_format = [d for d in getDisks(self.storage.devicetree)
-                         if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
+                         if (d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
+                         or blockdev.s390.dasd_is_ldl(d.name)]
             if to_format:
                 self.run_dasdfmt(to_format)
 
@@ -294,8 +296,9 @@ class StorageSpoke(NormalTUISpoke):
                     # can use them.
                     if arch.is_s390():
                         _disks = [d for d in self.disks if d.name in self.selected_disks]
-                        to_format = [d for d in _disks if d.type == "dasd" and
-                                     blockdev.s390.dasd_needs_format(d.busid)]
+                        to_format = [d for d in _disks if (d.type == "dasd" and
+                                     blockdev.s390.dasd_needs_format(d.busid))
+                                     or blockdev.s390.dasd_is_ldl(d.name)]
                         if to_format:
                             self.run_dasdfmt(to_format)
                             self.redraw()
@@ -333,8 +336,8 @@ class StorageSpoke(NormalTUISpoke):
         # zerombr in their ks file
         threadMgr.wait(THREAD_STORAGE)
 
-        # ask user to verify they want to format if zerombr not in ks file
-        if not self.data.zerombr.zerombr:
+        # ask user to verify they want to format if zerombr or cdl not in ks file
+        if not (self.data.zerombr.zerombr or self.data.clearpart.cdl):
             # prepare our msg strings; copied directly from dasdfmt.glade
             summary = _("The following unformatted DASDs have been detected on your system. You can choose to format them now with dasdfmt or cancel to leave them unformatted. Unformatted DASDs cannot be used during installation.\n\n")
 
@@ -343,8 +346,8 @@ class StorageSpoke(NormalTUISpoke):
             displaytext = summary + "\n".join("/dev/" + d.name for d in to_format) + "\n" + warntext
 
             # now show actual prompt; note -- in cmdline mode, auto-answer for
-            # this is 'no', so unformatted DASDs will remain so unless zerombr
-            # is added to the ks file
+            # this is 'no', so unformatted and ldl DASDs will remain so unless
+            # zerombr or cdl are added to the ks file
             question_window = YesNoDialog(displaytext)
             ScreenHandler.push_screen_modal(question_window)
             if not question_window.answer:

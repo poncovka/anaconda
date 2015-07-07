@@ -290,10 +290,10 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self.autoPartType = None
         self.clearPartType = CLEARPART_TYPE_NONE
 
-        if self.data.zerombr.zerombr and arch.is_s390():
-            # run dasdfmt on any unformatted DASDs automatically
+        if arch.is_s390() and (self.data.zerombr.zerombr or self.data.clearpart.cdl):
+            # run dasdfmt on any unformatted or LDL DASDs automatically
             threadMgr.add(AnacondaThread(name=constants.THREAD_DASDFMT,
-                            target=self.run_dasdfmt))
+                            target=self.run_dasdfmt, args=(self.data.zerombr.zerombr, self.data.clearpart.cdl)))
 
         self._previous_autopart = False
 
@@ -835,7 +835,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             if not selected and name in self.selected_disks:
                 self.selected_disks.remove(name)
 
-    def run_dasdfmt(self):
+    def run_dasdfmt(self, doformat, cdl):
         """
         Though the same function exists in pyanaconda.ui.gui.spokes.lib.dasdfmt,
         this instance doesn't include any of the UI pieces and should only
@@ -845,20 +845,36 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # actions on storage devices
         threadMgr.wait(constants.THREAD_STORAGE)
 
-        to_format = (d for d in getDisks(self.storage.devicetree)
-                     if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
-        if not to_format:
-            # nothing to do here; bail
-            return
+        if doformat:
+            to_format = (d for d in getDisks(self.storage.devicetree)
+                         if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
+            if not to_format:
+                # nothing to do here; bail
+                return
 
-        hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
-        for disk in to_format:
-            try:
-                blockdev.s390.dasd_format(disk.name)
-            except blockdev.S390Error as err:
-                # Log errors if formatting fails, but don't halt the installer
-                log.error(str(err))
-                continue
+            hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
+            for disk in to_format:
+                try:
+                    blockdev.s390.dasd_format(disk.name)
+                except blockdev.S390Error as err:
+                    # Log errors if formatting fails, but don't halt the installer
+                    log.error(str(err))
+                    continue
+        if cdl:
+            ldldasds = (d for d in getDisks(self.storage.devicetree)
+                        if blockdev.s390.dasd_is_ldl(d.name))
+            if not ldldasds:
+                # nothing to do here; bail
+                return
+
+            hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
+            for disk in ldldasds:
+                try:
+                    blockdev.s390.dasd_format(disk.name)
+                except blockdev.S390Error as err:
+                    # Log errors if formatting fails, but don't halt the installer
+                    log.error(str(err))
+                    continue
 
     # signal handlers
     def on_summary_clicked(self, button):
@@ -931,7 +947,8 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
     def _check_dasd_formats(self):
         rc = DASD_FORMAT_NO_CHANGE
         dasds = [d for d in self.storage.devicetree.devices
-                 if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
+                 if (d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
+                 or blockdev.s390.dasd_is_ldl(d.name)]
         if len(dasds) > 0:
             # We want to apply current selection before running dasdfmt to
             # prevent this information from being lost afterward
@@ -1082,7 +1099,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             return
 
         if arch.is_s390():
-            # check for unformatted DASDs and launch dasdfmt if any discovered
+            # check for unformatted or LDL DASDs and launch dasdfmt if any discovered
             rc = self._check_dasd_formats()
             if rc == DASD_FORMAT_NO_CHANGE:
                 pass
