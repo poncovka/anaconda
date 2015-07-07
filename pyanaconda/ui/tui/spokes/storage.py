@@ -17,19 +17,14 @@
 # Red Hat, Inc.
 #
 
-import gi
-gi.require_version("BlockDev", "2.0")
-
-from gi.repository import BlockDev as blockdev
-
 from pyanaconda.ui.lib.disks import getDisks, applyDiskSelection, checkDiskSelection
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.simpleline import TextWidget, CheckboxWidget
 from pyanaconda.ui.tui.tuiobject import YesNoDialog
 from pyanaconda.storage_utils import AUTOPART_CHOICES, storage_checker
+from pyanaconda.format_dasd import AutomaticDasdFormatting, DasdFormatting
 
-from blivet import arch
 from blivet.size import Size
 from blivet.errors import StorageError
 from blivet.devices import DASDDevice, FcoeDiskDevice, iScsiDiskDevice, MultipathDevice, ZFCPDiskDevice
@@ -86,16 +81,6 @@ class StorageSpoke(NormalTUISpoke):
         self.disks = []
         self.errors = []
         self.warnings = []
-
-        if self.data.zerombr.zerombr and arch.is_s390():
-            # if zerombr is specified in a ks file and there are unformatted
-            # dasds, automatically format them. pass in storage.devicetree here
-            # instead of storage.disks since media_present is checked on disks;
-            # a dasd needing dasdfmt will fail this media check though
-            to_format = [d for d in getDisks(self.storage.devicetree)
-                         if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
-            if to_format:
-                self.run_dasdfmt(to_format)
 
         if not flags.automatedInstall:
             # default to using autopart for interactive installs
@@ -197,6 +182,11 @@ class StorageSpoke(NormalTUISpoke):
         print(_(PAYLOAD_STATUS_PROBING_STORAGE))
         threadMgr.wait(THREAD_STORAGE_WATCHER)
 
+        if not any(d in self.storage.disks for d in self.disks):
+            # something happened to self.storage (probably reset), need to
+            # reinitialize the list of disks
+            self.update_disks()
+
         # synchronize our local data store with the global ksdata
         # Commment out because there is no way to select a disk right
         # now without putting it in ksdata.  Seems wrong?
@@ -279,15 +269,14 @@ class StorageSpoke(NormalTUISpoke):
             # TRANSLATORS: 'c' to continue
             if key.lower() == C_('TUI|Spoke Navigation', 'c'):
                 if self.selected_disks:
-                    # check selected disks to see if we have any unformatted DASDs
-                    # if we're on s390x, since they need to be formatted before we
-                    # can use them.
-                    if arch.is_s390():
-                        _disks = [d for d in self.disks if d.name in self.selected_disks]
-                        to_format = [d for d in _disks if d.type == "dasd" and
-                                     blockdev.s390.dasd_needs_format(d.busid)]
-                        if to_format:
-                            self.run_dasdfmt(to_format)
+                    # Is DASD formatting supported?
+                    if DasdFormatting.is_supported():
+                        # Search disks that should be formatted.
+                        dasd_formatting = DasdFormatting()
+                        dasd_formatting.search_disks(self.selected_disks)
+                        # Should we run the formatting?
+                        if dasd_formatting.should_run():
+                            self.run_dasdfmt_dialog(dasd_formatting)
                             return None
 
                     # make sure no containers were split up by the user's disk
@@ -309,42 +298,36 @@ class StorageSpoke(NormalTUISpoke):
             else:
                 return super(StorageSpoke, self).input(args, key)
 
-    def run_dasdfmt(self, to_format):
-        """
-        This generates the list of DASDs requiring dasdfmt and runs dasdfmt
-        against them.
-        """
-        # if the storage thread is running, wait on it to complete before taking
-        # any further actions on devices; most likely to occur if user has
-        # zerombr in their ks file
-        threadMgr.wait(THREAD_STORAGE)
+    def run_dasdfmt_dialog(self, dasd_formatting):
+        """Do DASD formatting if user agrees."""
+        # Prepare text of the dialog.
+        text = ""
+        text += _("The following unformatted or LDL DASDs have been "
+                  "detected on your system. You can choose to format them "
+                  "now with dasdfmt or cancel to leave them unformatted. "
+                  "Unformatted DASDs cannot be used during installation.\n\n")
 
-        # ask user to verify they want to format if zerombr not in ks file
-        if not self.data.zerombr.zerombr:
-            # prepare our msg strings; copied directly from dasdfmt.glade
-            summary = _("The following unformatted DASDs have been detected on your system. You can choose to format them now with dasdfmt or cancel to leave them unformatted. Unformatted DASDs cannot be used during installation.\n\n")
+        text += dasd_formatting.dasds_summary + "\n\n"
 
-            warntext = _("Warning: All storage changes made using the installer will be lost when you choose to format.\n\nProceed to run dasdfmt?\n")
+        text += _("Warning: All storage changes made using the installer will "
+                  "be lost when you choose to format.\n\nProceed to run dasdfmt?\n")
 
-            displaytext = summary + "\n".join("/dev/" + d.name for d in to_format) + "\n" + warntext
+        # Run the dialog.
+        question_window = YesNoDialog(self._app, text)
+        self._app.switch_screen_modal(question_window)
+        if not question_window.answer:
+            return None
 
-            # now show actual prompt; note -- in cmdline mode, auto-answer for
-            # this is 'no', so unformatted DASDs will remain so unless zerombr
-            # is added to the ks file
-            question_window = YesNoDialog(self._app, displaytext)
-            self._app.switch_screen_modal(question_window)
-            if not question_window.answer:
-                # no? well fine then, back to the storage spoke with you;
-                return None
+        # Do the DASD formatting.
+        dasd_formatting.started.connect(self._show_formatted_dasd)
+        dasd_formatting.run()
 
-        for disk in to_format:
-            try:
-                print(_("Formatting /dev/%s. This may take a moment.") % disk.name)
-                blockdev.s390.dasd_format(disk.name)
-            except blockdev.S390Error as err:
-                # Log errors if formatting fails, but don't halt the installer
-                log.error(str(err))
-                continue
+        print(_("Updating storage."))
+        dasd_formatting.update_storage(self.storage, self.data)
+        self._update_disks()
+
+    def _show_formatted_dasd(self, disk):
+        print(_("Formatting /dev/%s. This may take a moment.") % disk.name)
 
     def apply(self):
         self.autopart = self.data.autopart.autopart
@@ -429,7 +412,29 @@ class StorageSpoke(NormalTUISpoke):
         Secondary initialize so wait for the storage thread to complete before
         populating our disk list
         """
+        # Wait for storage.
+        threadMgr.wait(THREAD_STORAGE)
 
+        # Automatically format DASDs.
+        if AutomaticDasdFormatting.is_supported():
+            dasd_formatting = AutomaticDasdFormatting()
+            dasd_formatting.read_restrictions(self.data)
+            dasd_formatting.search_storage(self.storage)
+
+            if dasd_formatting.should_run():
+                dasd_formatting.run()
+                dasd_formatting.update_storage(self.storage, self.data)
+
+        # Update disk list.
+        self.update_disks()
+
+        # Storage is ready.
+        self._ready = True
+
+        # Report that the storage spoke has been initialized.
+        self.initialize_done()
+
+    def update_disks(self):
         threadMgr.wait(THREAD_STORAGE)
 
         self.disks = sorted(getDisks(self.storage.devicetree),
@@ -437,12 +442,6 @@ class StorageSpoke(NormalTUISpoke):
         # if only one disk is available, go ahead and mark it as selected
         if len(self.disks) == 1:
             self._update_disk_list(self.disks[0])
-
-        self._update_summary()
-        self._ready = True
-
-        # report that the storage spoke has been initialized
-        self.initialize_done()
 
 class AutoPartSpoke(NormalTUISpoke):
     """ Autopartitioning options are presented here.

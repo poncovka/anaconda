@@ -41,10 +41,8 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("AnacondaWidgets", "3.3")
-gi.require_version("BlockDev", "2.0")
 
 from gi.repository import Gdk, GLib, AnacondaWidgets, Gtk
-from gi.repository import BlockDev as blockdev
 
 from pyanaconda.ui.communication import hubQ
 from pyanaconda.ui.lib.disks import getDisks, isLocalDisk, applyDiskSelection, checkDiskSelection
@@ -61,7 +59,6 @@ from pyanaconda.ui.gui.utils import escape_markup, gtk_action_nowait, ignoreEsca
 from pyanaconda.ui.helpers import StorageCheckHandler
 
 from pyanaconda.kickstart import doKickstartStorage, refreshAutoSwapSize, resetCustomStorageData
-from blivet import arch
 from blivet import autopart
 from blivet.size import Size
 from blivet.devices import MultipathDevice, ZFCPDiskDevice, iScsiDiskDevice
@@ -75,6 +72,7 @@ from pyanaconda.i18n import _, C_, CN_, P_
 from pyanaconda import constants, iutil
 from pyanaconda.bootloader import BootLoaderError
 from pyanaconda.storage_utils import on_disk_storage
+from pyanaconda.format_dasd import AutomaticDasdFormatting, DasdFormatting
 from pyanaconda.screen_access import sam
 
 from pykickstart.constants import CLEARPART_TYPE_NONE, AUTOPART_TYPE_LVM
@@ -289,12 +287,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self.autopart = self.data.autopart.autopart
         self.autoPartType = None
         self.clearPartType = CLEARPART_TYPE_NONE
-
-        if self.data.zerombr.zerombr and arch.is_s390():
-            # run dasdfmt on any unformatted DASDs automatically
-            threadMgr.add(AnacondaThread(name=constants.THREAD_DASDFMT,
-                            target=self.run_dasdfmt))
-
         self._previous_autopart = False
 
         self._last_clicked_overview = None
@@ -442,6 +434,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # on the off-chance dasdfmt is running, we can't proceed further
         threadMgr.wait(constants.THREAD_DASDFMT)
         hubQ.send_message(self.__class__.__name__, _("Saving storage configuration..."))
+        threadMgr.wait(constants.THREAD_STORAGE)
         if flags.automatedInstall and self.data.autopart.encrypted and not self.data.autopart.passphrase:
             self.autopart_missing_passphrase = True
             StorageCheckHandler.errors = [_("Passphrase for autopart encryption not specified.")]
@@ -753,11 +746,31 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         overview.show_all()
 
     def _initialize(self):
+        """Finish the initialization.
+
+        This method is expected to run only once during the initialization.
+        """
         hubQ.send_message(self.__class__.__name__, _(constants.PAYLOAD_STATUS_PROBING_STORAGE))
 
+        # Wait for storage.
         threadMgr.wait(constants.THREAD_STORAGE)
         threadMgr.wait(constants.THREAD_CUSTOM_STORAGE_INIT)
 
+        # Automatically format DASDs.
+        if AutomaticDasdFormatting.is_supported():
+            dasd_formatting = AutomaticDasdFormatting()
+            dasd_formatting.read_restrictions(self.data)
+            dasd_formatting.search_storage(self.storage)
+
+            if dasd_formatting.should_run():
+                hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
+                dasd_formatting.run()
+
+                hubQ.send_message(self.__class__.__name__, _("Updating storage"))
+                dasd_formatting.update_storage(self.storage, self.data)
+
+        # Continue with initializing.
+        hubQ.send_message(self.__class__.__name__, _(constants.PAYLOAD_STATUS_PROBING_STORAGE))
         self.disks = getDisks(self.storage.devicetree)
 
         # if there's only one disk, select it by default
@@ -827,31 +840,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
             if not selected and name in self.selected_disks:
                 self.selected_disks.remove(name)
-
-    def run_dasdfmt(self):
-        """
-        Though the same function exists in pyanaconda.ui.gui.spokes.lib.dasdfmt,
-        this instance doesn't include any of the UI pieces and should only
-        really be getting called on ks installations with "zerombr".
-        """
-        # wait for the initial storage thread to complete before taking any new
-        # actions on storage devices
-        threadMgr.wait(constants.THREAD_STORAGE)
-
-        to_format = (d for d in getDisks(self.storage.devicetree)
-                     if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
-        if not to_format:
-            # nothing to do here; bail
-            return
-
-        hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
-        for disk in to_format:
-            try:
-                blockdev.s390.dasd_format(disk.name)
-            except blockdev.S390Error as err:
-                # Log errors if formatting fails, but don't halt the installer
-                log.error(str(err))
-                continue
 
     # signal handlers
     def on_summary_clicked(self, button):
@@ -923,13 +911,14 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
     def _check_dasd_formats(self):
         rc = DASD_FORMAT_NO_CHANGE
-        dasds = [d for d in self.storage.devicetree.devices
-                 if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
-        if len(dasds) > 0:
+        dasd_formatting = DasdFormatting()
+        dasd_formatting.search_disks(self.selected_disks)
+
+        if dasd_formatting.should_run():
             # We want to apply current selection before running dasdfmt to
             # prevent this information from being lost afterward
             applyDiskSelection(self.storage, self.data, self.selected_disks)
-            dialog = DasdFormatDialog(self.data, self.storage, dasds)
+            dialog = DasdFormatDialog(self.data, self.storage, dasd_formatting)
             ignoreEscape(dialog.window)
             rc = self.run_lightbox_dialog(dialog)
 
@@ -1074,8 +1063,17 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             self._back_clicked = False
             return
 
-        if arch.is_s390():
-            # check for unformatted DASDs and launch dasdfmt if any discovered
+        # hide/unhide disks as requested
+        for disk in self.disks:
+            if disk.name not in self.selected_disks and \
+               disk in self.storage.devices:
+                self.storage.devicetree.hide(disk)
+            elif disk.name in self.selected_disks and \
+                 disk not in self.storage.devices:
+                self.storage.devicetree.unhide(disk)
+
+        if DasdFormatting.is_supported():
+            # check for unformatted or LDL DASDs and launch dasdfmt if any discovered
             rc = self._check_dasd_formats()
             if rc == DASD_FORMAT_NO_CHANGE:
                 pass
