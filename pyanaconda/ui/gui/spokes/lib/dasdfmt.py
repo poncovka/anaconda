@@ -28,6 +28,7 @@ import gi
 gi.require_version("BlockDev", "2.0")
 
 from gi.repository import BlockDev as blockdev
+from blivet.osinstall import storage_initialize
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -111,6 +112,10 @@ class DasdFormatDialog(GUIObject):
         # Loop through all of our unformatted DASDs and format them
         threadMgr.add(AnacondaThread(name=constants.THREAD_DASDFMT,
                                 target=self.run_dasdfmt, args=(self._epoch,)))
+
+        # Need to make devicetree aware of storage change
+        threadMgr.add(AnacondaThread(name=constants.THREAD_STORAGE, target=storage_initialize,
+                                     args=(self.storage, self.data, self.storage.devicetree.protected_dev_names)))
 
     @gtk_action_wait
     def update_dialog(self, epoch_started):
