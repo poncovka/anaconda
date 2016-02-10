@@ -844,37 +844,46 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # wait for the initial storage thread to complete before taking any new
         # actions on storage devices
         threadMgr.wait(constants.THREAD_STORAGE)
+        updated = False
 
         if doformat:
             to_format = (d for d in getDisks(self.storage.devicetree)
                          if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
-            if not to_format:
-                # nothing to do here; bail
-                return
+            if to_format:
+                hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
+                for disk in to_format:
+                    try:
+                        blockdev.s390.dasd_format(disk.name)
+                        # call removeChildren function instead of simply
+                        # removeDevice since the disk may have children in
+                        # devicetree, e.g. /dev/dasdc may have /dev/dasdc1
+                        self.storage.devicetree._removeChildrenFromTree(disk)
+                    except blockdev.S390Error as err:
+                        # Log errors if formatting fails, but don't halt the installer
+                        log.error(str(err))
+                        continue
 
-            hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
-            for disk in to_format:
-                try:
-                    blockdev.s390.dasd_format(disk.name)
-                except blockdev.S390Error as err:
-                    # Log errors if formatting fails, but don't halt the installer
-                    log.error(str(err))
-                    continue
+                    updated = True
         if cdl:
-            ldldasds = (d for d in getDisks(self.storage.devicetree)
-                        if blockdev.s390.dasd_is_ldl(d.name))
-            if not ldldasds:
-                # nothing to do here; bail
-                return
+            ldldasds = [d for d in self.storage.devicetree.dasd if blockdev.s390.dasd_is_ldl(d.name)]
+            if ldldasds:
+                hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
+                for disk in ldldasds:
+                    try:
+                        blockdev.s390.dasd_format(disk.name)
+                        # call removeChildren function instead of simply
+                        # removeDevice since the disk may have children in
+                        # devicetree, e.g. /dev/dasdc may have /dev/dasdc1
+                        self.storage.devicetree._removeChildrenFromTree(disk)
+                    except blockdev.S390Error as err:
+                        # Log errors if formatting fails, but don't halt the installer
+                        log.error(str(err))
+                        continue
 
-            hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
-            for disk in ldldasds:
-                try:
-                    blockdev.s390.dasd_format(disk.name)
-                except blockdev.S390Error as err:
-                    # Log errors if formatting fails, but don't halt the installer
-                    log.error(str(err))
-                    continue
+                    updated = True
+
+        if updated:
+            self.storage.devicetree.populate()
 
     # signal handlers
     def on_summary_clicked(self, button):
