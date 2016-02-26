@@ -1111,6 +1111,15 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             self._back_clicked = False
             return
 
+        # hide/unhide disks as requested
+        for disk in self.disks:
+            if disk.name not in self.selected_disks and \
+               disk in self.storage.devices:
+                self.storage.devicetree.hide(disk)
+            elif disk.name in self.selected_disks and \
+                 disk not in self.storage.devices:
+                self.storage.devicetree.unhide(disk)
+
         if arch.is_s390():
             # check for unformatted or LDL DASDs and launch dasdfmt if any discovered
             rc = self._check_dasd_formats()
