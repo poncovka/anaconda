@@ -95,17 +95,10 @@ class StorageSpoke(NormalTUISpoke):
         self.errors = []
         self.warnings = []
 
-        if arch.is_s390() and (self.data.zerombr.zerombr or self.data.clearpart.cdl):
-            # If zerombr or clearpart.cdl are specified in a ks file and there
-            # are unformatted/ldl dasds, automatically format them.
-            # Pass in storage.devicetree here instead of storage.disks since
-            # media_present is checked on disks; a dasd needing dasdfmt will fail
-            # this media check though.
-            to_format = [d for d in getDisks(self.storage.devicetree)
-                         if (d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
-                         or blockdev.s390.dasd_is_ldl(d.name)]
-            if to_format:
-                self.run_dasdfmt(to_format)
+        if arch.is_s390() and flags.automatedInstall:
+            # automatically dasdfmt any unformatted/ldl dasds if a user has
+            # specified zerombr/cdl in their ks file
+            self.run_dasdfmt()
 
         if not flags.automatedInstall:
             # default to using autopart for interactive installs
@@ -291,16 +284,17 @@ class StorageSpoke(NormalTUISpoke):
             # TRANSLATORS: 'c' to continue
             if key.lower() == C_('TUI|Spoke Navigation', 'c'):
                 if self.selected_disks:
-                    # check selected disks to see if we have any unformatted DASDs
-                    # if we're on s390x, since they need to be formatted before we
-                    # can use them.
+                    # check selected disks to see if we have any unformatted or
+                    # LDL DASDs if we're on s390x, since they need to be
+                    # formatted before we can use them.
                     if arch.is_s390():
-                        _disks = [d for d in self.disks if d.name in self.selected_disks]
-                        to_format = [d for d in _disks if (d.type == "dasd" and
-                                     blockdev.s390.dasd_needs_format(d.busid))
-                                     or blockdev.s390.dasd_is_ldl(d.name)]
-                        if to_format:
-                            self.run_dasdfmt(to_format)
+                        dasds = [d for d in self.selected_disks if (d.type == "dasd" and
+                                 blockdev.s390.dasd_needs_format(d.busid))
+                                 or blockdev.s390.dasd_is_ldl(d.name)]
+                        # combine into one nice list
+                        dasds = list(set(dasds))
+                        if dasds:
+                            self.run_dasdfmt(dasds)
                             self.redraw()
                             return InputState.PROCESSED
 
@@ -326,18 +320,40 @@ class StorageSpoke(NormalTUISpoke):
             else:
                 return super(StorageSpoke, self).input(args, key)
 
-    def run_dasdfmt(self, to_format):
+    def run_dasdfmt(self, to_format=None):
         """
         This generates the list of DASDs requiring dasdfmt and runs dasdfmt
         against them.
+
+        to_format is an optional list of DASDs to format. This shouldn't be
+        passed if run_dasdfmt is called during a ks installation, and if called
+        during a manual installation, a list of DASDs needs to be passed.
         """
+        if not to_format:
+            # go ahead and initialize this
+            to_format = []
+
         # if the storage thread is running, wait on it to complete before taking
         # any further actions on devices; most likely to occur if user has
         # zerombr in their ks file
         threadMgr.wait(THREAD_STORAGE)
 
-        # ask user to verify they want to format if zerombr or cdl not in ks file
-        if not (self.data.zerombr.zerombr or self.data.clearpart.cdl):
+        if flags.automatedInstall:
+            # automated install case
+            unformatted = []
+            ldl = []
+
+            if self.data.zerombr.zerombr:
+                # unformatted DASDs
+                unformatted += [d for d in self.data.ignoredisk.onlyuse
+                                if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
+            if self.data.clearpart.cdl:
+                # LDL DASDs
+                ldl += [d for d in self.data.ignoredisk.onlyuse if blockdev.s390.dasd_is_ldl(d.name)]
+            # combine into one nice list
+            to_format = list(set(unformatted + ldl))
+        else:
+            # manual install; ask to verify they want to run dasdfmt
             # prepare our msg strings; copied directly from dasdfmt.glade
             summary = _("The following unformatted or LDL DASDs have been "
                         "detected on your system. You can choose to format them "
@@ -363,7 +379,7 @@ class StorageSpoke(NormalTUISpoke):
                 blockdev.s390.dasd_format(disk.name)
             except blockdev.S390Error as err:
                 # Log errors if formatting fails, but don't halt the installer
-                log.error(str(err))
+                log.error("dasdfmt /dev/%s failed: %s", disk, err)
                 continue
 
     def apply(self):
