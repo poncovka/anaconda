@@ -955,9 +955,12 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
     def _check_dasd_formats(self):
         rc = DASD_FORMAT_NO_CHANGE
-        dasds = [d for d in self.storage.devicetree.devices
+        dasds = [d for d in self.selected_disks
                  if (d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
                  or blockdev.s390.dasd_is_ldl(d.name)]
+
+        # combine it all in one list and format
+        dasds = list(set(dasds))
         if len(dasds) > 0:
             # We want to apply current selection before running dasdfmt to
             # prevent this information from being lost afterward
