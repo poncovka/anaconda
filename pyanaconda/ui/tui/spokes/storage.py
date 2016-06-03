@@ -345,7 +345,7 @@ class StorageSpoke(NormalTUISpoke):
 
             if self.data.zerombr.zerombr:
                 # unformatted DASDs
-                unformatted += [d for d in self.data.ignoredisk.onlyuse
+                unformatted += [d for d in getDisks(self.storage.devicetree)
                                 if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
             if self.data.clearpart.cdl:
                 # LDL DASDs
@@ -381,6 +381,15 @@ class StorageSpoke(NormalTUISpoke):
                 # Log errors if formatting fails, but don't halt the installer
                 log.error("dasdfmt /dev/%s failed: %s", disk, err)
                 continue
+
+        # need to make devicetree aware of disk changes
+        self.storage.devicetree.populate()
+        if not flags.automatedInstall:
+            # reinit storage
+            threadMgr.add(AnacondaThread(name=THREAD_STORAGE, target=storage_initialize,
+                                         args=(self.storage, self.data, self.storage.devicetree.protected_dev_names)))
+            # update the summary screen with the changes
+            self._initialize()
 
     def apply(self):
         self.autopart = self.data.autopart.autopart
