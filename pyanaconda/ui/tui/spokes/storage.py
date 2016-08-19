@@ -349,7 +349,7 @@ class StorageSpoke(NormalTUISpoke):
                                 if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
             if self.data.clearpart.cdl:
                 # LDL DASDs
-                ldl += [d for d in self.data.ignoredisk.onlyuse if blockdev.s390.dasd_is_ldl(d.name)]
+                ldl += [d.name for d in self.storage.devicetree.dasd if blockdev.s390.dasd_is_ldl(d.name)]
             # combine into one nice list
             to_format = list(set(unformatted + ldl))
         else:
