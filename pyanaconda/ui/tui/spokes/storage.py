@@ -67,6 +67,7 @@ class StorageSpoke(NormalTUISpoke):
           :parts: 3
     """
     title = N_("Installation Destination")
+    helpFile = "StorageSpoke.txt"
     category = SystemCategory
 
     def __init__(self, app, data, storage, payload, instclass):
@@ -306,7 +307,7 @@ class StorageSpoke(NormalTUISpoke):
                     self.close()
                 return INPUT_PROCESSED
             else:
-                return key
+                return NormalTUISpoke.input(self, args, key)
 
     def run_dasdfmt(self, to_format):
         """

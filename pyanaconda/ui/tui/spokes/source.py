@@ -55,6 +55,7 @@ class SourceSpoke(EditTUISpoke, SourceSwitchHandler):
           :parts: 3
     """
     title = N_("Installation source")
+    helpFile = "SourceSpoke.txt"
     category = SoftwareCategory
 
     _protocols = (N_("Closest mirror"), "http://", "https://", "ftp://", "nfs")
@@ -167,7 +168,7 @@ class SourceSpoke(EditTUISpoke, SourceSwitchHandler):
         try:
             num = int(key)
         except ValueError:
-            return key
+            return EditTUISpoke.input(self, args, key)
 
         if args == 3:
             # network install

@@ -17,15 +17,16 @@
 # Red Hat, Inc.
 #
 from pyanaconda.ui.tui import simpleline as tui
-from pyanaconda.ui.tui.tuiobject import TUIObject, YesNoDialog
+from pyanaconda.ui.tui.tuiobject import TUIObject, YesNoDialog, HelpScreen
 from pyanaconda.ui.common import Spoke, StandaloneSpoke, NormalSpoke
 from pyanaconda.users import validatePassword, cryptPassword
 import re
 from collections import namedtuple
 from pyanaconda.iutil import setdeepattr, getdeepattr
-from pyanaconda.i18n import N_, _
+from pyanaconda.i18n import N_, C_, _
 from pyanaconda.constants import PASSWORD_CONFIRM_ERROR_TUI, PW_ASCII_CHARS
 from pyanaconda.constants import PASSWORD_WEAK, PASSWORD_WEAK_WITH_ERROR
+from pyanaconda import ihelp
 
 __all__ = ["TUISpoke", "EditTUISpoke", "EditTUIDialog", "EditTUISpokeEntry",
            "StandaloneSpoke", "NormalTUISpoke"]
@@ -96,7 +97,26 @@ class NormalTUISpoke(TUISpoke, NormalSpoke):
        .. inheritance-diagram:: NormalTUISpoke
           :parts: 3
     """
-    pass
+
+    def input(self, args, key):
+        """Handle the input."""
+        # TRANSLATORS: 'h' to help
+        if key.lower() == C_("TUI|Spoke Navigation", "h"):
+            if self.has_help:
+                help_path = ihelp.get_help_path(self.helpFile, self.instclass, True)
+                self.app.switch_screen_modal(HelpScreen(self.app, help_path))
+                return True
+
+        return TUISpoke.input(self, args, key)
+
+    def prompt(self, args=None):
+        """Return the prompt."""
+        prompt = TUISpoke.prompt(self, args)
+
+        if self.has_help:
+            prompt.add_help_option()
+
+        return prompt
 
 EditTUISpokeEntry = namedtuple("EditTUISpokeEntry", ["title", "attribute", "aux", "visible"])
 

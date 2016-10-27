@@ -16,8 +16,9 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pyanaconda import ihelp
 from pyanaconda.ui.tui import simpleline as tui
-from pyanaconda.ui.tui.tuiobject import TUIObject
+from pyanaconda.ui.tui.tuiobject import TUIObject, HelpScreen
 from pyanaconda.ui import common
 
 from pyanaconda.i18n import _, C_, N_
@@ -113,6 +114,12 @@ class TUIHub(TUIObject, common.Hub):
                     if not spoke.completed and spoke.mandatory:
                         print(_("Please complete all spokes before continuing"))
                         return False
+            # TRANSLATORS: 'h' to help
+            elif key == C_('TUI|Spoke Navigation', 'h'):
+                if self.has_help:
+                    help_path = ihelp.get_help_path(self.helpFile, self.instclass, True)
+                    self.app.switch_screen_modal(HelpScreen(self.app, help_path))
+                    return True
             return key
 
     def prompt(self, args=None):
@@ -132,4 +139,8 @@ class TUIHub(TUIObject, common.Hub):
         if self._spoke_count == 1:
             prompt.add_option("1", _("to enter the %(spoke_title)s spoke") % list(self._spokes.values())[0].title)
 
+        if self.has_help:
+            prompt.add_help_option()
+
         return prompt
+

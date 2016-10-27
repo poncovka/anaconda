@@ -36,6 +36,7 @@ class UserSpoke(FirstbootSpokeMixIn, EditTUISpoke):
           :parts: 3
     """
     title = N_("User creation")
+    helpFile = "UserSpoke.txt"
     category = UserSettingsCategory
 
     edit_fields = [
