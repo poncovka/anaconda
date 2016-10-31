@@ -187,7 +187,7 @@ class EditTUIDialog(NormalTUISpoke):
             self.value = cryptPassword(pw)
             return None
         else:
-            return _("Enter a new value for '%s' and press [Enter]\n") % entry.title
+            return tui.Prompt(_("Enter a new value for '%s' and press %s") % (entry.title, tui.Prompt.ENTER))
 
     def input(self, entry, key):
         if callable(entry.aux):
@@ -337,6 +337,9 @@ class EditTUISpoke(NormalTUISpoke):
                 w = _prep_text(idx+1, entry)
 
             self._window.append(w)
+
+        if self.visible_fields:
+            self._window.append("")
 
         return True
 
