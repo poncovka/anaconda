@@ -96,6 +96,7 @@ def run_yum_transaction(release, arch, yum_conf, install_root, ts_file, script_l
     try:
         # Setup the basics, point to the config file and install_root
         yb = yum.YumBase()
+        print("DEBUG: vponcova: Created yum in anaconda-yum")
         yb.use_txmbr_in_callback = True
 
         # Set some configuration parameters that don't get set through a config
@@ -117,6 +118,8 @@ def run_yum_transaction(release, arch, yum_conf, install_root, ts_file, script_l
         if yb.conf.cachedir.startswith(yb.conf.installroot):
             root = yb.conf.installroot
             yb.conf.cachedir = yb.conf.cachedir[len(root):]
+
+        print("DEBUG: vponcova: Setting cachedir to %s in anaconda-yum", yb.conf.cachedir)
 
         # Load the transaction file and execute it
         yb.load_ts(ts_file)
@@ -184,6 +187,7 @@ def run_yum_transaction(release, arch, yum_conf, install_root, ts_file, script_l
             print("INFO: transaction complete")
         finally:
             yb.ts.close()
+            print("DEBUG: vponcova: Closed yum.ts in anaconda-yum")
             eintr_retry_call(os.close, logfile)
     except YumBaseError as e:
         print("ERROR: transaction error: %s" % e)

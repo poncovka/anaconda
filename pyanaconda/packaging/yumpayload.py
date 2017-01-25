@@ -223,12 +223,15 @@ class YumPayload(PackagePayload):
                     for repo in self._yum.repos.listEnabled():
                         if repo.name == BASE_REPO_NAME and \
                            os.path.isdir(repo.cachedir):
+                            log.debug("vponcova: Deleted cachedir %s in resetYum", repo.cachedir)
                             shutil.rmtree(repo.cachedir)
 
+                log.debug("vponcova: Deleted yum in resetYum")
                 del self._yum
 
             self._writeYumConfig(cache_dir=cache_dir)
             self._yum = yum.YumBase()
+            log.debug("vponcova: Created yum in resetYum")
 
             self._yum.use_txmbr_in_callback = True
 
@@ -263,12 +266,15 @@ class YumPayload(PackagePayload):
             log.error ("Error setting langpack_locales: %s", msg)
 
     def _copyLangpacksConfigToTarget(self):
+        log.debug("vponcova: copy from %s", _yum_installer_langpack_conf)
+        log.debug("vponcova: copy to %s", iutil.getSysroot()+_yum_target_langpack_conf)
         iutil.mkdirChain(os.path.dirname(iutil.getSysroot()+_yum_target_langpack_conf))
         shutil.copy2(_yum_installer_langpack_conf,
                      iutil.getSysroot()+_yum_target_langpack_conf)
 
     def _writeYumConfig(self, cache_dir=_yum_cache_dir):
         """ Write out anaconda's main yum configuration file. """
+        log.debug("vponcova: Writing cachedir %s in writeYumConfig", cache_dir)
         buf = """
 [main]
 cachedir=%s
@@ -310,12 +316,15 @@ reposdir=%s
         # install root. We do this so we don't have to re-gather repo meta-
         # data after we change the install root to sysroot, which can only
         # happen after we've enabled the new storage configuration.
+        log.debug("vponcova: Haching cachedir from %s ", self._yum.conf.cachedir)
         with _yum_lock:
             if not self._yum.conf.cachedir.startswith(self._yum.conf.installroot):
                 return
 
             root = self._yum.conf.installroot
             self._yum.conf.cachedir = self._yum.conf.cachedir[len(root):]
+
+        log.debug("vponcova: Haching cachedir to %s ", self._yum.conf.cachedir)
 
     def _writeYumRepo(self, repo, repo_path):
         """ Write a repo object to a yum repo.conf file
@@ -324,6 +333,7 @@ reposdir=%s
             :param string repo_path: Path to write the repo to
             :raises: PayloadSetupError if the repo doesn't have a url
         """
+        log.debug("vponcova: Writing to %s in writeYumRepo", repo_path)
         with open(repo_path, "w") as f:
             f.write("[%s]\n" % repo.id)
             f.write("name=%s\n" % repo.id)
@@ -338,6 +348,7 @@ reposdir=%s
                 f.write("baseurl=%s\n" % repo.baseurl[0])
             else:
                 f.close()
+                log.debug("vponcova: Removing %s in writeYumRepo", repo_path)
                 os.unlink(repo_path)
                 raise PayloadSetupError("repo %s has no baseurl, mirrorlist or metalink", repo.id)
 
@@ -406,6 +417,7 @@ reposdir=%s
             os.makedirs(var_tmp)
         new_cache = var_tmp+"/yum.cache"
         try:
+            log.debug("vponcova: Moving cash from %s to %s in writeInstallConfig", _yum_cache_dir, new_cache)
             shutil.move(_yum_cache_dir, new_cache)
         except shutil.Error:
             log.warn("Problem moving yum cache to %s, using %s instead", new_cache, _yum_cache_dir)
@@ -441,8 +453,10 @@ reposdir=%s
         with _yum_lock:
             log.debug("deleting yum transaction info")
             self._yum.closeRpmDB()
+            log.debug("vponcova: Closed yum rpmdb in deleteYumTS")
             del self._yum.tsInfo
             del self._yum.ts
+            log.debug("vponcova: Deleted yum.ts in deleteYumTS")
 
     def preStorage(self):
         self.release()
@@ -1261,6 +1275,7 @@ reposdir=%s
         with _yum_lock:
             if self._yum._ts_save_file:
                 try:
+                    log.debug("vponcova: unlinking file %s", self._yum._ts_save_file)
                     os.unlink(self._yum._ts_save_file)
                 except (OSError, IOError):
                     pass
@@ -1474,6 +1489,7 @@ reposdir=%s
             self.release()
             self.deleteYumTS()
             self._yum.close()
+            log.debug("vponcova: Closing and deleting yum in install")
 
         script_log = "/tmp/rpm-script.log"
         release = self._getReleaseVersion(None)
@@ -1528,6 +1544,7 @@ reposdir=%s
 
             # Cleanup temporary yum.cache on disk
             if os.path.isdir(iutil.getSysroot()+"/var/tmp/yum.cache"):
+                log.debug("vponcova: Removing %s in install", iutil.getSysroot()+"/var/tmp/yum.cache")
                 shutil.rmtree(iutil.getSysroot()+"/var/tmp/yum.cache")
 
         if install_errors:
@@ -1539,12 +1556,14 @@ reposdir=%s
 
     def writeMultiLibConfig(self):
         if not self.data.packages.multiLib:
+            log.debug("vponcova: nothing to do in multilib config")
             return
 
         # write out the yum config with the new multilib_policy value
         # FIXME: switch to using yum-config-manager once it stops expanding
         #        all yumvars and writing out the expanded pairs to the conf
         yb = yum.YumBase()
+        log.debug("vponcova: Created yum in writeMultiLibConfig")
         yum_conf_path = "/etc/yum.conf"
         # pylint: disable=bad-preconf-access
         yb.preconf.fn = iutil.getSysroot() + yum_conf_path
@@ -1557,6 +1576,8 @@ reposdir=%s
         cachedir = yb.conf.cachedir.replace("/%s/" % yb.arch.basearch,
                                             "/$basearch/")
         yb.conf.cachedir = cachedir
+        log.debug("vponcova: Setting cachedir to %s in writeMultiLibConfig", yb.conf.cachedir)
+
         yum_conf = iutil.getSysroot() + yum_conf_path
         if os.path.exists(yum_conf):
             try:
@@ -1569,10 +1590,14 @@ reposdir=%s
         except IOError as e:
             log.error("failed to write out yum.conf: %s", e)
 
+        # vponcova - yb is not closed and file is left open
+
     def postInstall(self):
         """ Perform post-installation tasks. """
+        log.debug("vponcova: postInstall")
         with _yum_lock:
             # clean up repo tmpdirs
+            log.debug("vponcova: cleaning packages in postInstall")
             self._yum.cleanPackages()
             self._yum.cleanHeaders()
 
@@ -1580,10 +1605,13 @@ reposdir=%s
             for repo in self._yum.repos.listEnabled():
                 if repo.name == BASE_REPO_NAME or repo.id.startswith("anaconda-"):
                     if os.path.isdir(repo.cachedir):
+                        log.debug("vponcova: Deleting cachedir %s in postInstall", repo.cachedir)
                         shutil.rmtree(repo.cachedir)
 
+        log.debug("vponcova: cleanign packages in postInstall")
         self._removeTxSaveFile()
 
+        log.debug("vponcova: writing multilib config in postInstall",)
         self.writeMultiLibConfig()
         self._copyLangpacksConfigToTarget()
 
@@ -1611,3 +1639,4 @@ reposdir=%s
         # Make sure yum is really done and gone and lets go of the yum.log
         self._yum.close()
         del self._yum
+        log.debug("vponcova: Closed and deleted yum in postinstall.")

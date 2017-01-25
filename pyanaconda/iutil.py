@@ -612,6 +612,7 @@ def reIPL(ipldev):
 def resetRpmDb():
     for rpmfile in glob.glob("%s/var/lib/rpm/__db.*" % getSysroot()):
         try:
+            log.debug("vponcova: Removing %s in resetRpmDb", rpmfile)
             os.unlink(rpmfile)
         except OSError as e:
             log.debug("error %s removing file: %s", e, rpmfile)

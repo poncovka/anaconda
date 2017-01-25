@@ -1420,6 +1420,7 @@ def print_txmbrs(payload, f=None):
 
 def write_txmbrs(payload, filename):
     if os.path.exists(filename):
+        log.debug("vponcova: Removing %s", filename)
         os.unlink(filename)
 
     f = open(filename, 'w')
