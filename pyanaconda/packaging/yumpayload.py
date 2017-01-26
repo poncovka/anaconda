@@ -197,6 +197,9 @@ class YumPayload(PackagePayload):
 
         self._resetYum(root=root, releasever=releasever)
 
+        log.debug("vponcova: Checking existence %s in reset",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
     def setup(self, storage, instClass):
         super(YumPayload, self).setup(storage, instClass)
 
@@ -214,6 +217,10 @@ class YumPayload(PackagePayload):
             NOTE:  This is enforced by tests/pylint/preconf.py.  If the name
             of this method changes, change it there too.
         """
+
+        log.debug("vponcova: Checking existence %s in resetYum",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
         if root is None:
             root = self._root_dir
 
@@ -249,6 +256,9 @@ class YumPayload(PackagePayload):
                 self._yum.preconf.releasever = releasever
 
         self.txID = None
+
+        log.debug("vponcova: Checking existence %s in resetYum",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
 
     def _writeLangpacksConfig(self):
         langs = [self.data.lang.lang] + self.data.lang.addsupport
@@ -918,11 +928,17 @@ reposdir=%s
         super(YumPayload, self).addRepo(newrepo)
 
     def _removeYumRepo(self, repo_id):
+        log.debug("vponcova: Checking existence %s in removeYumRepo",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
         if repo_id in self.repos:
             with _yum_lock:
                 self._yum.repos.delete(repo_id)
                 self._groups = None
                 self._packages = []
+
+        log.debug("vponcova: Checking existence %s in removeYumRepo",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
 
     @refresh_base_repo(lambda s, r_id: r_id in BASE_REPO_NAMES)
     def removeRepo(self, repo_id):
@@ -1472,6 +1488,9 @@ reposdir=%s
             It monitors the status of the install and logs debug info, updates
             the progress meter and cleans up when it is done.
         """
+        log.debug("vponcova: Checking existence %s in install",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
         progress_map = {
             "PROGRESS_PREP"    : _("Preparing transaction from installation source"),
             "PROGRESS_INSTALL" : _("Installing"),
@@ -1542,10 +1561,15 @@ reposdir=%s
                 log.info("==== end rpm scriptlet logs ====")
                 os.unlink(script_log)
 
+
             # Cleanup temporary yum.cache on disk
             if os.path.isdir(iutil.getSysroot()+"/var/tmp/yum.cache"):
-                log.debug("vponcova: Removing %s in install", iutil.getSysroot()+"/var/tmp/yum.cache")
-                shutil.rmtree(iutil.getSysroot()+"/var/tmp/yum.cache")
+                  log.debug("vponcova: Leaving %s in postinstall", iutil.getSysroot() + "/var/tmp/yum.cache")
+            #     log.debug("vponcova: Removing %s in install", iutil.getSysroot()+"/var/tmp/yum.cache")
+            #     shutil.rmtree(iutil.getSysroot()+"/var/tmp/yum.cache")
+
+        log.debug("vponcova: Checking existence %s in install",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
 
         if install_errors:
             exn = PayloadInstallError("\n".join(install_errors))
@@ -1595,18 +1619,27 @@ reposdir=%s
     def postInstall(self):
         """ Perform post-installation tasks. """
         log.debug("vponcova: postInstall")
+        cachedirs = [iutil.getSysroot()+"/var/tmp/yum.cache"]
+
+        log.debug("vponcova: Checking existence %s in postInstall",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
         with _yum_lock:
             # clean up repo tmpdirs
             log.debug("vponcova: cleaning packages in postInstall")
             self._yum.cleanPackages()
             self._yum.cleanHeaders()
+            self._yum.cleanSqlite()
 
             # remove cache dirs of install-specific repos
             for repo in self._yum.repos.listEnabled():
                 if repo.name == BASE_REPO_NAME or repo.id.startswith("anaconda-"):
                     if os.path.isdir(repo.cachedir):
-                        log.debug("vponcova: Deleting cachedir %s in postInstall", repo.cachedir)
-                        shutil.rmtree(repo.cachedir)
+                        log.debug("vponcova: Appending cachedir %s in postInstall", repo.cachedir)
+                        cachedirs.append(repo.cachedir)
+
+        log.debug("vponcova: Checking existence %s in postInstall",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
 
         log.debug("vponcova: cleanign packages in postInstall")
         self._removeTxSaveFile()
@@ -1636,7 +1669,18 @@ reposdir=%s
 
         super(YumPayload, self).postInstall()
 
+        log.debug("vponcova: Checking existence %s in postInstall", os.path.exists(
+            "/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
         # Make sure yum is really done and gone and lets go of the yum.log
         self._yum.close()
         del self._yum
         log.debug("vponcova: Closed and deleted yum in postinstall.")
+
+        for cachedir in cachedirs:
+            if os.path.isdir(cachedir):
+                log.debug("vponcova: Leaving %s in postinstall", cachedir)
+                #shutil.rmtree(cachedir)
+
+        log.debug("vponcova: Checking existence %s in postInstall",
+                  os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
