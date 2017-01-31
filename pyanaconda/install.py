@@ -176,7 +176,7 @@ def doInstall(storage, payload, ksdata, instClass):
     storage.updateKSData()  # this puts custom storage info into ksdata
 
     # Do partitioning.
-    payload.preStorage()
+    # payload.preStorage()
 
     # callbacks for blivet
     message_clbk = lambda clbk_data: progress_message(clbk_data.msg)

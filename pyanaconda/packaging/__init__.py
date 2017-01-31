@@ -1164,20 +1164,32 @@ class PackagePayload(Payload):
 
     def _refreshEnvironmentAddons(self):
         log.info("Refreshing environmentAddons")
+        self.debug()
         self._environmentAddons = {}
 
         for environment in self.environments:
+            log.info("Environment start")
             self._environmentAddons[environment] = ([], [])
+            self.debug()
 
             # Determine which groups are specific to this environment and which other groups
             # are available in this environment.
             for grp in self.groups:
+                log.info("Group start")
+                self.debug()
                 if not self._groupHasInstallableMembers(grp):
                     continue
                 elif self.environmentHasOption(environment, grp):
                     self._environmentAddons[environment][0].append(grp)
                 elif self._isGroupVisible(grp):
                     self._environmentAddons[environment][1].append(grp)
+
+                self.debug()
+                log.info("Group end")
+
+            log.info("Environment end")
+
+        log.info("Enf of Refreshing environmentAddons")
 
     ###
     ### METHODS FOR WORKING WITH GROUPS
@@ -1317,6 +1329,7 @@ class PayloadManager(object):
                 func()
 
     def _runThread(self, storage, ksdata, payload, instClass, fallback, checkmount):
+        log.info("vponcova: run thread start")
         # This is the thread entry
         # Set the initial state
         self._error = None
@@ -1383,6 +1396,8 @@ class PayloadManager(object):
             return
 
         self._setState(self.STATE_FINISHED)
+        payload.release()
+        log.info("vponcova: run thread end")
 
 # Initialize the PayloadManager instance
 payloadMgr = PayloadManager()

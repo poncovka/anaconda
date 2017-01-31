@@ -260,6 +260,7 @@ class ProgressHub(Hub):
         Hub.refresh(self)
 
         self._start_ransom_notes()
+        self.payload.preStorage()
         GLib.timeout_add(250, self._update_progress, self._install_done)
         threadMgr.add(AnacondaThread(name=THREAD_INSTALL, target=doInstall,
                                      args=(self.storage, self.payload, self.data, self.instclass)))

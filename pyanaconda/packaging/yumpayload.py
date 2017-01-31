@@ -44,6 +44,9 @@ from pyanaconda.iutil import execReadlines
 from pyanaconda.simpleconfig import simple_replace
 from functools import wraps
 
+import yum.Errors as Errors
+import urlgrabber.grabber
+
 import logging
 log = logging.getLogger("packaging")
 
@@ -184,6 +187,7 @@ class YumPayload(PackagePayload):
         self.reset()
 
     def reset(self, root=None, releasever=None):
+        log.info("vponcova: reset start")
         """ Reset this instance to its initial (unconfigured) state. """
 
         super(YumPayload, self).reset()
@@ -199,16 +203,61 @@ class YumPayload(PackagePayload):
 
         log.debug("vponcova: Checking existence %s in reset",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+        self.debug()
+        log.info("vponcova: reset end")
 
     def setup(self, storage, instClass):
+        log.info("vponcova: setup start")
         super(YumPayload, self).setup(storage, instClass)
 
         self._writeYumConfig()
         self._setup = True
+        log.info("vponcova: setup end")
 
     def unsetup(self):
         super(YumPayload, self).unsetup()
         self._setup = False
+
+    def _closeYum(self, keep_cache=False):
+
+        log.debug("vponcova: start of close yum")
+        self.debug()
+        cachedirs = []
+
+        with _yum_lock:
+            if self._yum:
+                if not keep_cache:
+                    for repo in self._yum.repos.listEnabled():
+                        if repo.name == BASE_REPO_NAME and \
+                                os.path.isdir(repo.cachedir):
+                            log.debug("vponcova: Appending cachedir %s in closeYum", repo.cachedir)
+                            cachedirs.append(repo.cachedir)
+
+                log.debug("vponcova: Closed and deleted yum in closeYum")
+                #del self._yum.pkgSack
+                self.deleteYumTS()
+                self.release()
+
+                #if self._yum._tags is not None:
+                #    for db_obj in self._yum.pkgtags.db_objs:
+                #        db_obj.close()
+                #        del db_obj
+
+                #del self._yum.pkgSack
+                self._yum.close()
+                del self._yum
+                self.debug()
+
+            for cachedir in cachedirs:
+                if os.path.isdir(cachedir):
+                    log.debug("vponcova: Deleted cachedir %s in closeYum", cachedir)
+                    shutil.rmtree(cachedir)
+
+            self.debug()
+            log.debug("vponcova: end of close yum")
+            exit(1)
+
+        self._yum = None
 
     def _resetYum(self, root=None, keep_cache=False, releasever=None, cache_dir=_yum_cache_dir):
         """ Delete and recreate the payload's YumBase instance.
@@ -221,8 +270,12 @@ class YumPayload(PackagePayload):
         log.debug("vponcova: Checking existence %s in resetYum",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
 
+        self.debug()
+
         if root is None:
             root = self._root_dir
+
+        cachedirs = []
 
         with _yum_lock:
             if self._yum:
@@ -230,15 +283,28 @@ class YumPayload(PackagePayload):
                     for repo in self._yum.repos.listEnabled():
                         if repo.name == BASE_REPO_NAME and \
                            os.path.isdir(repo.cachedir):
-                            log.debug("vponcova: Deleted cachedir %s in resetYum", repo.cachedir)
-                            shutil.rmtree(repo.cachedir)
+                            log.debug("vponcova: Appending cachedir %s in resetYum", repo.cachedir)
+                            cachedirs.append(repo.cachedir)
 
-                log.debug("vponcova: Deleted yum in resetYum")
+                log.debug("vponcova: Closed and deleted yum in resetYum")
+                self.release()
+                self._yum.close()
                 del self._yum
+
+            self.debug()
+
+            for cachedir in cachedirs:
+                if os.path.isdir(cachedir):
+                    log.debug("vponcova: Deleted cachedir %s in resetYum", cachedir)
+                    shutil.rmtree(cachedir)
+
+            self.debug()
 
             self._writeYumConfig(cache_dir=cache_dir)
             self._yum = yum.YumBase()
+
             log.debug("vponcova: Created yum in resetYum")
+            self.debug()
 
             self._yum.use_txmbr_in_callback = True
 
@@ -260,6 +326,8 @@ class YumPayload(PackagePayload):
         log.debug("vponcova: Checking existence %s in resetYum",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
 
+        self.debug()
+
     def _writeLangpacksConfig(self):
         langs = [self.data.lang.lang] + self.data.lang.addsupport
         log.debug("configuring langpacks for %s", langs)
@@ -276,15 +344,19 @@ class YumPayload(PackagePayload):
             log.error ("Error setting langpack_locales: %s", msg)
 
     def _copyLangpacksConfigToTarget(self):
+        self.debug()
         log.debug("vponcova: copy from %s", _yum_installer_langpack_conf)
         log.debug("vponcova: copy to %s", iutil.getSysroot()+_yum_target_langpack_conf)
         iutil.mkdirChain(os.path.dirname(iutil.getSysroot()+_yum_target_langpack_conf))
         shutil.copy2(_yum_installer_langpack_conf,
                      iutil.getSysroot()+_yum_target_langpack_conf)
 
+        self.debug()
+
     def _writeYumConfig(self, cache_dir=_yum_cache_dir):
         """ Write out anaconda's main yum configuration file. """
         log.debug("vponcova: Writing cachedir %s in writeYumConfig", cache_dir)
+        self.debug()
         buf = """
 [main]
 cachedir=%s
@@ -327,6 +399,7 @@ reposdir=%s
         # data after we change the install root to sysroot, which can only
         # happen after we've enabled the new storage configuration.
         log.debug("vponcova: Haching cachedir from %s ", self._yum.conf.cachedir)
+        self.debug()
         with _yum_lock:
             if not self._yum.conf.cachedir.startswith(self._yum.conf.installroot):
                 return
@@ -335,6 +408,7 @@ reposdir=%s
             self._yum.conf.cachedir = self._yum.conf.cachedir[len(root):]
 
         log.debug("vponcova: Haching cachedir to %s ", self._yum.conf.cachedir)
+        self.debug()
 
     def _writeYumRepo(self, repo, repo_path):
         """ Write a repo object to a yum repo.conf file
@@ -344,6 +418,7 @@ reposdir=%s
             :raises: PayloadSetupError if the repo doesn't have a url
         """
         log.debug("vponcova: Writing to %s in writeYumRepo", repo_path)
+        self.debug()
         with open(repo_path, "w") as f:
             f.write("[%s]\n" % repo.id)
             f.write("name=%s\n" % repo.id)
@@ -360,6 +435,7 @@ reposdir=%s
                 f.close()
                 log.debug("vponcova: Removing %s in writeYumRepo", repo_path)
                 os.unlink(repo_path)
+                self.debug()
                 raise PayloadSetupError("repo %s has no baseurl, mirrorlist or metalink", repo.id)
 
             # kickstart repo modifiers
@@ -421,20 +497,27 @@ reposdir=%s
             except PayloadSetupError as e:
                 log.error(e)
 
+        releasever = self._yum.conf.yumvar['releasever']
+        self._closeYum()
+
         # Move the yum.cache to the new disk space to save memory
         var_tmp = iutil.getSysroot()+"/var/tmp"
         if not os.path.isdir(var_tmp):
             os.makedirs(var_tmp)
         new_cache = var_tmp+"/yum.cache"
         try:
+            # Everything has to be closed before it will be moved.
+
             log.debug("vponcova: Moving cash from %s to %s in writeInstallConfig", _yum_cache_dir, new_cache)
+            self.debug()
             shutil.move(_yum_cache_dir, new_cache)
+            self.debug()
         except shutil.Error:
             log.warn("Problem moving yum cache to %s, using %s instead", new_cache, _yum_cache_dir)
             new_cache = _yum_cache_dir
 
         self._writeLangpacksConfig()
-        releasever = self._yum.conf.yumvar['releasever']
+        #releasever = self._yum.conf.yumvar['releasever'] moved before close yum
         log.debug("setting releasever to previous value of %s", releasever)
         self._resetYum(root=iutil.getSysroot(), keep_cache=True, releasever=releasever, cache_dir=new_cache)
         self._yumCacheDirHack()
@@ -448,6 +531,24 @@ reposdir=%s
     #           knowledge of the yum internals or, better yet, some convenience
     #           functions for multi-threaded applications
     def release(self):
+        log.info("vponcova: release start")
+        self.debug()
+        with _yum_lock:
+
+            if self._yum._pkgSack is not None:
+
+                self._yum.pkgSack.dropCachedData()
+
+                for sack in self._yum.pkgSack.sacks.values():
+                    sack.close()
+                    del sack
+
+                del self._yum.pkgSack
+
+        self.debug()
+        log.info("vponcova: release end")
+        return
+
         from yum.packageSack import MetaSack
         with _yum_lock:
             log.debug("deleting package sacks")
@@ -459,19 +560,54 @@ reposdir=%s
             for repo in self._yum.repos.repos.values():
                 repo._sack = None
 
+        self.debug()
+        log.info("vponcova: release end")
+
+    def debug(self):
+        log.debug("vponcova: [ ------------------------------")
+        for line in execReadlines("lsof", []):
+            if "primary_db" in line:
+                log.debug("vponcova:   %s", line)
+        log.debug("vponcova: ] ------------------------------")
+
     def deleteYumTS(self):
+        log.debug("vponcova: Checking existence %s in deleteTumTS", os.path.exists(
+            "/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
+        self.debug()
+
         with _yum_lock:
             log.debug("deleting yum transaction info")
-            self._yum.closeRpmDB()
-            log.debug("vponcova: Closed yum rpmdb in deleteYumTS")
+
+            #if self._yum.tsInfo.pkgSack is not None:  # rm Transactions don't have pkgSack
+            #    self._yum.tsInfo.pkgSack.dropCachedData()
+
             del self._yum.tsInfo
             del self._yum.ts
-            log.debug("vponcova: Deleted yum.ts in deleteYumTS")
+
+            #self._yum.closeRpmDB()
+            log.debug("vponcova: Closed yum rpmdb in deleteYumTS")
+
+        log.debug("vponcova: Deleted yum.ts in deleteYumTS")
+        log.debug("vponcova: Checking existence %s in deleteYumTs", os.path.exists(
+                "/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
+        self.debug()
 
     def preStorage(self):
-        self.release()
+        self.debug()
         with _yum_lock:
+            log.debug("vponcova: Checking existence %s in preStorage", os.path.exists(
+                "/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+            self.release()
+            self.debug()
             self._yum.close()
+            log.debug("vponcova: Closing yum in preStorage")
+            log.debug("vponcova: Checking existence %s in preStorage", os.path.exists(
+            "/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
+        self.debug()
+
 
     ###
     ### METHODS FOR WORKING WITH REPOSITORIES
@@ -676,12 +812,15 @@ reposdir=%s
         log.info("gathering repo metadata")
         for repo_id in self.repos:
             with _yum_lock:
+                self.debug()
                 repo = self._yum.repos.getRepo(repo_id)
+                self.debug()
                 if repo.enabled:
                     # retry metadata downloads with a progressively longer pause,
                     # so that unattended installations on unreliable networks have
                     # a higher chance of finishing successfully
                     xdelay = xprogressive_delay()
+                    self.debug()
                     for retry_count in xrange(0, MAX_METADATA_DOWNLOAD_RETRIES + 1):
                         if retry_count > 0:
                             # introduce a retry delay
@@ -689,6 +828,7 @@ reposdir=%s
                         try:
                             log.info("gathering repo metadata for %s", repo_id)
                             self._getRepoMetadata(repo)
+                            self.debug()
                             log.info("gathered repo metadata for %s", repo_id)
                             break
                         except PayloadError as e:
@@ -702,11 +842,13 @@ reposdir=%s
                                 log.error("metadata download for repo %s failed after %d retries",
                                           repo_id, retry_count)
                                 self.disableRepo(repo_id)
+                                self.debug()
                 else:
                     log.info("skipping disabled repo %s", repo_id)
 
         # Make sure environmentAddon information is current
         self._refreshEnvironmentAddons()
+        self.debug()
 
         log.info("metadata retrieval complete")
 
@@ -826,9 +968,11 @@ reposdir=%s
         # on a per-repo basis, so we can then get some finer grained error
         # handling and recovery.
         log.debug("getting repo metadata for %s", yumrepo.id)
+        self.debug()
         with _yum_lock:
             try:
                 yumrepo.getPrimaryXML()
+                self.debug()
             except RepoError as e:
                 raise MetadataError(e.value)
 
@@ -839,6 +983,7 @@ reposdir=%s
             log.debug("getting group info for %s", yumrepo.id)
             try:
                 yumrepo.getGroups()
+                self.debug()
             except RepoMDError:
                 log.error("failed to get groups for repo %s", yumrepo.id)
 
@@ -930,6 +1075,7 @@ reposdir=%s
     def _removeYumRepo(self, repo_id):
         log.debug("vponcova: Checking existence %s in removeYumRepo",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+        self.debug()
 
         if repo_id in self.repos:
             with _yum_lock:
@@ -937,6 +1083,7 @@ reposdir=%s
                 self._groups = None
                 self._packages = []
 
+        self.debug()
         log.debug("vponcova: Checking existence %s in removeYumRepo",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
 
@@ -990,12 +1137,17 @@ reposdir=%s
     @property
     def environments(self):
         """ List of environment ids. """
+        log.debug("vponcova: start environments")
+        self.debug()
+
         environments = []
         yum_groups = self._yumGroups
         if yum_groups:
             with _yum_lock:
                 environments = [i.environmentid for i in yum_groups.get_environments()]
 
+        self.debug()
+        log.debug("vponcova: end environments")
         return environments
 
     def environmentSelected(self, environmentid):
@@ -1199,6 +1351,8 @@ reposdir=%s
 
     def _selectYumGroup(self, groupid, default=True, optional=False, required=False):
         # select the group in comps
+        log.debug("vponcova: start select group")
+        self.debug()
         pkg_types = ['mandatory']
         if default:
             pkg_types.append("default")
@@ -1212,6 +1366,9 @@ reposdir=%s
                 self._yum.selectGroup(groupid, group_package_types=pkg_types)
             except yum.Errors.GroupsError:
                 raise NoSuchGroup(groupid, required=required)
+
+        self.debug()
+        log.debug("vponcova: end select group")
 
     def _deselectYumGroup(self, groupid):
         # deselect the group in comps
@@ -1292,7 +1449,9 @@ reposdir=%s
             if self._yum._ts_save_file:
                 try:
                     log.debug("vponcova: unlinking file %s", self._yum._ts_save_file)
+                    self.debug()
                     os.unlink(self._yum._ts_save_file)
+                    self.debug()
                 except (OSError, IOError):
                     pass
                 else:
@@ -1322,11 +1481,14 @@ reposdir=%s
 
             This follows the same ordering/pattern as kickstart.py.
         """
+        log.debug("vponcova: start apply Yum selection")
+        self.debug()
         if self.data.packages.nocore:
             log.info("skipping core group due to %%packages --nocore; system may not be complete")
         else:
             self._selectYumGroup("core")
 
+        self.debug()
         env = None
 
         if self.data.packages.default and self.environments:
@@ -1334,11 +1496,15 @@ reposdir=%s
         elif self.data.packages.environment:
             env = self.data.packages.environment
 
+        self.debug()
+
         if env:
             try:
                 self.selectEnvironment(env)
             except NoSuchGroup as e:
                 self._handleMissing(e)
+
+        self.debug()
 
         for group in self.data.packages.groupList:
             default = False
@@ -1354,14 +1520,18 @@ reposdir=%s
             except NoSuchGroup as e:
                 self._handleMissing(e)
 
+            self.debug()
+
         for package in self.data.packages.packageList:
             try:
                 self._selectYumPackage(package)
             except NoSuchPackage as e:
                 self._handleMissing(e)
+            self.debug()
 
         for package in self.data.packages.excludedList:
             self._deselectYumPackage(package)
+            self.debug()
 
         for group in self.data.packages.excludedGroupList:
             try:
@@ -1369,8 +1539,13 @@ reposdir=%s
             except NoSuchGroup as e:
                 self._handleMissing(e)
 
+            self.debug()
+
         self._select_kernel_package()
+        self.debug()
         self.selectRequiredPackages()
+        self.debug()
+        log.debug("vponcova: end of apply yum selection")
 
     def checkSoftwareSelection(self):
         if not self.baseRepo:
@@ -1378,12 +1553,21 @@ reposdir=%s
             return
 
         log.info("checking software selection")
+        log.info("vponcova: checking software selection")
+        self.debug()
         self.txID = time.time()
 
+        log.info("vponcova: release in checking software selection")
         self.release()
-        self.deleteYumTS()
+        self.debug()
 
+        log.info("vponcova: deleting ts in checking software selection")
+        self.deleteYumTS()
+        self.debug()
+
+        log.info("vponcova: applying yum selection in check software slection")
         self._applyYumSelections()
+        self.debug()
 
         with _yum_lock:
             # doPostSelection
@@ -1391,10 +1575,15 @@ reposdir=%s
             # select packages needed for storage, bootloader
 
             # check dependencies
-            log.info("checking dependencies")
+            log.info("vponcova: checking dependencies")
+            self.debug()
+            log.info("vponcova: buildint transaction")
+            self.debug()
             (code, msgs) = self._yum.buildTransaction(unfinished_transactions_check=False)
             log.debug("buildTransaction = (%s, %s)", code, msgs)
+            self.debug()
             self._removeTxSaveFile()
+            self.debug()
             if code == 0:
                 # empty transaction?
                 log.debug("empty transaction")
@@ -1411,6 +1600,10 @@ reposdir=%s
         with _yum_lock:
             log.info("%d packages selected totalling %s",
                      len(self._yum.tsInfo.getMembers()), self.spaceRequired)
+
+        log.info("vponcova: end of checking software")
+        self.release()
+        self.debug()
 
     def _select_kernel_package(self):
         kernels = self.kernelPackages
@@ -1490,6 +1683,7 @@ reposdir=%s
         """
         log.debug("vponcova: Checking existence %s in install",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+        self.debug()
 
         progress_map = {
             "PROGRESS_PREP"    : _("Preparing transaction from installation source"),
@@ -1509,6 +1703,7 @@ reposdir=%s
             self.deleteYumTS()
             self._yum.close()
             log.debug("vponcova: Closing and deleting yum in install")
+            self.debug()
 
         script_log = "/tmp/rpm-script.log"
         release = self._getReleaseVersion(None)
@@ -1570,6 +1765,7 @@ reposdir=%s
 
         log.debug("vponcova: Checking existence %s in install",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+        self.debug()
 
         if install_errors:
             exn = PayloadInstallError("\n".join(install_errors))
@@ -1588,6 +1784,7 @@ reposdir=%s
         #        all yumvars and writing out the expanded pairs to the conf
         yb = yum.YumBase()
         log.debug("vponcova: Created yum in writeMultiLibConfig")
+        self.debug()
         yum_conf_path = "/etc/yum.conf"
         # pylint: disable=bad-preconf-access
         yb.preconf.fn = iutil.getSysroot() + yum_conf_path
@@ -1615,10 +1812,14 @@ reposdir=%s
             log.error("failed to write out yum.conf: %s", e)
 
         # vponcova - yb is not closed and file is left open
+        yb.close()
+        del yb
+        self.debug()
 
     def postInstall(self):
         """ Perform post-installation tasks. """
         log.debug("vponcova: postInstall")
+        self.debug()
         cachedirs = [iutil.getSysroot()+"/var/tmp/yum.cache"]
 
         log.debug("vponcova: Checking existence %s in postInstall",
@@ -1627,9 +1828,6 @@ reposdir=%s
         with _yum_lock:
             # clean up repo tmpdirs
             log.debug("vponcova: cleaning packages in postInstall")
-            self._yum.cleanPackages()
-            self._yum.cleanHeaders()
-            self._yum.cleanSqlite()
 
             # remove cache dirs of install-specific repos
             for repo in self._yum.repos.listEnabled():
@@ -1643,10 +1841,12 @@ reposdir=%s
 
         log.debug("vponcova: cleanign packages in postInstall")
         self._removeTxSaveFile()
+        self.debug()
 
         log.debug("vponcova: writing multilib config in postInstall",)
         self.writeMultiLibConfig()
         self._copyLangpacksConfigToTarget()
+        self.debug()
 
         # Write selected kickstart repos to target system
         for ks_repo in (ks for ks in (self.getAddOnRepo(r) for r in self.addOns) if ks.install):
@@ -1671,8 +1871,10 @@ reposdir=%s
 
         log.debug("vponcova: Checking existence %s in postInstall", os.path.exists(
             "/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+        self.debug()
 
         # Make sure yum is really done and gone and lets go of the yum.log
+        self._yum.closeRpmDB()
         self._yum.close()
         del self._yum
         log.debug("vponcova: Closed and deleted yum in postinstall.")
@@ -1680,7 +1882,9 @@ reposdir=%s
         for cachedir in cachedirs:
             if os.path.isdir(cachedir):
                 log.debug("vponcova: Leaving %s in postinstall", cachedir)
-                #shutil.rmtree(cachedir)
+                shutil.rmtree(cachedir)
 
         log.debug("vponcova: Checking existence %s in postInstall",
                   os.path.exists("/mnt/sysimage/var/tmp/yum.cache/anaconda/gen/primary_db.sqlite"))
+
+        self.debug()
