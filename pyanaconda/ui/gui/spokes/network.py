@@ -36,7 +36,7 @@ gi.require_version("GObject", "2.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("Gio", "2.0")
 gi.require_version("NM", "1.0")
-# TODO NMClient
+gi.require_version("NMClient", "1.0")
 
 from gi.repository import Gtk
 from gi.repository import GLib, GObject, Pango, Gio, NetworkManager, NMClient
