@@ -1,0 +1,8 @@
+[Unit]
+Description=Attach gdb to Anaconda
+After=anaconda.service
+Requires=anaconda.service
+
+[Service]
+WorkingDirectory=/
+ExecStart=/bin/sh -c "/bin/gdb -x /gdb.cmd -n -p `pgrep anaconda`"
