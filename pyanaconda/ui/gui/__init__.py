@@ -41,6 +41,7 @@ from pyanaconda.ui import UserInterface, common
 from pyanaconda.ui.gui.utils import gtk_action_wait, gtk_call_once, unbusyCursor
 from pyanaconda import ihelp
 import os.path
+import sys
 
 import logging
 log = logging.getLogger("anaconda")
@@ -150,9 +151,17 @@ class GUIObject(common.UIObject):
         self._window = None
 
         if self.builderObjects:
+            sys.stderr.write("\nvponcova: Loading objects %s from file %s\n" % (self.builderObjects,
+                                                                                self._findUIFile()))
+            sys.stderr.flush()
             self.builder.add_objects_from_file(self._findUIFile(), self.builderObjects)
         else:
+            sys.stderr.write("\nvponcova: Loading ui from file %s\n" % self._findUIFile())
+            sys.stderr.flush()
             self.builder.add_from_file(self._findUIFile())
+
+        sys.stderr.write("\nvponcova: Done.\n")
+        sys.stderr.flush()
 
         self.builder.connect_signals(self)
 
