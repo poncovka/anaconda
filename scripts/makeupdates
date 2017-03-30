@@ -317,6 +317,8 @@ def copyUpdatedFiles(tag, updates, cwd, builddir):
             install_to_dir(gitfile, "usr/lib/systemd/system-generators")
         elif gitfile == "data/gdb.cmd":
             install_to_dir(gitfile, "")
+        elif gitfile == "data/oscap.glade":
+            install_to_dir(gitfile, "/usr/share/anaconda/addons/org_fedora_oscap/gui/spokes")
         elif gitfile == "data/tmux.conf":
             install_to_dir(gitfile, "usr/share/anaconda")
         elif gitfile == "data/anaconda-gtk.css":
