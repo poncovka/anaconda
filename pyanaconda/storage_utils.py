@@ -762,6 +762,57 @@ def device_name_is_disk(device_name, devicetree=None, refresh_udev_cache=False):
         device = devicetree.getDeviceByName(device_name)
         return device and device.isDisk
 
+def device_matches_with_prefix(single_spec, prefix):
+    """Return names of block devices matching the provided specification
+    using the given prefix.
+
+    :param str single_spec: a device identifier (name, UUID=<uuid>, &c)
+    :param str prefix: a prefix of the device identifier
+    :returns: a list with names of matching devices
+    """
+    matches = []
+
+    # Ensure that the specification starts with the given prefix.
+    if not single_spec.startswith(prefix):
+        full_spec = os.path.normpath(prefix + single_spec)
+    else:
+        full_spec = single_spec
+
+    # The regular case of device matching.
+    for match in udev.resolve_glob(full_spec):
+        if match not in matches:
+            matches.append(match)
+
+    return matches
+
+def device_matches_in_devicetree(single_spec, devicetree=None):
+    """Return names of block devices matching the provided specification
+    using the given device tree.
+
+    :param str single_spec: a device identifier (name, UUID=<uuid>, &c)
+    :param devicetree: device tree to look up devices in (optional)
+    :returns: a list with names of matching devices
+    """
+    matches = []
+
+    # Use spec here instead of full_spec to preserve the spec and let the
+    # called code decide whether to treat the spec as a path instead of a name.
+    if devicetree is None:
+        # We run the spec through resolve_devspec() here as unlike resolve_glob().
+        # It can also resolve labels and UUIDs.
+        dev_name = udev.resolve_devspec(single_spec)
+    else:
+        # Device tree can also handle labels and UUIDs.
+        device = devicetree.resolveDevice(single_spec)
+        dev_name = device.name if device else None
+
+    # The dev_name variable can be None if the spec is not found or is not valid,
+    # but we don't want that ending up in the list.
+    if dev_name:
+        matches.append(dev_name)
+
+    return matches
+
 def device_matches(spec, devicetree=None, disks_only=False):
     """Return names of block devices matching the provided specification.
 
@@ -792,45 +843,32 @@ def device_matches(spec, devicetree=None, disks_only=False):
     array names and in that it reflects scheduled device removals, but for
     normal local disks udev.resolve_devspec should suffice.
     """
-
     matches = []
-    # the device specifications might contain multiple "sub specs" separated by a |
-    # - the specs are processed from left to right
+
+    # Is a device unique?
+    is_unique = lambda device: device not in matches
+
+    # Is a device a disk in a disk-only mode?
+    is_disk = lambda device: not disks_only or device_name_is_disk(device, devicetree)
+
+    # The device specifications might contain multiple "sub specs" separated by a |
+    # - the specs are processed from left to right.
     for single_spec in spec.split("|"):
-        full_spec = single_spec
-        if not full_spec.startswith("/dev/"):
-            full_spec = os.path.normpath("/dev/" + full_spec)
+        # Search /dev.
+        dev_devices = filter(is_disk, device_matches_with_prefix(single_spec, "/dev/"))
+        matches.extend(filter(is_unique, dev_devices))
+        log.debug("device_matches: For %s found in /dev: %s.", single_spec, dev_devices)
 
-        # the regular case
-        single_spec_matches = udev.resolve_glob(full_spec)
-        for match in single_spec_matches:
-            if match not in matches:
-                # skip non-disk devices in disk-only mode
-                if disks_only and not device_name_is_disk(match):
-                    continue
-                matches.append(match)
+        # Search the device tree.
+        tree_devices = filter(is_disk, device_matches_in_devicetree(single_spec, devicetree))
+        matches.extend(filter(is_unique, tree_devices))
+        log.debug("device_matches: For %s found in a device tree: %s.", single_spec, tree_devices)
 
-        dev_name = None
-        # Use spec here instead of full_spec to preserve the spec and let the
-        # called code decide whether to treat the spec as a path instead of a name.
-        if devicetree is None:
-            # we run the spec through resolve_devspec() here as unlike resolve_glob()
-            # it can also resolve labels and UUIDs
-            dev_name = udev.resolve_devspec(single_spec)
-            if disks_only and dev_name:
-                if not device_name_is_disk(dev_name):
-                    dev_name = None  # not a disk
-        else:
-            # devicetree can also handle labels and UUIDs
-            device = devicetree.resolveDevice(single_spec)
-            if device:
-                dev_name = device.name
-                if disks_only and not device_name_is_disk(dev_name, devicetree=devicetree):
-                    dev_name = None  # not a disk
+        # Search the /dev/md for biosraid, if we have not found anything.
+        if not dev_devices and not tree_devices:
+            md_devices = filter(is_disk, device_matches_with_prefix(single_spec, "/dev/md/"))
+            matches.extend(filter(is_unique, md_devices))
+            log.debug("device_matches: For %s found in /dev/md: %s.", single_spec, md_devices)
 
-        # The dev_name variable can be None if the spec is not not found or is not valid,
-        # but we don't want that ending up in the list.
-        if dev_name and dev_name not in matches:
-            matches.append(dev_name)
-
+    log.debug("device_matches: For %s overall found: %s.", spec, matches)
     return matches
