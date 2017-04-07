@@ -243,6 +243,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self.encrypted = False
         self.passphrase = ""
         self.selected_disks = self.data.ignoredisk.onlyuse[:]
+        log.debug("vponcova: selected disks %s in init", self.selected_disks)
         self.autopart_missing_passphrase = False
         self.disks_errors = []
 
@@ -280,6 +281,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
     def apply(self):
         applyDiskSelection(self.storage, self.data, self.selected_disks)
+        log.debug("vponcova: selected disks %s in apply", self.selected_disks)
         self.data.autopart.autopart = self.autopart
         self.data.autopart.type = self.default_autopart_type
         self.data.autopart.encrypted = self.encrypted
@@ -527,6 +529,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # don't put disks with hidden formats in selected_disks
         self.selected_disks = [d for d in self.data.ignoredisk.onlyuse
                                     if d in disk_names]
+        log.debug("vponcova: selected disks %s in refresh", self.selected_disks)
 
         # unhide previously hidden disks so that they don't look like being
         # empty (because of all child devices hidden)
