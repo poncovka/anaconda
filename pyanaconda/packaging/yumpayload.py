@@ -561,7 +561,6 @@ reposdir=%s
           retrieval fails.
         """
         log.info("configuring base repo")
-
         try:
             url, mirrorlist, sslverify = self._setupInstallDevice(self.storage, checkmount)
         except PayloadSetupError:

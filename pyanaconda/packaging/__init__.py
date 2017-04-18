@@ -1080,6 +1080,31 @@ class PackagePayload(Payload):
             url = method.url
             mirrorlist = method.mirrorlist
             sslverify = not (method.noverifyssl or flags.noverifyssl)
+        elif method.method == "hmc":
+            # Check if /dev/hmcdrv is already mounted.
+            if device == "/dev/hmcdrv":
+                log.debug("HMC is already mounted at %s.", DRACUT_REPODIR)
+                url = "file://" + DRACUT_REPODIR
+            else:
+                # Test the SE/HMC file access.
+                if iutil.execWithRedirect("/usr/sbin/lshmc", []):
+                    raise PayloadSetupError("The content of HMC media drive couldn't be accessed.")
+
+                # Test if a path is a mount point.
+                if os.path.ismount(INSTALL_TREE):
+                    log.debug("Don't mount the content of HMC media drive yet.")
+                else:
+                    # Make sure that the directories exists.
+                    iutil.mkdirChain(INSTALL_TREE)
+
+                    # Mount the device.
+                    if iutil.execWithRedirect("/usr/bin/hmcdrvfs", [INSTALL_TREE]):
+                        raise PayloadSetupError("The content of HMC media drive couldn't be mounted.")
+
+                # We are ready to use the HMC.
+                log.debug("We are ready to use the HMC at %s.", INSTALL_TREE)
+                url = "file://" + INSTALL_TREE
+
         elif method.method == "cdrom" or (checkmount and not method.method):
             # Did dracut leave the DVD or NFS mounted for us?
             device = blivet.util.get_mount_device(DRACUT_REPODIR)
