@@ -77,7 +77,7 @@ cat > $newjob <<__EOT__
 . /lib/anaconda-lib.sh
 info "anaconda: kickstart locations are $locations"
 
-for kickstart in $locations; do
+for kickstart in "$locations"; do
     info "anaconda: fetching kickstart from \$kickstart"
 
     if fetch_url "\$kickstart" /tmp/ks.cfg; then

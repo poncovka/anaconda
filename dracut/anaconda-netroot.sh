@@ -82,7 +82,7 @@ case $repo in
         # Try to fetch stage2.
         info "anaconda: stage2 locations are $locations"
 
-        for repo in $locations; do
+        for repo in "$locations"; do
             info "anaconda: fetching stage2 from $repo"
 
             # Try to get the local path to stage2 from treeinfo.
