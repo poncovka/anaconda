@@ -753,8 +753,26 @@ def device_name_is_disk(device_name, devicetree=None, refresh_udev_cache=False):
                 # so we cache it in this non-elegant way.
                 # An unfortunate side effect of this is that udev devices that show up after
                 # this function is called for the first time will not be taken into account.
-                udev_device_dict_cache = {udev.device_get_name(d): d for d in udev.get_devices()}
+                log.debug("vponcova: buildind cache")
+                udev_device_dict_cache = dict()
+
+                for d in udev.get_devices():
+                    udev_device_dict_cache[udev.device_get_name(d)] = d
+                    log.debug("vponcova: add pair %s %s", udev.device_get_name(d), d)
+                    if udev.device_is_md(d) and udev.device_get_md_name(d):
+                        udev_device_dict_cache[udev.device_get_md_name(d)] = d
+                        log.debug("vponcova: add md   %s %s", udev.device_get_md_name(d), d)
+
             udev_device = udev_device_dict_cache.get(device_name)
+
+            if udev_device:
+                log.debug("vponcova: %s was found in cache", device_name)
+                log.debug("vponcova: %s device_is_realdisk? %s", device_name, udev.device_is_realdisk(udev_device))
+                log.debug("vponcova: %s device_is_md? %s", device_name, udev.device_is_md(udev_device))
+                log.debug("vponcova: %s device_get_md_container? %s", device_name, udev.device_get_md_container(udev_device))
+            else:
+                log.debug("vponcova: %s was not found in cache", device_name)
+
             return udev_device and udev.device_is_realdisk(udev_device)
         else:
             return False
@@ -783,6 +801,7 @@ def device_matches_with_prefix(single_spec, prefix):
         if match not in matches:
             matches.append(match)
 
+    log.debug("vponcova: device_matches_with_prefix %s %s %s", single_spec, prefix, matches)
     return matches
 
 def device_matches_in_devicetree(single_spec, devicetree=None):
@@ -811,6 +830,7 @@ def device_matches_in_devicetree(single_spec, devicetree=None):
     if dev_name:
         matches.append(dev_name)
 
+    log.debug("vponcova: device_matches_in_device_tree %s %s %s", single_spec, devicetree, matches)
     return matches
 
 def device_matches(spec, devicetree=None, disks_only=False):
