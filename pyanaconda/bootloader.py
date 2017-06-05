@@ -798,7 +798,9 @@ class BootLoader(object):
         # Choose the largest swap device for that.
         if swap_devices:
             resume_device = max(swap_devices, key=lambda x: x.size)
-            self.boot_args.add("resume=%s" % resume_device.fstab_spec)
+            resume_option = "resume=%s" % resume_device.fstab_spec
+            self.boot_args.add(resume_option)
+            self.dracut_args.add(resume_option)
 
         # Does /usr have its own device? If so, we need to tell dracut
         usr_device = storage.mountpoints.get("/usr")

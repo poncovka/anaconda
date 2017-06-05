@@ -723,7 +723,7 @@ class Payload(object):
             if iutil.isConsoleOnVirtualTerminal() and \
                (ts.dbMatch('provides', 'rhgb').count() or \
                 ts.dbMatch('provides', 'plymouth').count()):
-                args.extend(["rhgb", "quiet"])
+                args.extend([])
 
         return args
 
