@@ -64,7 +64,6 @@ from blivet.errors import NoDisksError
 from blivet.errors import NotEnoughFreeSpaceError
 from blivet.devicelibs import raid, crypto
 from blivet.devices import LUKSDevice, MDRaidArrayDevice, LVMVolumeGroupDevice
-from blivet.platform import platform
 
 from pyanaconda.storage.autopart import do_autopart
 from pyanaconda.storage.installerstorage import find_existing_installations, Root
