@@ -59,7 +59,6 @@ from blivet.devicefactory import DEVICE_TYPE_DISK
 from blivet.devicefactory import DEVICE_TYPE_LVM_THINP
 from blivet.devicefactory import SIZE_POLICY_AUTO
 from blivet.devicefactory import is_supported_device_type
-from blivet.osinstall import find_existing_installations, Root
 from blivet.errors import StorageError
 from blivet.errors import NoDisksError
 from blivet.errors import NotEnoughFreeSpaceError
@@ -68,6 +67,7 @@ from blivet.devices import LUKSDevice, MDRaidArrayDevice, LVMVolumeGroupDevice
 from blivet.platform import platform
 
 from pyanaconda.storage.autopart import do_autopart
+from pyanaconda.storage.installerstorage import find_existing_installations, Root
 from pyanaconda.storage_utils import ui_storage_logger, device_type_from_autopart, storage_checker, \
     verify_luks_devices_have_key
 from pyanaconda.storage_utils import DEVICE_TEXT_PARTITION, DEVICE_TEXT_MAP, DEVICE_TEXT_MD
