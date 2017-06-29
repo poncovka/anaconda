@@ -30,7 +30,6 @@ from blivet import udev
 from blivet.size import Size
 from blivet.errors import StorageError
 from blivet.platform import platform as _platform
-from blivet.autopart import swap_suggestion
 from blivet.devicefactory import DEVICE_TYPE_LVM
 from blivet.devicefactory import DEVICE_TYPE_LVM_THINP
 from blivet.devicefactory import DEVICE_TYPE_BTRFS
@@ -43,6 +42,7 @@ from pyanaconda import isys
 from pyanaconda.constants import productName, STORAGE_SWAP_IS_RECOMMENDED, STORAGE_MUST_BE_ON_ROOT, \
     STORAGE_MUST_BE_ON_LINUXFS, STORAGE_MIN_PARTITION_SIZES, STORAGE_MIN_ROOT, STORAGE_MIN_RAM
 from pyanaconda.errors import errorHandler, ERROR_RAISE
+from pyanaconda.storage.autopart import swap_suggestion
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP
