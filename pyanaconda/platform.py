@@ -26,7 +26,7 @@ from blivet import arch
 from blivet.devicelibs import raid
 from blivet.formats import get_device_format_class
 from blivet.flags import flags
-from .partspec import PartSpec
+from pyanaconda.storage.partspec import PartSpec
 from blivet.size import Size
 from .i18n import _, N_
 
