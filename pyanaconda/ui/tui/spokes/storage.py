@@ -349,7 +349,7 @@ class StorageSpoke(NormalTUISpoke):
                                 if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
             if self.data.clearpart.cdl:
                 # LDL DASDs
-                ldl += [d.name for d in self.storage.devicetree.dasd if blockdev.s390.dasd_is_ldl(d.name)]
+                ldl += [d for d in self.storage.devicetree.dasd if blockdev.s390.dasd_is_ldl(d.name)]
             # combine into one nice list
             to_format = list(set(unformatted + ldl))
         else:
@@ -360,9 +360,10 @@ class StorageSpoke(NormalTUISpoke):
                         "now with dasdfmt or cancel to leave them unformatted. "
                         "Unformatted DASDs cannot be used during installation.\n\n")
 
-            warntext = _("Warning: All storage changes made using the installer will be lost when you choose to format.\n\nProceed to run dasdfmt?\n")
-
-            displaytext = summary + "\n".join("/dev/" + d.name for d in to_format) + "\n" + warntext
+            warntext = _("Warning: All storage changes made using the installer will "
+                         "be lost when you choose to format.\n\nProceed to run dasdfmt?\n")
+            dasd_list = "\n".join("/dev/" + d.name + " (" + d.busid + ")" for d in to_format) + "\n\n"
+            displaytext = summary + dasd_list + warntext
 
             # now show actual prompt; note -- in cmdline mode, auto-answer for
             # this is 'no', so unformatted and ldl DASDs will remain so unless
