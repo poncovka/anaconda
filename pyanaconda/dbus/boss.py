@@ -19,3 +19,9 @@
 #
 # Author(s):  Vendula Poncova <vponcova@redhat.com>
 #
+
+from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
+from pyanaconda.dbus.interface import dbus_interface
+
+@dbus_interface
+class Boss(object):
