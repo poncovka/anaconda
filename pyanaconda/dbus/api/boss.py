@@ -1,5 +1,5 @@
 #
-# module.py:  interface for the kickstart modules
+# boss.py:  interface for communication with the kickstart modules
 #
 # Copyright (C) 2017
 # Red Hat, Inc.  All rights reserved.
@@ -19,3 +19,22 @@
 #
 # Author(s):  Vendula Poncova <vponcova@redhat.com>
 #
+
+from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
+from pyanaconda.dbus.interface import dbus_interface
+
+@dbus_interface
+class Boss(object):
+    """Manager of kickstart modules, ui modules and the installer.
+
+    The boss is responsible for starting and managing kickstart modules,
+    ui modules and the installer. It is able to process a kickstart file,
+    distribute the kickstart data between kickstart modules, collect them back
+    and create a valid kickstart file that can be used for installation by the
+    installer.
+
+
+    """
+
+
+
