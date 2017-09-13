@@ -49,7 +49,12 @@ class KickstartModule(object):
 
         :return: a dictionary
         """
-        return {"KICKSTART_COMMANDS": []}
+        return {
+            "KICKSTART_COMMANDS": [],
+            "KICKSTART_SECTIONS": [],
+            "ANACONDA_COMMANDS": [],
+            "ANACONDA_SECTIONS": []
+        }
 
     @property
     def Validity(self) -> Byte:
@@ -249,7 +254,7 @@ class KickstartModule(object):
         We can provide the exceptions in a form of the feedback
         we decide to use.
 
-        TODO: 
+        TODO: Do we wont to do from these data new defaults?
 
         TODO: How to provide a feedback?
         Probably the same way as the validate function.

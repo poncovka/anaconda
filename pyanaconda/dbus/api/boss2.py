@@ -38,81 +38,44 @@ class Boss(object):
         """Initialization of the boss"""
         pass
 
-    def process_options(self, options):
-        pass
+    @property
+    def Screenplay(self) -> ObjPath:
+        return ""
 
-    def process_kickstart(self, path):
-        pass
-
-    def setup_anaconda(self):
-        """Setup the anaconda.
-
-        Set up logging and the exit handler,...
-        """
-        pass
-
-    def setup_environment(self):
-        """Setup the environment."""
-        pass
-
-    def start_kickstart_modules(self):
-        """Start the kickstart modules.
-
-        The boss should start the kickstart modules
-        and connect to them.
-        """
-        pass
-
-    def run(self):
-        """Start the loop."""
-        pass
-
-    def connect_kickstart_modules(self):
-        """Ask the kickstart modules to connect.
-
-        Call after the modules are available on the DBus.
-        """
-        pass
-
-    def setup_kickstart_modules(self):
-        """Ask the kickstart modules to setup.
-
-        Call after the modules are connected.
-        """
-        pass
-
-    def process_kickstart_in_modules(self):
-        """Process the kickstart file in the kickstart modules.
-
-        Call after all modules are connected and setup.
-
-        The boss will send parts of the kickstart file
-        to the kickstart modules.
-        """
-        pass
-
-    def validate_kickstart_in_modules(self):
-        pass
-
-    def
-
-    def start_ui(self):
-        """Start the module with the UI.
-
-        The UI was specified in options or the kickstart file.
-        """
+    def run(self, screenplay):
+        """Run the given screen play."""
         pass
 
 
-    def WaitBefore(self, applicant_id, state_id) -> Bool:
-        """Ask the boss to wait for the applicant before something.
-
-        :param applicant_id:
-        :return:
-        """
+class AnacondaManager:
+    """Alias the boss."""
 
 
+class ConfigurationManager:
+    pass
 
 
+class InstallationManager:
+    pass
 
+@dbus_interface
+class Screenplay(object):
+    """The description of the anacondas behaviour."""
 
+    def AddEvent(self, event):
+        pass
+
+    def AddEventAfter(self, event, event_after):
+        pass
+
+    def AddEventBefore(self, event, event_before):
+        pass
+
+    def RegisterBlocker(self, blocker_name):
+        pass
+
+    def BlockEvent(self, event, blocker_id):
+        pass
+
+    def UnblockEvent(self, event, blocker_id: Int) -> None:
+        pass
