@@ -66,6 +66,7 @@ from blivet.devicelibs import raid, crypto
 from blivet.devices import LUKSDevice, MDRaidArrayDevice, LVMVolumeGroupDevice
 
 from pyanaconda.storage.autopart import do_autopart
+from pyanaconda.platform import platform
 from pyanaconda.storage.installerstorage import find_existing_installations, Root
 from pyanaconda.storage_utils import ui_storage_logger, device_type_from_autopart, storage_checker, \
     verify_luks_devices_have_key

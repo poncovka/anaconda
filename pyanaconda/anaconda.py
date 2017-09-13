@@ -166,7 +166,7 @@ class Anaconda(object):
     @property
     def storage(self):
         if not self._storage:
-            from pyanaconda.storage import InstallerStorage
+            from pyanaconda.storage.installerstorage import InstallerStorage
             import blivet.arch
 
             self._storage = InstallerStorage(ksdata=self.ksdata)

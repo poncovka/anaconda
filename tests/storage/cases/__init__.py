@@ -25,7 +25,7 @@ blivet.util.set_up_logging()
 blivet_log = logging.getLogger("blivet")
 blivet_log.info(sys.argv[0])
 
-from pyanaconda.storage import InstallerStorage
+from pyanaconda.storage.installerstorage import InstallerStorage
 from pyanaconda import platform as _platform
 from pyanaconda.bootloader import BootLoaderError
 from pyanaconda.installclass import factory

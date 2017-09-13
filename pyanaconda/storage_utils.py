@@ -43,7 +43,6 @@ from pyanaconda.constants import productName, STORAGE_SWAP_IS_RECOMMENDED, STORA
 from pyanaconda.errors import errorHandler, ERROR_RAISE
 from pyanaconda.storage.autopart import swap_suggestion
 from pyanaconda.platform import platform as _platform
->>>>>>> c924626... Move blivet.platform to pyanaconda.platform.
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP

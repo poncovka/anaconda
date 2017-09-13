@@ -576,7 +576,7 @@ if __name__ == "__main__":
     # Now that LANG is set, do something with it
     localization.setup_locale(os.environ["LANG"], ksdata.lang, text_mode=anaconda.tui_mode)
 
-    from pyanaconda.storage import storage_initialize, enable_installer_mode
+    from pyanaconda.storage.installerstorage import storage_initialize, enable_installer_mode
 
     # Initialize the network now, in case the display needs it
     from pyanaconda.network import networkInitialize, wait_for_connecting_NM_thread, wait_for_connected_NM

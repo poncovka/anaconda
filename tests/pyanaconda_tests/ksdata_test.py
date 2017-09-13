@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import PropertyMock
 from unittest.mock import patch
 from pykickstart.version import returnClassForVersion
-from pyanaconda.storage import InstallerStorage
+from pyanaconda.storage.installerstorage import InstallerStorage
 from blivet.devices import PartitionDevice
 from blivet import formats
 from blivet.size import Size

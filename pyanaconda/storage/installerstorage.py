@@ -33,9 +33,9 @@ gi.require_version("BlockDev", "2.0")
 from gi.repository import BlockDev as blockdev
 
 from pykickstart.constants import AUTOPART_TYPE_LVM, CLEARPART_TYPE_NONE, CLEARPART_TYPE_LINUX, CLEARPART_TYPE_ALL, CLEARPART_TYPE_LIST
-from .constants import shortProductName
-from .errors import errorHandler as error_handler, ERROR_RAISE
-from .flags import flags
+from pyanaconda.constants import shortProductName
+from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
+from pyanaconda.flags import flags
 
 from blivet import arch, util, udev
 from blivet.blivet import Blivet
@@ -48,14 +48,14 @@ from blivet.flags import flags as blivet_flags
 from blivet.iscsi import iscsi
 from blivet.fcoe import fcoe
 from blivet.zfcp import zfcp
-from .platform import platform as _platform
-from .platform import EFI
+from pyanaconda.platform import platform as _platform
+from pyanaconda.platform import EFI
 from blivet.size import Size
 
-from . import iutil
-from .bootloader import get_bootloader
-from .anaconda_logging import program_log_lock
-from .i18n import _
+from pyanaconda import iutil
+from pyanaconda.bootloader import get_bootloader
+from pyanaconda.anaconda_logging import program_log_lock
+from pyanaconda.i18n import _
 
 import logging
 log = logging.getLogger("anaconda.storage")

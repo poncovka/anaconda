@@ -31,7 +31,7 @@ from blivet.devices.lvm import DEFAULT_THPOOL_RESERVE
 from blivet.errors import NoDisksError, NotEnoughFreeSpaceError
 from blivet.formats import get_format
 from blivet.partitioning import do_partitioning, get_free_regions, grow_lvm
-from .i18n import _
+from pyanaconda.i18n import _
 from blivet.static_data import luks_data
 
 from pykickstart.constants import AUTOPART_TYPE_BTRFS, AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP, AUTOPART_TYPE_PLAIN

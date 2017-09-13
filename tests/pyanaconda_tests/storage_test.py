@@ -6,7 +6,7 @@ from blivet import util
 from blivet.flags import flags
 from blivet.size import Size
 
-from pyanaconda.storage import InstallerStorage, storage_initialize
+from pyanaconda.storage.installerstorage import InstallerStorage, storage_initialize
 try:
     from pyanaconda import kickstart
     pyanaconda_present = True
