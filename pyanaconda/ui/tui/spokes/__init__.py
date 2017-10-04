@@ -22,12 +22,12 @@ from collections import namedtuple
 
 from pyanaconda.ui.common import Spoke, StandaloneSpoke, NormalSpoke
 from pyanaconda.ui.tui.tuiobject import TUIObject
-from pyanaconda.users import validatePassword, cryptPassword
+from pyanaconda.users import cryptPassword
 from pyanaconda.iutil import setdeepattr, getdeepattr
 from pyanaconda.i18n import N_, _
-from pyanaconda.constants import PASSWORD_CONFIRM_ERROR_TUI, PW_ASCII_CHARS
-from pyanaconda.constants import PASSWORD_WEAK, PASSWORD_WEAK_WITH_ERROR
+from pyanaconda import constants
 from pyanaconda import ihelp
+from pyanaconda import input_checking
 
 from simpleline.render.adv_widgets import HelpScreen, YesNoDialog
 from simpleline.render.containers import WindowContainer
@@ -176,7 +176,7 @@ class EditTUIDialog(NormalTUISpoke):
                         " it a second time to continue."))
                 return None
             if pw != confirm:
-                print(_(PASSWORD_CONFIRM_ERROR_TUI))
+                print(_(constants.PASSWORD_CONFIRM_ERROR_TUI) % {"password_name_plural": _(constants.NAME_OF_PASSWORD_PLURAL)})
                 return None
 
             # If an empty password was provided, unset the value
@@ -184,23 +184,33 @@ class EditTUIDialog(NormalTUISpoke):
                 self.value = ""
                 return None
 
-            pw_score, _status_text, pw_quality, error_message = validatePassword(pw, user=None, minlen=self.policy.minlen)
+            # prepare a password validation request
+            check_request = input_checking.PasswordCheckRequest()
+            check_request.password=pw
+            check_request.password_confirmation=""
+            check_request.policy=self.policy
+
+            # validate the password
+            check = input_checking.PasswordValidityCheck()
+            check.run(check_request)
 
             # if the score is equal to 0 and we have an error message set
-            if not pw_score and error_message:
-                print(error_message)
+            if not check.result.password_score and check.result.error_message:
+                print(check.result.error_message)
                 return None
 
-            if pw_quality < self.policy.minquality:
+            if check.result.password_quality < self.policy.minquality:
                 if self.policy.strict:
                     done_msg = ""
                 else:
                     done_msg = _("\nWould you like to use it anyway?")
 
-                if error_message:
-                    error = _(PASSWORD_WEAK_WITH_ERROR) % error_message + " " + done_msg
+                if check.result.error_message:
+                    main_message = _(constants.PASSWORD_WEAK_WITH_ERROR) % {"password_name": _(constants.NAME_OF_PASSWORD),
+                                                                            "error_message": check.result.error_message}
+                    error = main_message + " " + done_msg
                 else:
-                    error = _(PASSWORD_WEAK) % done_msg
+                    error = _(constants.PASSWORD_WEAK) % {"password_name": _(constants.NAME_OF_PASSWORD)} + " " + done_msg
 
                 if not self.policy.strict:
                     question_window = YesNoDialog(error)
@@ -211,7 +221,7 @@ class EditTUIDialog(NormalTUISpoke):
                     print(error)
                     return None
 
-            if any(char not in PW_ASCII_CHARS for char in pw):
+            if any(char not in constants.PW_ASCII_CHARS for char in pw):
                 print(_("You have provided a password containing non-ASCII characters.\n"
                         "You may not be able to switch between keyboard layouts to login.\n"))
 
