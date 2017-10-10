@@ -41,31 +41,6 @@ def get_policy(kickstart_data, policy_name):
     return policy
 
 
-class PwqualitySettingsCache(object):
-    """Cache for libpwquality settings used for password validation.
-
-    Libpwquality settings instantiation is probably not exactly cheap
-    and we might need the settings for checking every password (even when
-    it is being typed by the user) so it makes sense to cache the objects
-    for reuse. As there might be multiple active policies for different
-    passwords we need to be able to cache multiple policies based on
-    minimum password length, as we don't input anything else to libpwquality
-    than minimum password length and the password itself.
-    """
-    def __init__(self):
-        self._pwq_settings = {}
-
-    def get_settings_by_minlen(self, minlen):
-        settings = self._pwq_settings.get(minlen)
-        if settings is None:
-            settings = pwquality.PWQSettings()
-            settings.read_config()
-            settings.minlen = minlen
-            self._pwq_settings[minlen] = settings
-        return settings
-
-pwquality_settings_cache = PwqualitySettingsCache()
-
 class PasswordCheckRequest(object):
     """A wrapper for a password check request.
 
@@ -77,7 +52,6 @@ class PasswordCheckRequest(object):
         self._password = ""
         self._password_confirmation = ""
         self._policy = None
-        self._pwquality_settings = None
         self._username = "root"
         self._fullname = ""
         self._name_of_password = _(constants.NAME_OF_PASSWORD)
@@ -120,17 +94,6 @@ class PasswordCheckRequest(object):
     @policy.setter
     def policy(self, new_policy):
         self._policy = new_policy
-
-    @property
-    def pwquality_settings(self):
-        """Settings for libpwquality (if any).
-
-        :returns: libpwquality settings
-        :rtype: pwquality settings object or None
-        """
-        if not self._pwquality_settings:
-            self._pwquality_settings = pwquality_settings_cache.get_settings_by_minlen(self.policy.minlen)
-        return self._pwquality_settings
 
     @property
     def username(self):
@@ -416,6 +379,16 @@ class PasswordValidityCheck(InputCheck):
     def __init__(self):
         super().__init__()
         self._result = PasswordValidityCheckResult()
+        self._pwq_settings = {}
+
+    def _get_settings_by_minlen(self, minlen):
+        settings = self._pwq_settings.get(minlen)
+        if settings is None:
+            settings = pwquality.PWQSettings()
+            settings.read_config()
+            settings.minlen = minlen
+            self._pwq_settings[minlen] = settings
+        return settings
 
     def run(self, check_request):
         """Check the validity and quality of a password.
@@ -438,13 +411,15 @@ class PasswordValidityCheck(InputCheck):
            :returns: a password check result wrapper
            :rtype: a PasswordCheckResult instance
         """
-
         length_ok = False
         error_message = ""
         pw_quality = 0
+
+        pwquality_settings = self._get_settings_by_minlen(check_request.policy.minlen)
+
         try:
             # lets run the password through libpwquality
-            pw_quality = check_request.pwquality_settings.check(check_request.password, None, check_request.username)
+            pw_quality = pwquality_settings.check(check_request.password, None, check_request.username)
         except pwquality.PWQError as e:
             # Leave valid alone here: the password is weak but can still
             # be accepted.
