@@ -325,6 +325,23 @@ class PasswordValidityCheck(InputCheck):
             self._pwq_settings[minlen] = settings
         return settings
 
+    def _check_quality(self, check_request):
+        """Check the quality of the password."""
+        quality = 0
+        error_message = ""
+        pwquality_settings = self._get_settings_by_minlen(check_request.policy.minlen)
+
+        try:
+            # lets run the password through libpwquality
+            quality = pwquality_settings.check(check_request.password, None, check_request.username)
+        except pwquality.PWQError as e:
+            # Leave valid alone here: the password is weak but can still
+            # be accepted.
+            # PWQError values are built as a tuple of (int, str)
+            error_message = e.args[1]
+
+        return quality, error_message
+
     def run(self, check_request):
         """Check the validity and quality of a password.
 
@@ -346,19 +363,7 @@ class PasswordValidityCheck(InputCheck):
            :returns: a password check result wrapper
            :rtype: a PasswordCheckResult instance
         """
-        error_message = ""
-        pw_quality = 0
-
-        pwquality_settings = self._get_settings_by_minlen(check_request.policy.minlen)
-
-        try:
-            # lets run the password through libpwquality
-            pw_quality = pwquality_settings.check(check_request.password, None, check_request.username)
-        except pwquality.PWQError as e:
-            # Leave valid alone here: the password is weak but can still
-            # be accepted.
-            # PWQError values are built as a tuple of (int, str)
-            error_message = e.args[1]
+        pw_quality, error_message = self._check_quality(check_request)
 
         # The password is empty.
         if not check_request.password:
