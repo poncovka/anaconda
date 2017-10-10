@@ -202,8 +202,6 @@ class PasswordValidityCheckResult(CheckResult):
         self.status_text_changed = Signal()
         self._password_quality = 0
         self.password_quality_changed = Signal()
-        self._length_ok = False
-        self.length_ok_changed = Signal()
 
     @property
     def check_request(self):
@@ -272,20 +270,6 @@ class PasswordValidityCheckResult(CheckResult):
     def password_quality(self, value):
         self._password_quality = value
         self.password_quality_changed.emit(value)
-
-    @property
-    def length_ok(self):
-        """Reports if the password is long enough.
-
-        :returns: if the password is long enough
-        :rtype: bool
-        """
-        return self._length_ok
-
-    @length_ok.setter
-    def length_ok(self, value):
-        self._length_ok = value
-        self.length_ok_changed.emit(value)
 
 class InputCheck(object):
     """Input checking base class."""
@@ -422,8 +406,6 @@ class PasswordValidityCheck(InputCheck):
         self.result.status_text = status_text
         self.result.password_quality = pw_quality
         self.result.error_message = error_message
-        self.result.length_ok = length_ok
-
 
 class PasswordConfirmationCheck(InputCheck):
     """Check if the password & password confirmation match."""
