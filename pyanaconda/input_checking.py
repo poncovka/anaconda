@@ -346,7 +346,6 @@ class PasswordValidityCheck(InputCheck):
            :returns: a password check result wrapper
            :rtype: a PasswordCheckResult instance
         """
-        length_ok = False
         error_message = ""
         pw_quality = 0
 
@@ -361,19 +360,16 @@ class PasswordValidityCheck(InputCheck):
             # PWQError values are built as a tuple of (int, str)
             error_message = e.args[1]
 
-        if check_request.policy.emptyok:
-            # if we are OK with empty passwords, then empty passwords are also fine length wise
-            length_ok = len(check_request.password) >= check_request.policy.minlen or not check_request.password
-        else:
-            length_ok = len(check_request.password) >= check_request.policy.minlen
-
+        # The password is empty.
         if not check_request.password:
+            # And it is ok, that its empty.
             if check_request.policy.emptyok:
                 pw_score = 1
             else:
                 pw_score = 0
             status_text = _(constants.PasswordStatus.EMPTY.value)
-        elif not length_ok:
+        # The password is not empty and it is too short.
+        elif not len(check_request.password) >= check_request.policy.minlen:
             pw_score = 0
             status_text = _(constants.PasswordStatus.TOO_SHORT.value)
             # If the password is too short replace the libpwquality error
