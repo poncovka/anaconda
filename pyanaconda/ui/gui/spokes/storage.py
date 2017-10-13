@@ -463,7 +463,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             StorageCheckHandler.errors = str(e).split("\n")
             hubQ.send_message(self.__class__.__name__, _("Failed to save storage configuration..."))
             self.data.bootloader.bootDrive = ""
-            self.data.ignoredisk.drives = []
+            self.data.ignoredisk.ignoredisk = []
             self.data.ignoredisk.onlyuse = []
             self.storage.config.update(self.data)
             self.storage.reset()
