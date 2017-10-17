@@ -1175,8 +1175,9 @@ class InstallerStorage(Blivet):
             :keyword ksdata: kickstart data store
             :type ksdata: :class:`pykickstart.Handler`
         """
-        super().__init__(ksdata=ksdata)
+        super().__init__()
 
+        self.ksdata = ksdata
         self._bootloader = None
         self.config = StorageDiscoveryConfig()
         self.autopart_type = AUTOPART_TYPE_LVM
@@ -1865,6 +1866,22 @@ class InstallerStorage(Blivet):
                 self.initialize_disk(disk)
 
         self.update_bootloader_disk_list()
+
+    def _get_container_name_template(self, prefix=None):
+        prefix = prefix or ""  # make sure prefix is a string instead of None
+
+        # try to create a device name incorporating the hostname
+        hostname = self.ksdata.network.hostname if self.ksdata is not None else None
+        if hostname not in (None, "", 'localhost', 'localhost.localdomain'):
+            template = "%s_%s" % (prefix, hostname.split('.')[0].lower())
+            template = self.safe_device_name(template)
+        else:
+            template = prefix
+
+        if flags.imageInstall:
+            template = "%s_image" % template
+
+        return template
 
     def format_by_default(self, device):
         """Return whether the device should be reformatted by default."""
