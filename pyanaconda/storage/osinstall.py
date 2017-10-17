@@ -1497,7 +1497,7 @@ class InstallerStorage(Blivet):
 
         # ignoredisk
         if self.ignored_disks:
-            self.ksdata.ignoredisk.drives = self.ignored_disks[:]
+            self.ksdata.ignoredisk.ignoredisk = self.ignored_disks[:]
         elif self.exclusive_disks:
             self.ksdata.ignoredisk.onlyuse = self.exclusive_disks[:]
 
@@ -1604,8 +1604,6 @@ class InstallerStorage(Blivet):
 
             parent = getattr(self.ksdata, list_attr)
             parent.dataList().append(data)
-
-        self.fsset = FSSet(self.devicetree)
 
     def shutdown(self):
         """ Deactivate all devices. """
