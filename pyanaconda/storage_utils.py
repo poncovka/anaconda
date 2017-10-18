@@ -18,6 +18,11 @@
 
 """UI-independent storage utility functions"""
 
+import gi
+gi.require_version("BlockDev", "2.0")
+
+from gi.repository import BlockDev as blockdev
+
 import re
 import locale
 import os
@@ -940,3 +945,45 @@ def get_supported_filesystems():
             fs_types.append(obj)
 
     return fs_types
+
+class DasdFormat(object):
+
+    def is_allowed(self):
+
+
+
+    def __init__(self):
+        self.dasds_to_format = []
+
+    def is_required(self):
+        return bool(self.dasds_to_format)
+
+    def is_required_by_kickstart(self, data):
+        return arch.is_s390() and (data.zerombr.zerombr or data.clearpart.cdl)
+
+    def update(self, devices):
+        self.dasds_to_format = list(filter(self._device_needs_format, devices))
+
+    def _device_needs_format(self, d):
+        """Check if the device is DASD and needs to be formatted."""
+        return d.type == "dasd" and (blockdev.s390.dasd_needs_format(d.busid) or blockdev.s390.is_ldl_dasd(d.name))
+
+    def do_format(self, pre_callback=None, post_callback=None, error_callback=None):
+        """Format DASDs with dasdfmt."""
+        for disk in self.dasds_to_format:
+            try:
+                if pre_callback:
+                    pre_callback(disk)
+
+                blockdev.s390.dasd_format(disk.name)
+
+                if post_callback:
+                    post_callback(disk)
+
+            except blockdev.S390Error as err:
+                log.error(str(err))
+
+                if error_callback:
+                    error_callback(err)
+
+                continue

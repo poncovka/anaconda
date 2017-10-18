@@ -74,7 +74,8 @@ from pyanaconda.flags import flags
 from pyanaconda.i18n import _, C_, CN_, P_
 from pyanaconda import constants, iutil
 from pyanaconda.bootloader import BootLoaderError
-from pyanaconda.storage_utils import on_disk_storage
+from pyanaconda.storage_utils import on_disk_storage, make_unformatted_dasd_list, needs_dasdfmt, format_with_dasdfmt, \
+    get_list_for_dasd_format
 from pyanaconda.screen_access import sam
 
 from pykickstart.constants import CLEARPART_TYPE_NONE, AUTOPART_TYPE_LVM
@@ -290,10 +291,9 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self.autoPartType = None
         self.clearPartType = CLEARPART_TYPE_NONE
 
-        if self.data.zerombr.zerombr and arch.is_s390():
-            # run dasdfmt on any unformatted DASDs automatically
-            threadMgr.add(AnacondaThread(name=constants.THREAD_DASDFMT,
-                            target=self.run_dasdfmt))
+        if arch.is_s390() and (self.data.zerombr.zerombr or self.data.clearpart.cdl):
+            # run dasdfmt on any unformatted or LDL DASDs automatically
+            threadMgr.add(AnacondaThread(name=constants.THREAD_DASDFMT, target=self.run_dasdfmt))
 
         self._previous_autopart = False
 
@@ -839,26 +839,19 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         """
         Though the same function exists in pyanaconda.ui.gui.spokes.lib.dasdfmt,
         this instance doesn't include any of the UI pieces and should only
-        really be getting called on ks installations with "zerombr".
+        really be getting called on ks installations that specify zerombr.
         """
         # wait for the initial storage thread to complete before taking any new
         # actions on storage devices
         threadMgr.wait(constants.THREAD_STORAGE)
+        dasds = filter(needs_dasdfmt, getDisks(self.storage.devicetree))
 
-        to_format = (d for d in getDisks(self.storage.devicetree)
-                     if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid))
-        if not to_format:
+        if not dasds:
             # nothing to do here; bail
             return
 
         hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
-        for disk in to_format:
-            try:
-                blockdev.s390.dasd_format(disk.name)
-            except blockdev.S390Error as err:
-                # Log errors if formatting fails, but don't halt the installer
-                log.error(str(err))
-                continue
+        format_with_dasdfmt(dasds)
 
     # signal handlers
     def on_summary_clicked(self, button):
@@ -930,8 +923,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
     def _check_dasd_formats(self):
         rc = DASD_FORMAT_NO_CHANGE
-        dasds = [d for d in self.storage.devicetree.devices
-                 if d.type == "dasd" and blockdev.s390.dasd_needs_format(d.busid)]
+        dasds = get_list_for_dasd_format(self.storage.devicetree.devices)
         if len(dasds) > 0:
             # We want to apply current selection before running dasdfmt to
             # prevent this information from being lost afterward

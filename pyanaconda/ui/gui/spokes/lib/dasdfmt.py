@@ -16,18 +16,13 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
+from pyanaconda.storage_utils import do_dasd_format
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.utils import gtk_action_wait, gtk_call_once
 from pyanaconda import constants
 from pyanaconda.i18n import _
 import threading
-
-import gi
-gi.require_version("BlockDev", "2.0")
-
-from gi.repository import BlockDev as blockdev
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -85,19 +80,15 @@ class DasdFormatDialog(GUIObject):
         """
         self.window.response(2)
 
-    def run_dasdfmt(self, epoch_started, *args):
+    def run_dasdfmt(self, epoch_started):
         """ Loop through our disks and run dasdfmt against them. """
-        for disk in self.to_format:
-            try:
-                gtk_call_once(self._formatting_label.set_text, _("Formatting /dev/%s. This may take a moment.") % disk.name)
-                blockdev.s390.dasd_format(disk.name)
-            except blockdev.S390Error as err:
-                # Log errors if formatting fails, but don't halt the installer
-                log.error(str(err))
-                continue
+        do_dasd_format(self.to_format, pre_callback=self._report_dasdfmt)
 
         with self._epoch_lock:
             self.update_dialog(epoch_started)
+
+    def _report_dasdfmt(self, disk):
+        gtk_call_once(self._formatting_label.set_text, _("Formatting /dev/%s. This may take a moment.") % disk.name)
 
     def on_format_clicked(self, *args):
         """
@@ -109,8 +100,7 @@ class DasdFormatDialog(GUIObject):
         self._notebook.set_current_page(1)
 
         # Loop through all of our unformatted DASDs and format them
-        threadMgr.add(AnacondaThread(name=constants.THREAD_DASDFMT,
-                                target=self.run_dasdfmt, args=(self._epoch,)))
+        threadMgr.add(AnacondaThread(name=constants.THREAD_DASDFMT, target=self.run_dasdfmt))
 
     @gtk_action_wait
     def update_dialog(self, epoch_started):
