@@ -94,20 +94,15 @@ class DasdFormatDialog(GUIObject):
         epoch_started = self._epoch
 
         # Loop through all of our unformatted DASDs and format them
-        self.dasds_formatting.started.connect(self.show_formatted_dasd)
-        self.dasds_formatting.run()
-        self.dasds_formatting.started.disconnect(self.show_formatted_dasd)
+        self.dasds_formatting.report.connect(self.show_dasdfmt_report)
+        self.dasds_formatting.run(self.storage, self.data)
+        self.dasds_formatting.report.disconnect(self.show_dasdfmt_report)
 
         # Update dialog.
         with self._epoch_lock:
             self.update_dialog(epoch_started)
 
-        # Update storage.
-        self.dasds_formatting.update_storage(self.storage, self.data)
-
-    def show_formatted_dasd(self, disk):
-        disk_info = self.dasds_formatting.get_dasd_info(disk)
-        msg = _("Formatting %s. This may take a moment.") % disk_info
+    def show_dasdfmt_report(self, msg):
         gtk_call_once(self._formatting_label.set_text, msg)
 
     @gtk_action_wait

@@ -45,7 +45,7 @@ gi.require_version("AnacondaWidgets", "3.3")
 from gi.repository import Gdk, GLib, AnacondaWidgets, Gtk
 
 from pyanaconda.ui.communication import hubQ
-from pyanaconda.ui.lib.disks import getDisks, isLocalDisk, applyDiskSelection, checkDiskSelection
+from pyanaconda.ui.lib.disks import getDisks, isLocalDisk, applyDiskSelection, checkDiskSelection, getDisksByNames
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.spokes import NormalSpoke
 from pyanaconda.ui.gui.spokes.lib.cart import SelectedDisksDialog
@@ -72,7 +72,7 @@ from pyanaconda.i18n import _, C_, CN_, P_
 from pyanaconda import constants, iutil
 from pyanaconda.bootloader import BootLoaderError
 from pyanaconda.storage_utils import on_disk_storage
-from pyanaconda.format_dasd import AutomaticDasdFormatting, DasdFormatting
+from pyanaconda.format_dasd import DasdFormatting
 from pyanaconda.screen_access import sam
 
 from pykickstart.constants import CLEARPART_TYPE_NONE, AUTOPART_TYPE_LVM
@@ -756,18 +756,8 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         threadMgr.wait(constants.THREAD_STORAGE)
         threadMgr.wait(constants.THREAD_CUSTOM_STORAGE_INIT)
 
-        # Automatically format DASDs.
-        if AutomaticDasdFormatting.is_supported():
-            dasd_formatting = AutomaticDasdFormatting()
-            dasd_formatting.read_restrictions(self.data)
-            dasd_formatting.search_storage(self.storage)
-
-            if dasd_formatting.should_run():
-                hubQ.send_message(self.__class__.__name__, _("Formatting DASDs"))
-                dasd_formatting.run()
-
-                hubQ.send_message(self.__class__.__name__, _("Updating storage"))
-                dasd_formatting.update_storage(self.storage, self.data)
+        # Automatically format DASDs if allowed.
+        DasdFormatting.run_automatically(self.storage, self.data, self._show_dasdfmt_report)
 
         # Continue with initializing.
         hubQ.send_message(self.__class__.__name__, _(constants.PAYLOAD_STATUS_PROBING_STORAGE))
@@ -786,6 +776,9 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
         # report that the storage spoke has been initialized
         self.initialize_done()
+
+    def _show_dasdfmt_report(self, msg):
+        hubQ.send_message(self.__class__.__name__, msg)
 
     def _update_summary(self):
         """ Update the summary based on the UI. """
@@ -910,14 +903,22 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
                 self.storage.devicetree.unhide(disk)
 
     def _check_dasd_formats(self):
+        # No change by default.
         rc = DASD_FORMAT_NO_CHANGE
+
+        # Get selected disks.
+        disks = getDisksByNames(self.disks, self.selected_disks)
+
+        # Check if some of the disks should be formatted.
         dasd_formatting = DasdFormatting()
-        dasd_formatting.search_disks(self.selected_disks)
+        dasd_formatting.search_disks(disks)
 
         if dasd_formatting.should_run():
             # We want to apply current selection before running dasdfmt to
             # prevent this information from being lost afterward
             applyDiskSelection(self.storage, self.data, self.selected_disks)
+
+            # Run the dialog.
             dialog = DasdFormatDialog(self.data, self.storage, dasd_formatting)
             ignoreEscape(dialog.window)
             rc = self.run_lightbox_dialog(dialog)
@@ -1062,15 +1063,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             self._unhide_disks()
             self._back_clicked = False
             return
-
-        # hide/unhide disks as requested
-        for disk in self.disks:
-            if disk.name not in self.selected_disks and \
-               disk in self.storage.devices:
-                self.storage.devicetree.hide(disk)
-            elif disk.name in self.selected_disks and \
-                 disk not in self.storage.devices:
-                self.storage.devicetree.unhide(disk)
 
         if DasdFormatting.is_supported():
             # check for unformatted or LDL DASDs and launch dasdfmt if any discovered

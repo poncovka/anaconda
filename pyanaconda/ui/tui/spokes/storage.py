@@ -17,13 +17,13 @@
 # Red Hat, Inc.
 #
 
-from pyanaconda.ui.lib.disks import getDisks, applyDiskSelection, checkDiskSelection
+from pyanaconda.ui.lib.disks import getDisks, applyDiskSelection, checkDiskSelection, getDisksByNames
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.simpleline import TextWidget, CheckboxWidget
 from pyanaconda.ui.tui.tuiobject import YesNoDialog
 from pyanaconda.storage_utils import AUTOPART_CHOICES, storage_checker
-from pyanaconda.format_dasd import AutomaticDasdFormatting, DasdFormatting
+from pyanaconda.format_dasd import DasdFormatting
 
 from blivet.size import Size
 from blivet.errors import StorageError
@@ -271,11 +271,19 @@ class StorageSpoke(NormalTUISpoke):
                 if self.selected_disks:
                     # Is DASD formatting supported?
                     if DasdFormatting.is_supported():
-                        # Search disks that should be formatted.
+                        # Get selected disks.
+                        disks = getDisksByNames(self.disks, self.selected_disks)
+
+                        # Check if some of the disks should be formatted.
                         dasd_formatting = DasdFormatting()
-                        dasd_formatting.search_disks(self.selected_disks)
-                        # Should we run the formatting?
+                        dasd_formatting.search_disks(disks)
+
                         if dasd_formatting.should_run():
+                            # We want to apply current selection before running dasdfmt to
+                            # prevent this information from being lost afterward
+                            applyDiskSelection(self.storage, self.data, self.selected_disks)
+
+                            # Run the dialog.
                             self.run_dasdfmt_dialog(dasd_formatting)
                             return None
 
@@ -318,16 +326,17 @@ class StorageSpoke(NormalTUISpoke):
         if not question_window.answer:
             return None
 
+        print(_("This may take a moment."), flush=True)
+
         # Do the DASD formatting.
-        dasd_formatting.started.connect(self._show_formatted_dasd)
-        dasd_formatting.run()
+        dasd_formatting.report.connect(self._show_dasdfmt_report)
+        dasd_formatting.run(self.storage, self.data)
+        dasd_formatting.report.disconnect(self._show_dasdfmt_report)
 
-        print(_("Updating storage."))
-        dasd_formatting.update_storage(self.storage, self.data)
-        self._update_disks()
+        self.update_disks()
 
-    def _show_formatted_dasd(self, disk):
-        print(_("Formatting /dev/%s. This may take a moment.") % disk.name)
+    def _show_dasdfmt_report(self, msg):
+        print(msg, flush=True)
 
     def apply(self):
         self.autopart = self.data.autopart.autopart
@@ -415,15 +424,8 @@ class StorageSpoke(NormalTUISpoke):
         # Wait for storage.
         threadMgr.wait(THREAD_STORAGE)
 
-        # Automatically format DASDs.
-        if AutomaticDasdFormatting.is_supported():
-            dasd_formatting = AutomaticDasdFormatting()
-            dasd_formatting.read_restrictions(self.data)
-            dasd_formatting.search_storage(self.storage)
-
-            if dasd_formatting.should_run():
-                dasd_formatting.run()
-                dasd_formatting.update_storage(self.storage, self.data)
+        # Automatically format DASDs if allowed.
+        DasdFormatting.run_automatically(self.storage, self.data)
 
         # Update disk list.
         self.update_disks()

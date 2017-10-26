@@ -19,7 +19,6 @@
 #
 
 import gi
-
 gi.require_version("BlockDev", "2.0")
 from gi.repository import BlockDev as blockdev
 
@@ -30,124 +29,167 @@ from pyanaconda.flags import flags
 from pyanaconda.ui.lib.disks import getDisks
 from pyanaconda.isignal import Signal
 from pyanaconda.storage_utils import on_disk_storage
+from pyanaconda.i18n import _
 
 import logging
 log = logging.getLogger("anaconda")
 
 
 class DasdFormatting(object):
+    """Class for formatting DASDs."""
 
     def __init__(self):
-        self._started = Signal()
-        self._done = Signal()
         self._dasds = []
+
+        self._can_format_unformatted = True
+        self._can_format_ldl = True
+
+        self._report = Signal()
+        self._report.connect(log.debug)
 
     @staticmethod
     def is_supported():
+        """Is DASD formatting supported on this machine?"""
         return arch.is_s390()
 
     @property
-    def started(self):
-        return self._started
+    def report(self):
+        """Signal for the progress reporting.
 
-    @property
-    def done(self):
-        return self._done
+        Emits messages during the formatting.
+        """
+        return self._report
 
     @property
     def dasds(self):
+        """List of found DASDs to format."""
         return self._dasds
 
     @property
     def dasds_summary(self):
+        """Returns a string summary of DASDs to format."""
         return "\n".join(map(self.get_dasd_info, self.dasds))
 
     def get_dasd_info(self, disk):
+        """Returns a string with description of a DASD,"""
         return "/dev/" + disk.name + " (" + disk.busid + ")"
 
     def _is_dasd(self, disk):
+        """Is it a DASD disk?"""
         return disk.type == "dasd"
 
     def _is_unformatted_dasd(self, disk):
+        """Is it an unformatted DASD?"""
         return self._is_dasd(disk) and blockdev.s390.dasd_needs_format(disk.busid)
 
     def _is_ldl_dasd(self, disk):
+        """Is it an LDL DASD?"""
         return self._is_dasd(disk) and blockdev.s390.dasd_is_ldl(disk.name)
 
     def _get_unformatted_dasds(self, disks):
-        return list(filter(self._is_unformatted_dasd, disks))
+        """Returns a list of unformatted DASDs."""
+        result = []
+
+        if not self._can_format_unformatted:
+            log.debug("We are not allowed to format unformatted DASDs.")
+            return result
+
+        for disk in disks:
+            if self._is_unformatted_dasd(disk):
+                log.debug("Found unformatted DASD: %s", self.get_dasd_info(disk))
+                result.append(disk)
+
+        return result
 
     def _get_ldl_dasds(self, disks):
-        return list(filter(self._is_ldl_dasd, disks))
+        """Returns a list of LDL DASDs."""
+        result = []
+
+        if not self._can_format_ldl:
+            log.debug("We are not allowed to format LDL DASDs.")
+            return result
+
+        for disk in disks:
+            if self._is_ldl_dasd(disk):
+                log.debug("Found LDL DASD: %s", self.get_dasd_info(disk))
+                result.append(disk)
+
+        return result
+
+    def update_restrictions(self, data):
+        """Read kickstart data to update the restrictions."""
+        self._can_format_unformatted = data.zerombr.zerombr
+        self._can_format_ldl = data.clearpart.cdl
 
     def search_disks(self, disks):
-        self._dasds = self._get_unformatted_dasds(disks) + self._get_ldl_dasds(disks)
+        """Search for a list of disks for DASDs to format."""
+        self._dasds = list(set(self._get_unformatted_dasds(disks) + self._get_ldl_dasds(disks)))
 
     def should_run(self):
+        """Should we run the formatting?"""
         return bool(self._dasds)
 
     def do_format(self, disk):
+        """Format a disk."""
         try:
-            log.debug("Running dasdfmt /dev/%s", disk.name)
+            self.report.emit(_("Formatting %s") % self.get_dasd_info(disk))
             blockdev.s390.dasd_format(disk.name)
         except blockdev.S390Error as err:
-            log.error("Failed dasdfmt /dev/%s: %s", disk.name, err)
+            self.report.emit(_("Failed formatting %s") % self.get_dasd_info(disk))
+            log.error(err)
 
-    def run(self):
+    def run(self, storage, data):
+        """Format all found DASDs and update the storage."""
+        # Check if we have something to format.
         if not self._dasds:
+            self.report.emit(_("Nothing to format"))
             return
 
+        # Format all found DASDs.
+        self.report.emit(_("Formatting DASDs"))
         for disk in self._dasds:
-            self.started.emit(disk)
             self.do_format(disk)
-            self.done.emit(disk)
 
-    def update_storage(self, storage, data):
-        # Need to make the device tree aware of storage change.
-        storage.devicetree.populate()
-
-        # Initialize storage.
+        # Update the storage.
+        self.report.emit(_("Probing storage"))
         storage_initialize(storage, data, storage.devicetree.protected_dev_names)
 
-        # Update the storage snapshot to reflect these changes.
+        # Update also the storage snapshot to reflect the changes.
         if on_disk_storage.created:
             on_disk_storage.dispose_snapshot()
         on_disk_storage.create_snapshot(storage)
 
+    @staticmethod
+    def run_automatically(storage, data, callback=None):
+        """Run the DASD formatting automatically."""
 
-class AutomaticDasdFormatting(DasdFormatting):
+        # Is it an automated install?
+        if not flags.automatedInstall:
+            return
 
-    def __init__(self):
-        DasdFormatting.__init__(self)
-        self._can_format_unformatted = False
-        self._can_format_ldl = False
+        # Is this feature supported?
+        if not DasdFormatting.is_supported():
+            return
 
-    def read_restrictions(self, data):
-        self._can_format_unformatted = data.zerombr.zerombr
-        self._can_format_ldl = data.clearpart.cdl
+        # Get a list of disks.
+        disks = getDisks(storage.devicetree)
 
-    def should_run(self):
-        return self.is_supported() \
-               and flags.automatedInstall \
-               and (self._can_format_unformatted or self._can_format_ldl) \
-               and DasdFormatting.should_run(self)
+        # Try to find DASDs to format.
+        formatting = DasdFormatting()
+        formatting.update_restrictions(data)
+        formatting.search_disks(disks)
 
-    def search_storage(self, storage):
-        self._dasds = []
+        # Should we run the formatting?
+        if not formatting.should_run():
+            return
 
-        if self._can_format_unformatted:
-            disks = getDisks(storage.devicetree)
-            self._dasds += self._get_unformatted_dasds(disks)
+        # Connect a callback for reporting.
+        if callback:
+            formatting.report.connect(callback)
 
-        if self._can_format_ldl:
-            disks = storage.devicetree.dasd
-            self._dasds += self._get_ldl_dasds(disks)
+        # Format DASDs.
+        formatting.run(storage, data)
 
-    def update_storage(self, storage, data):
-        for disk in self.dasds:
-            # call removeChildren function instead of simply
-            # removeDevice since the disk may have children in
-            # devicetree, e.g. /dev/dasdc may have /dev/dasdc1
-            storage.devicetree._removeChildrenFromTree(disk)
-
-        storage.devicetree.populate()
+        # Disconnect a callback for reporting.
+        if callback:
+            formatting.report.disconnect(callback)
