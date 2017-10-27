@@ -7,11 +7,13 @@ ConditionKernelCommandLine=|sshd
 ConditionKernelCommandLine=|inst.sshd
 ConditionKernelCommandLine=!inst.sshd=0
 ConditionKernelCommandLine=!sshd=0
-# TODO: use ConditionArchitecture in systemd v210 or later
-ConditionPathIsDirectory=|/sys/hypervisor/s390
+ConditionArchitecture=|s390
+ConditionArchitecture=|s390x
 
 [Service]
 EnvironmentFile=/etc/sysconfig/sshd
-ExecStartPre=/usr/sbin/handle-sshpw
+#ExecStartPre=/usr/sbin/handle-sshpw
 ExecStart=/usr/sbin/sshd -D $OPTIONS -f /etc/ssh/sshd_config.anaconda
 ExecReload=/bin/kill -HUP $MAINPID
+StandardOutput=journal+console
+StandardError=journal+console

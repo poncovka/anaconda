@@ -22,6 +22,8 @@
 #
 import os
 import sys
+
+from pykickstart.errors import KickstartError
 from pykickstart.parser import KickstartParser
 from pykickstart.version import makeVersion
 from pykickstart.sections import NullSection
@@ -37,7 +39,14 @@ handler = makeVersion()
 ksparser = KickstartParser(handler, missingIncludeIsFatal=False)
 ksparser.registerSection(NullSection(handler, sectionOpen="%addon"))
 ksparser.registerSection(NullSection(handler, sectionOpen="%anaconda"))
-ksparser.readKickstart(ksfile)
+
+# Note that if Anaconda fails to parse the kickstart file, it will allow
+# anyone to login as root and have full access to your hardware.
+try:
+    ksparser.readKickstart(ksfile)
+except KickstartError as e:
+    sys.stderr(str(e))
+    sys.exit()
 
 u = users.Users()
 
