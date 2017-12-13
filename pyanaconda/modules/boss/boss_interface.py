@@ -1,5 +1,5 @@
-# foo.py
-# Example DBUS module
+# boss_interface.py
+# Anaconda main DBUS module & module manager.
 #
 # Copyright (C) 2017 Red Hat, Inc.
 #
@@ -17,25 +17,16 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from pyanaconda.dbus import DBus
-from pyanaconda.dbus.constants import MODULE_FOO_PATH, MODULE_FOO_NAME
-from pyanaconda.modules.base import KickstartModule
-from pyanaconda.modules.foo.foo_interface import FooInterface
-from pyanaconda.modules.foo.tasks.foo_task import FooTask
 
-from pyanaconda import anaconda_logging
-log = anaconda_logging.get_dbus_module_logger(__name__)
+from pyanaconda.dbus.interface import dbus_interface
+from pyanaconda.dbus.constants import DBUS_BOSS_NAME
+from pyanaconda.dbus.template import InterfaceTemplate
 
 
-class Foo(KickstartModule):
-    """The Foo module."""
+@dbus_interface(DBUS_BOSS_NAME)
+class BossInterface(InterfaceTemplate):
+    """DBus interface for the Boss."""
 
-    def publish(self):
-        """Publish the module."""
-        DBus.publish_object(FooInterface(self), MODULE_FOO_PATH)
-        self.publish_task(FooTask(), MODULE_FOO_PATH)
-        DBus.register_service(MODULE_FOO_NAME)
-
-    def ping(self, s):
-        log.debug(s)
-        return "Foo says hi!"
+    def Quit(self):
+        """Stop all modules and then stop the boss."""
+        self.implementation.stop()

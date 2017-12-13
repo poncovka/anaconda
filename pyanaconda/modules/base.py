@@ -1,5 +1,6 @@
+#
 # base.py
-# Anaconda DBUS module base.
+# Base classes for Anaconda modules.
 #
 # Copyright (C) 2017 Red Hat, Inc.
 #
@@ -22,33 +23,28 @@ import gi
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
+# FIXME: Remove this after initThreading will be replaced
+from pyanaconda.threading import initThreading
+initThreading()
+
 from abc import ABC
 
 from pyanaconda.dbus import DBus
-from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
-from pyanaconda.dbus.interface import dbus_interface
-from pyanaconda.dbus.constants import DBUS_MODULE_NAMESPACE
-# FIXME: Remove this after initThreading will be replaced
-from pyanaconda.threading import initThreading
+from pyanaconda.task import publish_task
 
 from pyanaconda import anaconda_logging
 log = anaconda_logging.get_dbus_module_logger(__name__)
 
 
-initThreading()
-
-
 class BaseModule(ABC):
-    """Base implementation of a module.
-
-    This is not DBus interface.
-    """
+    """Base implementation of a module."""
 
     def __init__(self):
         self._loop = GLib.MainLoop()
 
     @property
     def loop(self):
+        """Return the loop."""
         return self._loop
 
     def run(self):
@@ -73,27 +69,30 @@ class BaseModule(ABC):
         DBus.unregister_all()
         DBus.unpublish_all()
 
-    def stop_module(self):
+    def stop(self):
         self.unpublish()
         GLib.timeout_add_seconds(1, self.loop.quit)
 
 
-@dbus_interface(DBUS_MODULE_NAMESPACE)
-class BaseModuleInterface(BaseModule, ABC):
-    """A common base for Anaconda DBUS modules.
+class KickstartModule(BaseModule):
+    """Base implementation of a kickstart module.
 
-    This class also basically defines the common DBUS API
-    of Anaconda DBUS modules.
+    This module is an implementation of the KickstartInterface.
     """
 
-    def AvailableTasks(self) -> List[Tuple[Str, Str]]:
-        """Return DBus object paths for tasks available for this module.
+    def __init__(self):
+        super().__init__()
+        self._published_tasks = []
 
-        :returns: List of tuples (Name, DBus object path) for all Tasks.
-                  See pyanaconda.task.Task for Task API.
-        """
-        return []
+    @property
+    def published_tasks(self):
+        """Returns a list of published tasks."""
+        return self._published_tasks
 
-    def Quit(self):
-        """Shut the module down."""
-        self.stop_module()
+    def publish_task(self, implementation, module_path):
+        """Publish a task."""
+        published = publish_task(implementation, module_path)
+        self._published_tasks.append(published)
+
+    def ping(self, s):
+        return s

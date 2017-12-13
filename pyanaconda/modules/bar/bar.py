@@ -19,45 +19,23 @@
 #
 from pyanaconda.dbus import DBus
 from pyanaconda.dbus.constants import MODULE_BAR_PATH, MODULE_BAR_NAME
-from pyanaconda.modules.base import BaseModuleInterface
+from pyanaconda.modules.base import KickstartModule
+from pyanaconda.modules.bar.bar_interface import BarInterface
 from pyanaconda.modules.bar.tasks.bar_task import BarTask
-from pyanaconda.task import publish_task
-from pyanaconda.dbus.interface import dbus_interface
-from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 
 from pyanaconda import anaconda_logging
 log = anaconda_logging.get_dbus_module_logger(__name__)
 
 
-@dbus_interface(MODULE_BAR_NAME)
-class Bar(BaseModuleInterface):
-
-    def __init__(self):
-        super().__init__()
-        self._task_interfaces = []
-
-    def _collect_tasks(self):
-        return [BarTask()]
+class Bar(KickstartModule):
+    """The Bar module."""
 
     def publish(self):
         """Publish the module."""
-        DBus.publish_object(self, MODULE_BAR_PATH)
-        self.publish_tasks()
+        DBus.publish_object(BarInterface(self), MODULE_BAR_PATH)
+        self.publish_task(BarTask(), MODULE_BAR_PATH)
         DBus.register_service(MODULE_BAR_NAME)
 
-    def EchoString(self, s: Str) -> Str:
-        """Returns whatever is passed to it."""
+    def ping(self, s):
         log.debug(s)
-        return s
-
-    def AvailableTasks(self) -> List[Tuple[Str, Str]]:
-        ret = []
-
-        for task in self._task_interfaces:
-            ret.append((task.implementation.name, task.object_path))
-
-        return ret
-
-    def publish_tasks(self):
-        for task in self._collect_tasks():
-            self._task_interfaces.append(publish_task(task, MODULE_BAR_PATH))
+        return "Bar says hi!"

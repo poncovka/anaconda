@@ -21,11 +21,11 @@
 import gi
 
 from pyanaconda.dbus import DBus
+from pyanaconda.modules.boss.boss_interface import BossInterface
 
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
-from pyanaconda.dbus.interface import dbus_interface
 from pyanaconda.modules.base import BaseModule
 from pyanaconda.dbus.constants import DBUS_BOSS_NAME, DBUS_BOSS_PATH, DBUS_BOSS_INSTALLATION_PATH
 
@@ -37,13 +37,14 @@ from pyanaconda import anaconda_logging
 log = anaconda_logging.get_dbus_module_logger(__name__)
 
 
-@dbus_interface(DBUS_BOSS_NAME)
 class Boss(BaseModule):
+    """The Boss module."""
 
     def __init__(self, module_manager=None, install_manager=None):
         super().__init__()
         self._module_manager = module_manager or ModuleManager()
         self._install_manager = install_manager or InstallManager()
+        self._setup_install_manager()
 
     def _setup_install_manager(self):
         # FIXME: the modules list must to be readable from inside of InstallManager when needed
@@ -52,14 +53,12 @@ class Boss(BaseModule):
         modules = self._module_manager.running_module_services
         self._install_manager.available_modules = modules
 
-        # start and publish interface
-        interface = InstallationInterface(self._install_manager)
-        interface.publish(DBUS_BOSS_INSTALLATION_PATH)
-
     def publish(self):
         """Publish the boss."""
-        DBus.publish_object(self, DBUS_BOSS_PATH)
-        self._setup_install_manager()
+        DBus.publish_object(BossInterface(self), DBUS_BOSS_PATH)
+        DBus.publish_object(InstallationInterface(self._install_manager),
+                            DBUS_BOSS_INSTALLATION_PATH)
+
         DBus.register_service(DBUS_BOSS_NAME)
 
     def run(self):
@@ -74,7 +73,7 @@ class Boss(BaseModule):
         log.info("starting mainloop")
         self._loop.run()
 
-    def Quit(self):
+    def stop(self):
         """Stop all modules and then stop the boss."""
         self._module_manager.stop_modules()
-        super().stop_module()
+        super().stop()
