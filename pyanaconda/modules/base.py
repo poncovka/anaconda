@@ -31,6 +31,8 @@ from abc import ABC
 
 from pyanaconda.dbus import DBus
 from pyanaconda.task import publish_task
+from pyanaconda.modules.base_kickstart import get_kickstart_handler, get_kickstart_parser
+from pyanaconda.modules.base_kickstart import NoKickstartSpecification
 
 from pyanaconda import anaconda_logging
 log = anaconda_logging.get_dbus_module_logger(__name__)
@@ -96,3 +98,58 @@ class KickstartModule(BaseModule):
 
     def ping(self, s):
         return s
+
+    @property
+    def kickstart_specification(self):
+        """Return a kickstart specification.
+
+        Every kickstart module that is interested in processing
+        kickstart files, should provide its own specification.
+
+        :return: a subclass of KickstartSpecification
+        """
+        return NoKickstartSpecification
+
+    @property
+    def kickstart_command_names(self):
+        """Return a list of kickstart command names."""
+        return list(self.kickstart_specification.commands.keys())
+
+    @property
+    def kickstart_section_names(self):
+        """Return a list of kickstart section names."""
+        return list(self.kickstart_specification.sections.keys())
+
+    def read_kickstart(self, s):
+        """Read the given kickstart string.
+
+        The kickstart string should contain only commands and
+        sections that are defined by the kickstart specification.
+
+        :param s: a kickstart string
+        """
+        # If there is no specification, then we don't
+        # know how to process the kickstart string.
+        spec = self.kickstart_specification
+        handler = get_kickstart_handler(spec)
+        parser = get_kickstart_parser(handler, spec)
+
+        parser.readKickstartFromString(s)
+        self.process_kickstart(handler)
+
+    def process_kickstart(self, data):
+        """Process the kickstart data.
+
+        :param data: a kickstart handler defined by the specification
+        """
+        pass
+
+    def write_kickstart(self):
+        """Return a kickstart representation of this module.
+
+        The kickstart string should contain only commands and
+        sections that are defined by the kickstart specification.
+
+        :return: a kickstart string
+        """
+        return ""

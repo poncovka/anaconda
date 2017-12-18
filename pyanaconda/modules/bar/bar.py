@@ -19,6 +19,7 @@
 #
 from pyanaconda.dbus import DBus
 from pyanaconda.dbus.constants import MODULE_BAR_PATH, MODULE_BAR_NAME
+from pyanaconda.modules.bar.bar_kickstart import BarKickstartSpecification
 from pyanaconda.modules.base import KickstartModule
 from pyanaconda.modules.bar.bar_interface import BarInterface
 from pyanaconda.modules.bar.tasks.bar_task import BarTask
@@ -30,6 +31,10 @@ log = anaconda_logging.get_dbus_module_logger(__name__)
 class Bar(KickstartModule):
     """The Bar module."""
 
+    def __init__(self):
+        super().__init__()
+        self._data = None
+
     def publish(self):
         """Publish the module."""
         DBus.publish_object(BarInterface(self), MODULE_BAR_PATH)
@@ -39,3 +44,14 @@ class Bar(KickstartModule):
     def ping(self, s):
         log.debug(s)
         return "Bar says hi!"
+
+    @property
+    def kickstart_specification(self):
+        return BarKickstartSpecification
+
+    def process_kickstart(self, data):
+        log.debug(data)
+        self._data = data
+
+    def write_kickstart(self):
+        return str(self._data)

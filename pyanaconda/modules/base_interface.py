@@ -18,10 +18,17 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pydbus.error import map_error
+from pykickstart.errors import KickstartParseError, KickstartError
+
 from pyanaconda.dbus.template import InterfaceTemplate
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 from pyanaconda.dbus.interface import dbus_interface
 from pyanaconda.dbus.constants import DBUS_MODULE_NAMESPACE
+
+# Map some predefined exceptions.
+map_error("{}.KickstartError".format(DBUS_MODULE_NAMESPACE))(KickstartError)
+map_error("{}.KickstartParseError".format(DBUS_MODULE_NAMESPACE))(KickstartParseError)
 
 
 @dbus_interface(DBUS_MODULE_NAMESPACE)
@@ -51,3 +58,33 @@ class KickstartModuleInterface(InterfaceTemplate):
     def Quit(self):
         """Shut the module down."""
         self.implementation.stop()
+
+    @property
+    def KickstartCommands(self) -> List[Str]:
+        """Return a list of kickstart command names.
+
+        :return: a list of command names
+        """
+        return self.implementation.kickstart_command_names
+
+    @property
+    def KickstartSection(self) -> List[Str]:
+        """Return a list of kickstart sections names.
+
+        :return: a list of section names
+        """
+        return self.implementation.kickstart_section_names
+
+    def ReadKickstart(self, s: Str):
+        """Read the kickstart string.
+
+        :param s: a kickstart string
+        """
+        self.implementation.read_kickstart(s)
+
+    def WriteKickstart(self) -> Str:
+        """Return a kickstart representation of the module
+
+        :return: a kickstart string
+        """
+        return self.implementation.write_kickstart()
