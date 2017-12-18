@@ -42,20 +42,31 @@ MODULE_FOO_PATH = auto_object_path(MODULE_FOO_NAME)
 MODULE_BAR_NAME = "{}.Bar".format(DBUS_MODULE_NAMESPACE)
 MODULE_BAR_PATH = auto_object_path(MODULE_BAR_NAME)
 
+MODULE_TIME_NAME = "{}.Time".format(DBUS_MODULE_NAMESPACE)
+MODULE_TIME_PATH = auto_object_path(MODULE_TIME_NAME)
+
+MODULE_PAYLOAD_NAME = "{}.Payload".format(DBUS_MODULE_NAMESPACE)
+MODULE_PAYLOAD_PATH = auto_object_path(MODULE_PAYLOAD_NAME)
+
+MODULE_SERVICES_NAME = "{}.Services".format(DBUS_MODULE_NAMESPACE)
+MODULE_SERVICES_PATH = auto_object_path(MODULE_SERVICES_NAME)
+
 # Addons (likely for testing purposes only)
 ADDON_BAZ_NAME = "{}.Baz".format(DBUS_ADDON_NAMESPACE)
 ADDON_BAZ_PATH = auto_object_path(ADDON_BAZ_NAME)
 
 # list of all expected Anaconda services
 ANACONDA_SERVICES = [MODULE_FOO_NAME,
-                     MODULE_BAR_NAME]
+                     MODULE_BAR_NAME,
+                     MODULE_TIME_NAME]
 
 # Task interface name
 DBUS_TASK_NAME = "{}.Task".format(ANACONDA_DBUS_NAMESPACE)
 
 # list of all expected Anaconda DBUS modules
 ANACONDA_MODULES = [(MODULE_FOO_NAME, MODULE_FOO_PATH),
-                    (MODULE_BAR_NAME, MODULE_BAR_PATH)]
+                    (MODULE_BAR_NAME, MODULE_BAR_PATH),
+                    (MODULE_TIME_NAME, MODULE_TIME_PATH)]
 
 # status codes
 DBUS_START_REPLY_SUCCESS = 1

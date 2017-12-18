@@ -1834,7 +1834,7 @@ class Timezone(commands.timezone.F25_Timezone):
                                  "back to default (America/New_York).", self.timezone)
             self.timezone = "America/New_York"
 
-        timezone.write_timezone_config(self, iutil.getSysroot())
+        timezone.write_timezone_config(self.timezone, self.isUtc, iutil.getSysroot())
 
         # write out NTP configuration (if set) and --nontp is not used
         if not self.nontp and self.ntpservers:

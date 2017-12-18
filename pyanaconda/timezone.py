@@ -85,18 +85,19 @@ def time_initialize(timezone, storage, bootloader):
 
     iutil.execWithRedirect(cmd, args)
 
-def write_timezone_config(timezone, root):
+def write_timezone_config(timezone, isUtc, root):
     """
     Write timezone configuration for the system specified by root.
 
-    :param timezone: ksdata.timezone object
+    :param timezone: timezone
+    :param isUtc: is it utc?
     :param root: path to the root
     :raise: TimezoneConfigError
 
     """
 
     # we want to create a relative symlink
-    tz_file = "/usr/share/zoneinfo/" + timezone.timezone
+    tz_file = "/usr/share/zoneinfo/" + timezone
     rooted_tz_file = os.path.normpath(root + tz_file)
     relative_path = os.path.normpath("../" + tz_file)
     link_path = os.path.normpath(root + "/etc/localtime")
@@ -131,7 +132,7 @@ def write_timezone_config(timezone, root):
         with open(os.path.normpath(root + "/etc/adjtime"), "w") as fobj:
             fobj.write(lines[0])
             fobj.write(lines[1])
-            if timezone.isUtc:
+            if isUtc:
                 fobj.write("UTC\n")
             else:
                 fobj.write("LOCAL\n")
