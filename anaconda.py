@@ -282,6 +282,12 @@ if __name__ == "__main__":
     from pyanaconda import iutil
     from pyanaconda import startup_utils
 
+    iutil.start_service("gdb")
+
+    import faulthandler
+    f = open("/tmp/faulhandler", "w")
+    faulthandler.enable(f)
+
     # do this early so we can set flags before initializing logging
     from pyanaconda.flags import flags, can_touch_runtime_system
     (opts, depr) = parse_arguments(boot_cmdline=flags.cmdline)
@@ -380,7 +386,7 @@ if __name__ == "__main__":
     # synchronously-delivered signals such as SIGSEGV and SIGILL cannot be
     # handled properly from python, so install signal handlers from the C
     # function in isys.
-    isys.installSyncSignalHandlers()
+    # isys.installSyncSignalHandlers()
 
     setup_environment()
 
@@ -473,7 +479,8 @@ if __name__ == "__main__":
     if can_touch_runtime_system("start audit daemon"):
         # auditd will turn into a daemon and exit. Ignore startup errors
         try:
-            iutil.execWithRedirect("/sbin/auditd", [])
+            #iutil.execWithRedirect("/sbin/auditd", [])
+            pass
         except OSError:
             pass
 

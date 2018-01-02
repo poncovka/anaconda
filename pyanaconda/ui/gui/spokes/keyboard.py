@@ -16,6 +16,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from time import sleep
 
 import gi
 gi.require_version("Gkbd", "3.0")

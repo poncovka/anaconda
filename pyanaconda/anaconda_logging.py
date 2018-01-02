@@ -114,6 +114,7 @@ class AnacondaJournalHandler(_AnacondaLogFixer, JournalHandler):
                                 SYSLOG_IDENTIFIER=identifier)
 
     def emit(self, record):
+        #print("Emitting: %s" % record.__dict__)
         if self.tag:
             original_msg = record.msg
             record.msg = '%s: %s' % (self.tag, original_msg)
