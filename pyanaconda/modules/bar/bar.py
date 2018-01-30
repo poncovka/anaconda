@@ -18,8 +18,7 @@
 # Red Hat, Inc.
 #
 from pyanaconda.dbus import DBus
-from pyanaconda.dbus.constants import MODULE_BAR_PATH, MODULE_BAR_NAME, MODULE_TIMEZONE_NAME, \
-    MODULE_TIMEZONE_PATH
+from pyanaconda.dbus.object import TIMEZONE, BAR
 from pyanaconda.dbus.observer import DBusCachedObserver
 from pyanaconda.modules.bar.bar_kickstart import BarKickstartSpecification
 from pyanaconda.modules.base import KickstartModule
@@ -36,16 +35,16 @@ class Bar(KickstartModule):
     def __init__(self):
         super().__init__()
         self._data = None
-        self._timezone_module = DBusCachedObserver(MODULE_TIMEZONE_NAME,
-                                                   MODULE_TIMEZONE_PATH,
-                                                   [MODULE_TIMEZONE_NAME])
+        self._timezone_module = DBusCachedObserver(TIMEZONE.DBUS_NAME,
+                                                   TIMEZONE.DBUS_PATH,
+                                                   [TIMEZONE.INTERFACE])
 
     def publish(self):
         """Publish the module."""
         # Publish bar.
-        DBus.publish_object(BarInterface(self), MODULE_BAR_PATH)
-        self.publish_task(BarTask(), MODULE_BAR_PATH)
-        DBus.register_service(MODULE_BAR_NAME)
+        DBus.publish_object(BarInterface(self), BAR.DBUS_PATH)
+        self.publish_task(BarTask(), BAR.DBUS_PATH)
+        DBus.register_service(BAR.DBUS_NAME)
 
         # Start to watch the timezone module.
         self._timezone_module.cached_properties_changed.connect(self._timezone_callback)

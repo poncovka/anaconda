@@ -19,8 +19,8 @@
 from pydbus.auto_names import auto_object_path
 
 from pyanaconda.dbus import DBus
-from pyanaconda.dbus.constants import ANACONDA_MODULES, DBUS_START_REPLY_SUCCESS, \
-    DBUS_ADDON_NAMESPACE, DBUS_FLAG_NONE
+from pyanaconda.dbus.constants import DBUS_START_REPLY_SUCCESS, DBUS_FLAG_NONE
+from pyanaconda.dbus.object import KICKSTART_ADDON, KICKSTART_MODULES_LIST
 from pyanaconda.dbus.observer import DBusObjectObserver
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -45,8 +45,8 @@ class ModuleManager(object):
 
     def add_default_modules(self):
         """Add the default modules."""
-        for name, path in ANACONDA_MODULES:
-            self.add_module(name, path)
+        for obj in KICKSTART_MODULES_LIST:
+            self.add_module(obj.DBUS_NAME, obj.DBUS_PATH)
 
     def add_addon_modules(self):
         """Add the addon modules."""
@@ -54,7 +54,7 @@ class ModuleManager(object):
         names = dbus.ListActivatableNames()
 
         for name in names:
-            if name.startswith(DBUS_ADDON_NAMESPACE):
+            if name.startswith(KICKSTART_ADDON.DBUS_NAME):
                 self.add_module(name, auto_object_path(name))
 
     def start_modules(self):

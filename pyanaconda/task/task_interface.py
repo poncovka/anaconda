@@ -24,26 +24,26 @@
 from pydbus.error import map_error
 
 from pyanaconda.dbus.interface import dbus_interface, dbus_signal
-from pyanaconda.dbus.constants import DBUS_TASK_NAME
+from pyanaconda.dbus.object import ANACONDA_TASK
 from pyanaconda.dbus.template import InterfaceTemplate
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 
 __all__ = ['TaskInterface', 'TaskAlreadyRunningException', 'TaskNotImplemented']
 
 
-@map_error("{}.AlreadyRunning".format(DBUS_TASK_NAME))
+@map_error("{}.AlreadyRunning".format(ANACONDA_TASK.ERROR))
 class TaskAlreadyRunningException(Exception):
     """Exception will be raised when starting task which is already running."""
     pass
 
 
-@map_error("{}.NotImplemented".format(DBUS_TASK_NAME))
+@map_error("{}.NotImplemented".format(ANACONDA_TASK.ERROR))
 class TaskNotImplemented(Exception):
     """Exception will be raised when tasks job is not implemented."""
     pass
 
 
-@dbus_interface(DBUS_TASK_NAME)
+@dbus_interface(ANACONDA_TASK.INTERFACE)
 class TaskInterface(InterfaceTemplate):
     """Base class for implementing Task.
 

@@ -19,8 +19,7 @@
 
 from pydbus.error import map_error
 
-from pyanaconda.dbus.constants import DBUS_BOSS_ANACONDA_NAME
-
+from pyanaconda.dbus.object import BOSS_ANACONDA
 from pyanaconda.kickstart_dispatcher.parser import SplitKickstartParser, VALID_SECTIONS_ANACONDA
 from pykickstart.version import makeVersion
 from pykickstart.errors import KickstartError, KickstartParseError
@@ -37,13 +36,13 @@ class SplitKickstartError(Exception):
     pass
 
 
-@map_error("{}.SplitKickstartSectionParsingError".format(DBUS_BOSS_ANACONDA_NAME))
+@map_error("{}.SplitKickstartSectionParsingError".format(BOSS_ANACONDA.ERROR))
 class SplitKickstartSectionParsingError(SplitKickstartError):
     """Error while parsing a section in kickstart."""
     pass
 
 
-@map_error("{}.SplitKickstartMissingIncludeError".format(DBUS_BOSS_ANACONDA_NAME))
+@map_error("{}.SplitKickstartMissingIncludeError".format(BOSS_ANACONDA.ERROR))
 class SplitKickstartMissingIncludeError(SplitKickstartError):
     """File included in kickstart was not found."""
     pass

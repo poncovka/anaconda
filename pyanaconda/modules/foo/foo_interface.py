@@ -18,12 +18,12 @@
 # Red Hat, Inc.
 #
 
-from pyanaconda.dbus.constants import MODULE_FOO_NAME
+from pyanaconda.dbus.object import FOO
 from pyanaconda.modules.base_interface import KickstartModuleInterface
 from pyanaconda.dbus.interface import dbus_interface
 
 
-@dbus_interface(MODULE_FOO_NAME)
+@dbus_interface(FOO.INTERFACE)
 class FooInterface(KickstartModuleInterface):
     """DBus interface for Foo."""
     pass

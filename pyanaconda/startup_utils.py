@@ -20,6 +20,8 @@
 from pyanaconda.core.i18n import _
 
 from pyanaconda.anaconda_loggers import get_stdout_logger, get_storage_logger, get_packaging_logger
+from pyanaconda.dbus.object import BOSS
+
 stdout_log = get_stdout_logger()
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -41,7 +43,6 @@ from pyanaconda.flags import can_touch_runtime_system
 from pyanaconda.screensaver import inhibit_screensaver
 
 from pyanaconda.dbus import DBus
-from pyanaconda.dbus.constants import DBUS_BOSS_NAME, DBUS_BOSS_PATH
 from pyanaconda.modules.boss.kickstart_manager import SplitKickstartError
 
 import blivet
@@ -411,7 +412,7 @@ def set_installation_method_from_anaconda_options(anaconda, ksdata):
         log.error("Unknown method: %s", anaconda.methodstr)
 
 def distribute_kickstart_with_boss(kickstart_path):
-    boss = DBus.get_proxy(DBUS_BOSS_NAME, DBUS_BOSS_PATH)
+    boss = BOSS.get_proxy()
     try:
         boss.SplitKickstart(kickstart_path)
     except SplitKickstartError as e:
