@@ -18,25 +18,60 @@
 # Red Hat, Inc.
 #
 from pyanaconda.dbus import DBus
-from pyanaconda.dbus.constants import MODULE_STORAGE_PATH, MODULE_STORAGE_NAME
+from pyanaconda.dbus.constants import MODULE_STORAGE_PATH, MODULE_STORAGE_NAME, \
+    STORAGE_AUTOPART_PATH
 from pyanaconda.modules.base import KickstartModule
 
-from pyanaconda import anaconda_logging
+from pyanaconda.modules.storage.autopart import Autopartitioning
+from pyanaconda.modules.storage.autopart_interface import AutopartitioningInterface
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
 from pyanaconda.modules.storage.storage_interface import StorageInterface
 
+from pyanaconda import anaconda_logging
 log = anaconda_logging.get_dbus_module_logger(__name__)
 
 
 class StorageModule(KickstartModule):
     """The Storage module."""
 
+    def __init__(self):
+        super().__init__()
+        self._partitioning = None
+        self._autopartitioning = Autopartitioning()
+
     def publish(self):
         """Publish the module."""
-        DBus.publish_object(StorageInterface(self), MODULE_STORAGE_PATH)
+        DBus.publish_object(StorageInterface(self),
+                            MODULE_STORAGE_PATH)
+
+        DBus.publish_object(AutopartitioningInterface(self._autopartitioning),
+                            STORAGE_AUTOPART_PATH)
+
         DBus.register_service(MODULE_STORAGE_NAME)
 
     @property
     def kickstart_specification(self):
         """Return the kickstart specification."""
         return StorageKickstartSpecification
+
+    def process_kickstart(self, data):
+        log.debug("Processing kickstart data...")
+        if data.autopart.autopart:
+            self.set_partitioning("autopart")
+            self._autopartitioning.process_kickstart(data)
+
+    def generate_kickstart(self):
+        log.debug("Generating kickstart data...")
+        data = self.get_kickstart_data()
+
+        if self.partitioning == "autopart":
+            self._autopartitioning.generate_kickstart(data)
+
+        return str(data)
+
+    @property
+    def partitioning(self):
+        return self._partitioning
+
+    def set_partitioning(self, mode):
+        self._partitioning = mode

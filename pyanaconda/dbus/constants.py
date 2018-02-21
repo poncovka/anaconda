@@ -51,6 +51,10 @@ MODULE_TIMEZONE_PATH = auto_object_path(MODULE_TIMEZONE_NAME)
 MODULE_STORAGE_NAME = "{}.Storage".format(DBUS_MODULE_NAMESPACE)
 MODULE_STORAGE_PATH = auto_object_path(MODULE_STORAGE_NAME)
 
+# Storage submodules.
+STORAGE_AUTOPART_NAME = "{}.Autopartitioning".format(MODULE_STORAGE_NAME)
+STORAGE_AUTOPART_PATH = auto_object_path(STORAGE_AUTOPART_NAME)
+
 # Addons (likely for testing purposes only)
 ADDON_BAZ_NAME = "{}.Baz".format(DBUS_ADDON_NAMESPACE)
 ADDON_BAZ_PATH = auto_object_path(ADDON_BAZ_NAME)

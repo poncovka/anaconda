@@ -130,10 +130,22 @@ class AdvancedInterfaceTemplate(InterfaceTemplate, PropertiesInterface):
         PropertiesInterface.__init__(self)
         InterfaceTemplate.__init__(self, implementation)
 
+    def watch_property(self, property_name, signal):
+        """Watch a DBus property.
+
+        Report a change when the property is changed.
+
+        :param property_name: a name of a DBus property
+        :param signal: a signal that emits when the property is changed
+        """
+        signal.connect(self.changed(property_name))
+
     def changed(self, property_name):
         """Returns a callback for the changed property.
 
         The callback accepts any arguments, but ignores them.
+
+        FIXME: Remove this method and replace it with watch_property.
 
         :param property_name: a name of a DBus property
         :return: a callback that should be run when the property has changed
