@@ -19,15 +19,25 @@
 #
 from pyanaconda.dbus import DBus
 from pyanaconda.dbus.constants import MODULE_STORAGE_PATH, MODULE_STORAGE_NAME, \
-    STORAGE_AUTOPART_PATH
+    STORAGE_AUTOPART_PATH, STORAGE_BOOTLOADER_PATH
 from pyanaconda.modules.base import KickstartModule
 
 from pyanaconda.modules.storage.autopart import Autopartitioning
-from pyanaconda.modules.storage.autopart_interface import AutopartitioningInterface
+from pyanaconda.modules.storage.bootloader import BootloaderModule
+from pyanaconda.modules.storage.bootloader_interface import BootloaderInterface
+from pyanaconda.modules.storage.fcoe import FCOEModule
+from pyanaconda.modules.storage.iscsi import ISCIModule
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
+from pyanaconda.modules.storage.mount import MountPointAssignment
+from pyanaconda.modules.storage.partitioning import Partitioning
+from pyanaconda.modules.storage.selection import DiskSelectionModule
+from pyanaconda.modules.storage.snapshot import SnapshotModule
 from pyanaconda.modules.storage.storage_interface import StorageInterface
+from pyanaconda.modules.storage.zfcp import ZFCPModule
 
 from pyanaconda import anaconda_logging
+from pyanaconda.modules.storage.zfcp_interface import ZFCPInterface
+
 log = anaconda_logging.get_dbus_module_logger(__name__)
 
 
@@ -36,16 +46,32 @@ class StorageModule(KickstartModule):
 
     def __init__(self):
         super().__init__()
-        self._partitioning = None
-        self._autopartitioning = Autopartitioning()
+        self._submodules = [
+            BootloaderModule(),
+            DiskSelectionModule(),
+            Autopartitioning(),
+            MountPointAssignment(),
+
+        ]
+
+        self._add_submodule()
+        self._add_submodule(ZFCPModule())
+
+        self._autopart = self.add_submodule(Autopartitioning)
+        self._mount = self.add_submodule()
+        self._part = self.add_submodule(Partitioning)
+        self._snapshot = self.add_submodule(SnapshotModule)
+        self._fcoe = self.add_submodule(FCOEModule)
+        self._isci = self.add_submodule(ISCIModule)
+        self._zfcp = self.add_submodule(ZFCPModule)
 
     def publish(self):
         """Publish the module."""
         DBus.publish_object(StorageInterface(self),
                             MODULE_STORAGE_PATH)
 
-        DBus.publish_object(AutopartitioningInterface(self._autopartitioning),
-                            STORAGE_AUTOPART_PATH)
+        for submodule in self._submodules:
+            submodule.publish()
 
         DBus.register_service(MODULE_STORAGE_NAME)
 
@@ -56,22 +82,14 @@ class StorageModule(KickstartModule):
 
     def process_kickstart(self, data):
         log.debug("Processing kickstart data...")
-        if data.autopart.autopart:
-            self.set_partitioning("autopart")
-            self._autopartitioning.process_kickstart(data)
+        for submodule in self._submodules:
+            submodule.process_kickstart(data)
 
     def generate_kickstart(self):
         log.debug("Generating kickstart data...")
         data = self.get_kickstart_data()
 
-        if self.partitioning == "autopart":
-            self._autopartitioning.generate_kickstart(data)
+        for submodule in self._submodules:
+            submodule.generate_kickstart(data)
 
         return str(data)
-
-    @property
-    def partitioning(self):
-        return self._partitioning
-
-    def set_partitioning(self, mode):
-        self._partitioning = mode

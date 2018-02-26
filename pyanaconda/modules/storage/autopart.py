@@ -20,6 +20,10 @@
 from pyanaconda.core.constants import DEFAULT_AUTOPART_TYPE
 from pyanaconda.core.signal import Signal
 
+from pyanaconda.dbus import DBus
+from pyanaconda.dbus.constants import STORAGE_AUTOPART_PATH
+from pyanaconda.modules.storage.autopart_interface import AutopartitioningInterface
+
 from pyanaconda import anaconda_logging
 log = anaconda_logging.get_dbus_module_logger(__name__)
 
@@ -60,6 +64,11 @@ class Autopartitioning(object):
 
         self.backup_passphrase_enabled_changed = Signal()
         self._backup_passphrase_enabled = ""
+
+    def publish(self):
+        """Publish the module."""
+        DBus.publish_object(AutopartitioningInterface(self),
+                            STORAGE_AUTOPART_PATH)
 
     def process_kickstart(self, data):
         """Process the kickstart data."""
