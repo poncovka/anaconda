@@ -114,15 +114,37 @@ class Connection(ABC):
 
         self._service_registrations.append(service_name)
 
-    def publish_object(self, object_path, obj):
+    def publish_object(self, object_path, obj, specification=None):
         """Publish an object on DBus.
 
         :param object_path: a DBus path of an object
         :param obj: an instance of @dbus_interface or @dbus_class
+        :param specification: a DBus specification of the object
         """
         log.debug("Publishing an object at %s.", object_path)
-        reg = self.connection.register_object(object_path, obj, None)
-        self._object_registrations.append(reg)
+
+        if not specification:
+            specification = type(obj).dbus
+
+        node_info = Gio.DBusNodeInfo.new_for_xml(specification)
+
+        # TODO: Connect object to bus callbacks.
+        # Iterate over interfaces.
+        # Transfer everything to the method call.
+        # Create the object Registration.
+        method_call = None
+
+        for interface_info in node_info.interfaces:
+
+            registration_id = self.connection.register_object(
+                object_path,
+                interface_info,
+                method_call,
+                None,
+                None
+            )
+
+            self._object_registrations.append(registration_id)
 
     def get_dbus_proxy(self):
         """Returns a proxy of DBus.
@@ -139,7 +161,12 @@ class Connection(ABC):
         :param object_path: a DBus path an object
         :return: a proxy object
         """
-        return self.connection.get(service_name, object_path)
+        # FIXME
+        # Call introspect.
+        # Create the proxy object.
+        # Return the proxy object.
+        # Create the object ObjectProxy
+        return None
 
     def get_observer(self, service_name, object_path):
         """Returns an observer of a remote DBus object.
@@ -165,8 +192,8 @@ class Connection(ABC):
         log.debug("Disconnecting from the bus.")
 
         while self._object_registrations:
-            registration = self._object_registrations.pop()
-            registration.unregister()
+            registration_id = self._object_registrations.pop()
+            self.connection.unregister_object(registration_id)
 
         while self._service_registrations:
             service_name = self._service_registrations.pop()
