@@ -16,13 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+import gi
+gi.require_version("GLib", "2.0")
+gi.require_version("Gio", "2.0")
+from gi.repository import GLib, Gio
+
 import os
 from abc import ABC, abstractmethod
 
-import pydbus
-
-from pyanaconda.dbus.constants import DBUS_ANACONDA_SESSION_ADDRESS, DBUS_STARTER_ADDRESS
+from pyanaconda.dbus.constants import DBUS_ANACONDA_SESSION_ADDRESS, DBUS_STARTER_ADDRESS, \
+    DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, DBUS_NAME_FLAG_ALLOW_REPLACEMENT, DBUS_NAMESPACE
 from pyanaconda.dbus.observer import DBusObjectObserver, DBusCachedObserver
+from pyanaconda.dbus.namespace import get_dbus_name, get_dbus_path
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -43,8 +48,20 @@ class Connection(ABC):
 
     def __init__(self):
         self._connection = None
+        self._proxy = None
         self._service_registrations = []
         self._object_registrations = []
+
+    @property
+    def proxy(self):
+        """Proxy of the DBus object."""
+        if not self._proxy:
+            self._proxy = self.get_proxy(
+                get_dbus_name(DBUS_NAMESPACE),
+                get_dbus_path(DBUS_NAMESPACE)
+            )
+
+        return self._proxy
 
     @property
     def connection(self):
@@ -60,6 +77,8 @@ class Connection(ABC):
 
         You shouldn't create new connections unless there is a good
         reason for it. Use DBus.connection instead.
+
+        :return: an instance of Gio.DBusConnection
         """
         pass
 
@@ -74,7 +93,7 @@ class Connection(ABC):
             log.error("Connection failed to be created:\n%s", e)
             return False
 
-    def register_service(self, service_name):
+    def register_service(self, service_name, flags=None):
         """Register a service on DBus.
 
         A service can be registered by requesting its name on DBus.
@@ -82,12 +101,18 @@ class Connection(ABC):
         objects of the service are published on DBus.
 
         :param service_name: a DBus name of a service
+        :param flags: flags for org.freedesktop.DBus.RequestName
         """
+        if flags is None:
+            flags = DBUS_NAME_FLAG_ALLOW_REPLACEMENT
+
         log.debug("Registering a service name %s.", service_name)
-        reg = self.connection.request_name(service_name,
-                                           allow_replacement=True,
-                                           replace=False)
-        self._service_registrations.append(reg)
+        result = self.proxy.RequestName(service_name, flags)
+
+        if result != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER:
+            raise ConnectionError("Name request failed: {}".format(result))
+
+        self._service_registrations.append(service_name)
 
     def publish_object(self, object_path, obj):
         """Publish an object on DBus.
@@ -104,7 +129,8 @@ class Connection(ABC):
 
         :return: a proxy object
         """
-        return self.connection.dbus
+        # TODO: Replace with the proxy property.
+        return self.proxy
 
     def get_proxy(self, service_name, object_path):
         """Returns a proxy of a remote DBus object.
@@ -143,10 +169,35 @@ class Connection(ABC):
             registration.unregister()
 
         while self._service_registrations:
-            registration = self._service_registrations.pop()
-            registration.unown()
+            service_name = self._service_registrations.pop()
+            self.proxy.ReleaseName(service_name)
 
         self._connection = None
+        self._proxy = None
+
+
+def get_gio_connection_by_type(bus_type):
+    """Set up a DBus connection by type.
+
+    :param bus_type: an instance of Gio.BusType
+    :return: an instance of Gio.DBusConnection
+    """
+    return Gio.bus_get_sync(bus_type, None)
+
+
+def get_gio_connection_by_address(bus_address):
+    """Set up a DBus connection by address.
+
+    :param bus_address: a bus address
+    :return: an instance of Gio.DBusConnection
+    """
+    return Gio.DBusConnection.new_for_address_sync(
+        bus_address,
+        Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT |
+        Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+        None,
+        None
+    )
 
 
 class DBusConnection(Connection):
@@ -167,7 +218,7 @@ class DBusConnection(Connection):
     def get_new_connection(self):
         """Get a connection to a bus at the specified address."""
         log.info("Connecting to a bus at %s.", self._address)
-        return pydbus.connect(self._address)
+        return get_gio_connection_by_address(self._address)
 
 
 class DBusSystemConnection(Connection):
@@ -176,7 +227,7 @@ class DBusSystemConnection(Connection):
     def get_new_connection(self):
         """Get a system DBus connection."""
         log.info("Connecting to the system bus.")
-        return pydbus.SystemBus()
+        return get_gio_connection_by_type(Gio.BusType.SYSTEM)
 
 
 class DBusSessionConnection(Connection):
@@ -185,25 +236,41 @@ class DBusSessionConnection(Connection):
     def get_new_connection(self):
         """Get a session DBus connection."""
         log.info("Connecting to the session bus.")
-        return pydbus.SessionBus()
+        return get_gio_connection_by_type(Gio.BusType.SESSION)
 
 
 class DBusDefaultConnection(Connection):
     """Representation of a default bus connection."""
+
+    def _get_starter_connection(self):
+        """Get a starter DBus connection."""
+        if DBUS_STARTER_ADDRESS not in os.environ:
+            return None
+
+        bus_address = os.environ.get(DBUS_STARTER_ADDRESS)
+        log.info("Connecting to a starter bus at %s.", bus_address)
+        return get_gio_connection_by_type(Gio.BusType.STARTER)
+
+    def _get_fallback_connection(self):
+        """Get a fallback DBus connection."""
+        if DBUS_ANACONDA_SESSION_ADDRESS not in os.environ:
+            return None
+
+        bus_address = os.environ.get(DBUS_ANACONDA_SESSION_ADDRESS)
+        log.info("Connecting to a default bus at %s.", bus_address)
+        return get_gio_connection_by_address(bus_address)
+
+    def _raise_connection_error(self):
+        """Raise a connection error."""
+        raise ConnectionError("Unable to get the default bus connection.")
 
     def get_new_connection(self):
         """Get a default bus connection.
 
         Connect to the bus specified by the environmental variable
         DBUS_STARTER_ADDRESS. If it is not specified, connect to
-        the session bus.
+        the fallback bus. If it is not specified, raise an exception.
         """
-        if DBUS_STARTER_ADDRESS in os.environ:
-            bus_address = os.environ.get(DBUS_STARTER_ADDRESS)
-        elif DBUS_ANACONDA_SESSION_ADDRESS in os.environ:
-            bus_address = os.environ.get(DBUS_ANACONDA_SESSION_ADDRESS)
-        else:
-            raise ConnectionError("Can't find usable bus address!")
-
-        log.info("Connecting to a default bus at %s.", bus_address)
-        return pydbus.connect(bus_address)
+        return self._get_starter_connection() \
+            or self._get_fallback_connection() \
+            or self._raise_connection_error()
