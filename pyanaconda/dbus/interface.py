@@ -27,6 +27,8 @@ import re
 
 from inspect import Parameter
 from typing import get_type_hints
+
+# TODO: get rid of this import
 from pydbus.generic import signal
 
 from pyanaconda.dbus.typing import get_dbus_type
