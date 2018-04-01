@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from pyanaconda.dbus.constants import DBUS_FLAG_NONE
+from pyanaconda.dbus.constants import DBUS_FLAG_NONE, DBUS_DEFAULT_TIMEOUT
 
 
 class DBusObjectAccess(object):
@@ -27,7 +27,98 @@ class DBusObjectAccess(object):
         self._service_name = service_name
         self._object_path = object_path
 
-    def _signal_subscribe(self, interface_name, signal_name, callback, *user_data):
+    def _sync_method_call(self, interface_name, method_name, parameters, reply_type):
+        """Synchronously call a DBus method."""
+        result, error = self._retreive_call_results(
+            self._message_bus.connection.call_sync,
+            self._service_name,
+            self._object_path,
+            interface_name,
+            method_name,
+            parameters,
+            reply_type,
+            DBUS_FLAG_NONE,
+            DBUS_DEFAULT_TIMEOUT,
+            None
+        )
+
+        if error:
+            raise error
+
+        return result
+
+    def _async_method_call(self, interface_name, method_name, parameters, reply_type, callback, callback_args):
+        """Asynchronously call a DBus method."""
+        self._message_bus.connection.call(
+            self._service_name,
+            self._object_path,
+            interface_name,
+            method_name,
+            parameters,
+            reply_type,
+            DBUS_FLAG_NONE,
+            DBUS_DEFAULT_TIMEOUT,
+            callback=self._async_method_call_finish,
+            user_data=(callback, callback_args)
+        )
+
+    def _async_method_call_finish(self, source_object, result_object, user_data):
+        """Finish an asynchronous DBus method call."""
+        # Get the result of the call.
+        result, error = self._retreive_call_results(
+            source_object.call_finish,
+            result_object
+        )
+
+        # Prepare the user's callback.
+        callback, callback_args = user_data
+
+        # Call user's callback.
+        callback(
+            *callback_args,
+            result=result,
+            error=error
+        )
+
+    def _retreive_call_results(self, call, *args):
+        """Retreive call results."""
+        error = None
+        result = None
+
+        try:
+            result = call(*args)
+        except Exception as e:
+            error = e
+
+        return (
+            self._unpack_result(result),
+            self._unpack_error(error),
+        )
+
+    def _unpack_result(self, variant):
+        """Unpack the result of a DBus method call."""
+        # Unpack a variant if it is not None.
+        values = variant.unpack() if variant else None
+
+        # Return None if there are no values.
+        if not values:
+            return None
+
+        # Return one value.
+        if len(values) > 1:
+            return values[0]
+
+        # Return multiple values.
+        return values
+
+    def _unpack_error(self, error):
+        """Unpack the DBus error."""
+        if not error:
+            return None
+
+        return self._message_bus.error_handler.transform_exception(error)
+
+    def _signal_subscribe(self, interface_name, signal_name, callback, callback_args=None):
         """Subscribe to a signal.s
 
         :param interface_name:
@@ -44,7 +135,7 @@ class DBusObjectAccess(object):
             None,
             DBUS_FLAG_NONE,
             callback,
-            *user_data)
+            callback_args)
 
         return subscription_id
 

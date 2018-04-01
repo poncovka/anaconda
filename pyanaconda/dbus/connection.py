@@ -21,6 +21,7 @@ from abc import ABC, abstractmethod
 
 from pyanaconda.dbus.constants import DBUS_ANACONDA_SESSION_ADDRESS, DBUS_STARTER_ADDRESS, \
     DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, DBUS_NAME_FLAG_ALLOW_REPLACEMENT, DBUS_NAMESPACE
+from pyanaconda.dbus.error import error_registration
 from pyanaconda.dbus.gio import BusType, DBusNodeInfo, get_connection_by_address,\
     get_connection_by_type
 from pyanaconda.dbus.observer import DBusObjectObserver, DBusCachedObserver
@@ -187,6 +188,11 @@ class Connection(ABC):
 
         self._connection = None
         self._proxy = None
+
+    @property
+    def error_handler(self):
+        """The object for handling DBus errors."""
+        return error_registration
 
 
 class DBusConnection(Connection):

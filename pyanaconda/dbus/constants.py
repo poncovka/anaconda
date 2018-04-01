@@ -23,6 +23,9 @@ DBUS_START_REPLY_SUCCESS = 1
 # no flags are set
 DBUS_FLAG_NONE = 0
 
+# timeout
+DBUS_DEFAULT_TIMEOUT = -1
+
 # system environment variable holding dbus session address
 DBUS_ANACONDA_SESSION_ADDRESS = "DBUS_ANACONDA_SESSION_BUS_ADDRESS"
 DBUS_STARTER_ADDRESS = "DBUS_STARTER_ADDRESS"
