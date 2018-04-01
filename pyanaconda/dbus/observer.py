@@ -16,12 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import gi
-gi.require_version("GLib", "2.0")
-gi.require_version("Gio", "2.0")
-from gi.repository import GLib, Gio
-
 from pyanaconda.dbus.constants import DBUS_FLAG_NONE
+from pyanaconda.dbus.gio import bus_watch_name_on_connection, bus_unwatch_name
 from pyanaconda.core.signal import Signal
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -144,7 +140,7 @@ class DBusObserver(object):
 
     def _watch(self):
         """Watch the service name on DBus."""
-        num = Gio.bus_watch_name_on_connection(
+        num = bus_watch_name_on_connection(
             self._message_bus.connection,
             self.service_name,
             DBUS_FLAG_NONE,
@@ -156,7 +152,7 @@ class DBusObserver(object):
 
     def _unwatch(self):
         """Stop to watch the service name on DBus."""
-        Gio.bus_unwatch_name(self._watched_id)
+        bus_unwatch_name(self._watched_id)
         self._watched_id = None
 
     def _enable_service(self):

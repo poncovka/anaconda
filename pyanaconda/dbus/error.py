@@ -16,11 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import gi
-gi.require_version("GLib", "2.0")
-gi.require_version("Gio", "2.0")
-
-from gi.repository import GLib, Gio
+from pyanaconda.dbus.gio import DBusError, GLibError
 from pyanaconda.dbus.namespace import get_dbus_name
 
 __all__ = ['dbus_error', 'dbus_error_by_default']
@@ -92,7 +88,7 @@ class ErrorRegistration(object):
     def register_error(self, exception_cls, name, domain, code):
         """Map and register the exception class to a DBus name."""
         self.map_error(exception_cls, name)
-        return Gio.DBusError.register_error(domain, code, name)
+        return DBusError.register_error(domain, code, name)
 
     def is_registered_exception(self, obj):
         """Is the exception registered?"""
@@ -117,14 +113,14 @@ class ErrorRegistration(object):
 
     def transform_exception(self, e):
         """Transform the remote error to the exception."""
-        if not isinstance(e, GLib.Error):
+        if not isinstance(e, GLibError):
             return e
 
-        if not Gio.DBusError.is_remote_error(e):
+        if not DBusError.is_remote_error(e):
             return e
 
         # Get DBus name of the error.
-        name = Gio.DBusError.get_remote_error(e)
+        name = DBusError.get_remote_error(e)
         # Get the exception class.
         exception_cls = self.get_exception_class(name)
 

@@ -16,16 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import gi
-gi.require_version("GLib", "2.0")
-gi.require_version("Gio", "2.0")
-from gi.repository import GLib, Gio
-
 import os
 from abc import ABC, abstractmethod
 
 from pyanaconda.dbus.constants import DBUS_ANACONDA_SESSION_ADDRESS, DBUS_STARTER_ADDRESS, \
     DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, DBUS_NAME_FLAG_ALLOW_REPLACEMENT, DBUS_NAMESPACE
+from pyanaconda.dbus.gio import BusType, DBusNodeInfo, get_connection_by_address,\
+    get_connection_by_type
 from pyanaconda.dbus.observer import DBusObjectObserver, DBusCachedObserver
 from pyanaconda.dbus.namespace import get_dbus_name, get_dbus_path
 
@@ -126,7 +123,7 @@ class Connection(ABC):
         if not specification:
             specification = type(obj).dbus
 
-        node_info = Gio.DBusNodeInfo.new_for_xml(specification)
+        node_info = DBusNodeInfo.new_for_xml(specification)
 
         # TODO: Connect object to bus callbacks.
         # Iterate over interfaces.
@@ -203,30 +200,6 @@ class Connection(ABC):
         self._proxy = None
 
 
-def get_gio_connection_by_type(bus_type):
-    """Set up a DBus connection by type.
-
-    :param bus_type: an instance of Gio.BusType
-    :return: an instance of Gio.DBusConnection
-    """
-    return Gio.bus_get_sync(bus_type, None)
-
-
-def get_gio_connection_by_address(bus_address):
-    """Set up a DBus connection by address.
-
-    :param bus_address: a bus address
-    :return: an instance of Gio.DBusConnection
-    """
-    return Gio.DBusConnection.new_for_address_sync(
-        bus_address,
-        Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT |
-        Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
-        None,
-        None
-    )
-
-
 class DBusConnection(Connection):
     """Representation of a connection for the specified address."""
 
@@ -245,7 +218,7 @@ class DBusConnection(Connection):
     def get_new_connection(self):
         """Get a connection to a bus at the specified address."""
         log.info("Connecting to a bus at %s.", self._address)
-        return get_gio_connection_by_address(self._address)
+        return get_connection_by_address(self._address)
 
 
 class DBusSystemConnection(Connection):
@@ -254,7 +227,7 @@ class DBusSystemConnection(Connection):
     def get_new_connection(self):
         """Get a system DBus connection."""
         log.info("Connecting to the system bus.")
-        return get_gio_connection_by_type(Gio.BusType.SYSTEM)
+        return get_connection_by_type(BusType.SYSTEM)
 
 
 class DBusSessionConnection(Connection):
@@ -263,7 +236,7 @@ class DBusSessionConnection(Connection):
     def get_new_connection(self):
         """Get a session DBus connection."""
         log.info("Connecting to the session bus.")
-        return get_gio_connection_by_type(Gio.BusType.SESSION)
+        return get_connection_by_type(BusType.SESSION)
 
 
 class DBusDefaultConnection(Connection):
@@ -276,7 +249,7 @@ class DBusDefaultConnection(Connection):
 
         bus_address = os.environ.get(DBUS_STARTER_ADDRESS)
         log.info("Connecting to a starter bus at %s.", bus_address)
-        return get_gio_connection_by_type(Gio.BusType.STARTER)
+        return get_connection_by_type(BusType.STARTER)
 
     def _get_fallback_connection(self):
         """Get a fallback DBus connection."""
@@ -285,7 +258,7 @@ class DBusDefaultConnection(Connection):
 
         bus_address = os.environ.get(DBUS_ANACONDA_SESSION_ADDRESS)
         log.info("Connecting to a default bus at %s.", bus_address)
-        return get_gio_connection_by_address(bus_address)
+        return get_connection_by_address(bus_address)
 
     def _raise_connection_error(self):
         """Raise a connection error."""
