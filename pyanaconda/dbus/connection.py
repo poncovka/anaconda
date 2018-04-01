@@ -27,6 +27,8 @@ from pyanaconda.dbus.observer import DBusObjectObserver, DBusCachedObserver
 from pyanaconda.dbus.namespace import get_dbus_name, get_dbus_path
 
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.dbus.proxy import DBusObjectAccess, DBusObjectProxy
+
 log = get_module_logger(__name__)
 
 __all__ = ["Connection", "DBusConnection", "DBusSystemConnection",
@@ -150,12 +152,7 @@ class Connection(ABC):
         :param object_path: a DBus path an object
         :return: a proxy object
         """
-        # FIXME
-        # Call introspect.
-        # Create the proxy object.
-        # Return the proxy object.
-        # Create the object ObjectProxy
-        return None
+        return DBusObjectProxy(self, service_name, object_path)
 
     def get_observer(self, service_name, object_path):
         """Returns an observer of a remote DBus object.
