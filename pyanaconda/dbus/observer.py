@@ -110,9 +110,7 @@ class DBusObserver(object):
 
         :raise DBusObserverError: if service is not available
         """
-        bus_proxy = self._message_bus.get_dbus_proxy()
-
-        if not bus_proxy.NameHasOwner(self.service_name):
+        if not self._message_bus.proxy.NameHasOwner(self.service_name):
             raise DBusObserverError("Service {} is not available."
                                     .format(self._service_name))
 

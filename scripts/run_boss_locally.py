@@ -50,7 +50,7 @@ EXEC_PATH = 'Exec=/usr/libexec/anaconda/start-module'
 
 def start_anaconda_services():
     print(RED + "starting Boss" + RESET)
-    test_dbus_connection.get_dbus_proxy().StartServiceByName(BOSS.service_name, 0)
+    test_dbus_connection.proxy.StartServiceByName(BOSS.service_name, 0)
 
 def distribute_kickstart(ks_path):
     tmpfile = tempfile.mktemp(suffix=".run_boss_locally.ks")

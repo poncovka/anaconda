@@ -143,14 +143,6 @@ class Connection(ABC):
 
             self._object_registrations.append(registration_id)
 
-    def get_dbus_proxy(self):
-        """Returns a proxy of DBus.
-
-        :return: a proxy object
-        """
-        # TODO: Replace with the proxy property.
-        return self.proxy
-
     def get_proxy(self, service_name, object_path):
         """Returns a proxy of a remote DBus object.
 

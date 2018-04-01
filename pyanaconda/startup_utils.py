@@ -90,8 +90,7 @@ def stop_boss():
 
 def run_boss():
     """Start Boss service on DBus."""
-    bus_proxy = DBus.get_dbus_proxy()
-    bus_proxy.StartServiceByName(BOSS.service_name, DBUS_FLAG_NONE)
+    DBus.proxy.StartServiceByName(BOSS.service_name, DBUS_FLAG_NONE)
 
 
 def get_anaconda_version_string(build_time_version=False):

@@ -266,7 +266,7 @@ class DBusObserverTestCase(unittest.TestCase):
 
         proxy = Mock()
         proxy.NameHasOwner.return_value = False
-        dbus.get_dbus_proxy.return_value = proxy
+        dbus._proxy = proxy
 
         with self.assertRaises(DBusObserverError):
             observer.connect()

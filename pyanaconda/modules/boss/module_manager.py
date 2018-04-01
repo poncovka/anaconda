@@ -45,8 +45,7 @@ class ModuleManager(object):
 
     def add_addon_modules(self):
         """Add the addon modules."""
-        dbus = DBus.get_dbus_proxy()
-        names = dbus.ListActivatableNames()
+        names = DBus.proxy.ListActivatableNames()
         prefix = get_dbus_name(*ADDONS_NAMESPACE)
 
         for service_name in names:
@@ -62,15 +61,16 @@ class ModuleManager(object):
     def start_modules(self):
         """Start anaconda modules (including addons)."""
         log.debug("Start modules.")
-        dbus = DBus.get_dbus_proxy()
 
         for observer in self.module_observers:
             log.debug("Starting %s", observer)
-            dbus.StartServiceByName(observer.service_name,
-                                    DBUS_FLAG_NONE,
-                                    callback=self._start_modules_callback,
-                                    callback_args=(observer,))
 
+            DBus.proxy.StartServiceByName(
+                observer.service_name,
+                DBUS_FLAG_NONE,
+                callback=self._start_modules_callback,
+                callback_args=(observer,)
+            )
             # Watch the module.
             observer.service_available.connect(self._process_module_is_available)
             observer.service_unavailable.connect(self._process_module_is_unavailable)
