@@ -20,15 +20,14 @@ import os
 from abc import ABC, abstractmethod
 
 from pyanaconda.dbus.constants import DBUS_ANACONDA_SESSION_ADDRESS, DBUS_STARTER_ADDRESS, \
-    DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, DBUS_NAME_FLAG_ALLOW_REPLACEMENT, DBUS_NAMESPACE
+    DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, DBUS_NAME_FLAG_ALLOW_REPLACEMENT
 from pyanaconda.dbus.error import error_registration
 from pyanaconda.dbus.gio import BusType, DBusNodeInfo, get_connection_by_address,\
     get_connection_by_type
 from pyanaconda.dbus.observer import DBusObjectObserver, DBusCachedObserver
-from pyanaconda.dbus.namespace import get_dbus_name, get_dbus_path
 
 from pyanaconda.anaconda_loggers import get_module_logger
-from pyanaconda.dbus.proxy import DBusObjectAccess, DBusObjectProxy
+from pyanaconda.dbus.proxy import DBusObjectProxy
 
 log = get_module_logger(__name__)
 
@@ -57,8 +56,8 @@ class Connection(ABC):
         """Proxy of the DBus object."""
         if not self._proxy:
             self._proxy = self.get_proxy(
-                get_dbus_name(DBUS_NAMESPACE),
-                get_dbus_path(DBUS_NAMESPACE)
+                "org.freedesktop.DBus",
+                "/org/freedesktop/DBus"
             )
 
         return self._proxy

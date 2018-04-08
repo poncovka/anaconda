@@ -24,11 +24,12 @@
 #
 
 from typing import Tuple, Dict, List, NewType, IO
-from pyanaconda.dbus.gio import Variant
+from pyanaconda.dbus.gio import Variant, VariantType
 
 __all__ = ["Bool", "Double", "Str", "Int", "Byte", "Int16", "UInt16",
            "Int32", "UInt32", "Int64", "UInt64", "File", "ObjPath",
-           "Tuple", "List", "Dict", "Variant", "get_variant"]
+           "Tuple", "List", "Dict", "Variant", "get_variant", "VariantType",
+           "get_variant_type"]
 
 # Basic types.
 Bool = bool
@@ -82,6 +83,15 @@ def get_variant(type_hint, value):
     :return: an instance of Variant
     """
     return Variant(get_dbus_type(type_hint), value)
+
+
+def get_variant_type(type_hint):
+    """Return a type of a variant data type.
+
+    :param type_hint: a type hint
+    :return: an instance of VariantType
+    """
+    return VariantType.new(get_dbus_type(type_hint))
 
 
 class DBusType(object):

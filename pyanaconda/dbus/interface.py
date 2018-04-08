@@ -24,6 +24,7 @@
 #
 import inspect
 import re
+from collections import namedtuple
 
 from inspect import Parameter
 from typing import get_type_hints
@@ -161,8 +162,111 @@ class DBusSpecification(object):
     </node>
     """
 
-    def __init__(self, xml_generator=XMLGenerator()):
-        self.xml_generator = xml_generator
+    # Representation of specification members.
+    Signal = namedtuple("Signal", ["name", "args_type"])
+    Method = namedtuple("Method", ["name", "args_type", "reply_type"])
+    Property = namedtuple("Property", ["name", "type", "readable", "writable"])
+
+    # The XML handler.
+    xml_generator = XMLGenerator
+
+    def parse_specification(self, specification):
+        """Generate mapping of interface members to their attributes."""
+        node = self.xml_generator.xml_to_element(specification)
+        members = {}
+
+        # Iterate over interfaces.
+        for interface_element in node:
+            if not self.xml_generator.is_interface(interface_element):
+                continue
+
+            # Parse the interface.
+            members.update(self._parse_interface(interface_element))
+
+        return members
+
+    def _parse_interface(self, interface_element):
+        """Parse the interface element from the DBus specification."""
+        interface_name = self.xml_generator.get_name(interface_element)
+        members = {}
+
+        # Iterate over members.
+        for member_element in interface_element:
+
+            if self.xml_generator.is_property(member_element):
+                member = self._parse_property(member_element)
+
+            elif self.xml_generator.is_signal(member_element):
+                member = self._parse_signal(member_element)
+
+            elif self.xml_generator.is_method(member_element):
+                member = self._parse_method(member_element)
+
+            else:
+                continue
+
+            # Add the member specification to the mapping.
+            members[(interface_name, member.name)] = member
+
+        return members
+
+    def _parse_property(self, property_element):
+        """Parse the property element from the DBus specification."""
+        property_name = self.xml_generator.get_name(property_element)
+        property_type = self.xml_generator.get_type(property_element)
+        property_access = self.xml_generator.get_access(property_element)
+
+        return self.Property(
+            name=property_name,
+            type=property_type,
+            readable=property_access in (self.ACCESS_READ, self.ACCESS_READWRITE),
+            writable=property_access in (self.ACCESS_WRITE, self.ACCESS_READWRITE)
+        )
+
+    def _join_types(self, types):
+        return "({})".format("".join(types))
+
+    def _parse_signal(self, signal_element):
+        """Parse the signal element from the DBus specification."""
+        signal_name = self.xml_generator.get_name(signal_element)
+        parameter_types = []
+
+        for parameter_element in signal_element:
+            if not self.xml_generator.is_parameter(parameter_element):
+                continue
+
+            parameter_type = self.xml_generator.get_type(parameter_element)
+            parameter_types.append(parameter_type)
+
+        return self.Signal(
+            name=signal_name,
+            args_type=self._join_types(parameter_types)
+        )
+
+    def _parse_method(self, method_element):
+        """Parse the method element from the DBus specification."""
+        method_name = self.xml_generator.get_name(method_element)
+        parameter_types = []
+        reply_types = []
+
+        for parameter_element in method_element:
+            if not self.xml_generator.is_parameter(parameter_element):
+                continue
+
+            direction = self.xml_generator.get_direction(parameter_element)
+            parameter_type = self.xml_generator.get_type(parameter_element)
+
+            if direction == self.DIRECTION_IN:
+                parameter_types.append(parameter_type)
+
+            elif direction == self.DIRECTION_OUT:
+                reply_types.append(parameter_type)
+
+        return self.Method(
+            name=method_name,
+            args_type=self._join_types(parameter_types),
+            reply_type=self._join_types(reply_types)
+        )
 
     def generate_specification(self, cls, interface_name=None):
         """Generates DBus XML specification for given class.

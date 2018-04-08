@@ -33,6 +33,7 @@ from gi.repository.Gio import (
 
 from gi.repository.GLib import (
     Variant,
+    VariantType,
     Error as GLibError
 
 )

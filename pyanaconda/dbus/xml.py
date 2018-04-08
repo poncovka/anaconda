@@ -123,5 +123,41 @@ class XMLGenerator(object):
         return member_node.tag in ("method", "signal", "property")
 
     @staticmethod
+    def is_interface(member_node):
+        return member_node.tag == "interface"
+
+    @staticmethod
+    def is_signal(member_node):
+        return member_node.tag == "signal"
+
+    @staticmethod
+    def is_method(member_node):
+        return member_node.tag == "method"
+
+    @staticmethod
+    def is_property(member_node):
+        return member_node.tag == "property"
+
+    @staticmethod
+    def is_parameter(member_node):
+        return member_node.tag == "arg"
+
+    @staticmethod
+    def get_name(node):
+        return node.attrib["name"]
+
+    @staticmethod
+    def get_type(node):
+        return node.attrib["type"]
+
+    @staticmethod
+    def get_access(node):
+        return node.attrib["access"]
+
+    @staticmethod
+    def get_direction(node):
+        return node.attrib["direction"]
+
+    @staticmethod
     def has_name(node, node_name):
         return node.attrib.get("name", "") == node_name
