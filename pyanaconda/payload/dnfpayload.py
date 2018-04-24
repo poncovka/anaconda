@@ -284,7 +284,10 @@ def do_transaction(base, queue_instance):
         import traceback
         exit_reason = str(e) + traceback.format_exc()
     finally:
-        base.close()
+        # Close the base without removing the repositories,
+        # because we still need them later.
+        base._finalize_base()
+        base.reset(goal=True, sack=True)
         queue_instance.put(('quit', str(exit_reason)))
 
 
@@ -971,7 +974,6 @@ class DNFPayload(payload.PackagePayload):
             (token, msg) = queue_instance.get()
 
         process.join()
-        self._base.close()
         if os.path.exists(self._download_location):
             log.info("Cleaning up downloaded packages: %s", self._download_location)
             shutil.rmtree(self._download_location)
@@ -1202,7 +1204,11 @@ class DNFPayload(payload.PackagePayload):
             except payload.PayloadSetupError as e:
                 log.error(e)
 
+        # Finish the post-installation tasks.
         super().postInstall()
+
+        # Close the base when we are really done with it in Anaconda.
+        self._base.close()
 
     def writeStorageLate(self):
         pass
