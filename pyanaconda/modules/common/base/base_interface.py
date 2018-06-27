@@ -38,6 +38,13 @@ class KickstartModuleInterface(KickstartModuleInterfaceTemplate):
         super().connect_signals()
         self.implementation.kickstarted_changed.connect(self.changed("Kickstarted"))
 
+    def Initialize(self, flags: Dict[Str, Variant]):
+        """Initialize the module.
+
+        :param flags: a dictionary of flags
+        """
+        self.implementation.initialize(flags)
+
     @property
     def KickstartCommands(self) -> List[Str]:
         """Return names of kickstart commands handled by module.

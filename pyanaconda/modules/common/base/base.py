@@ -86,6 +86,13 @@ class MainModule(BaseModule):
         super().__init__()
         self._loop = EventLoop()
 
+    def initialize(self, flags):
+        """Initialize the module.
+
+        :param flags: dictionary of flags
+        """
+        pass
+
     @property
     def loop(self):
         """Return the loop."""

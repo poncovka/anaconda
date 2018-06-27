@@ -63,6 +63,9 @@ class ModuleManager(object):
 
         for observer in self.module_observers:
             log.debug("Starting %s", observer)
+
+            # We cannot start a service by calling its method, because
+            # that requires to create a proxy that we don't have yet.
             dbus.StartServiceByName(observer.service_name,
                                     DBUS_FLAG_NONE,
                                     callback=self._start_modules_callback,
@@ -90,7 +93,7 @@ class ModuleManager(object):
     def _process_module_is_available(self, observer):
         """Process the service_available signal."""
         log.debug("%s is available", observer)
-        observer.proxy.Ping()
+        observer.proxy.Initialize({})
 
     def _process_module_is_unavailable(self, observer):
         """Process the service_unavailable signal."""
