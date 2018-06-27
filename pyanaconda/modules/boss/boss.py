@@ -70,6 +70,10 @@ class Boss(MainModule):
         log.info("Start the main loop.")
         self._loop.run()
 
+    def set_flags(self, flags):
+        """Set the Anaconda flags."""
+        self._module_manager.set_flags(flags)
+
     def start_modules(self, service_names, addons_enabled=True):
         """Start the given kickstart modules."""
         for service_name in service_names:

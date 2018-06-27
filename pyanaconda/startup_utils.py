@@ -101,6 +101,7 @@ def run_boss(kickstart_modules=None, addons_enabled=True):
     bus_proxy.StartServiceByName(BOSS.service_name, DBUS_FLAG_NONE)
 
     boss_proxy = BOSS.get_proxy()
+    boss_proxy.SetFlags({})
     boss_proxy.StartModules([m.service_name for m in kickstart_modules], addons_enabled)
 
 

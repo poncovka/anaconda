@@ -30,11 +30,16 @@ class ModuleManager(object):
 
     def __init__(self):
         self._module_observers = []
+        self._module_flags = {}
 
     @property
     def module_observers(self):
         """Return the modules observers."""
         return self._module_observers
+
+    def set_flags(self, flags):
+        """Set the modules flags."""
+        self._module_flags = flags
 
     def add_module(self, service_name):
         """Add a modules with the given service name."""
@@ -93,7 +98,7 @@ class ModuleManager(object):
     def _process_module_is_available(self, observer):
         """Process the service_available signal."""
         log.debug("%s is available", observer)
-        observer.proxy.Initialize({})
+        observer.proxy.Initialize(self._module_flags)
 
     def _process_module_is_unavailable(self, observer):
         """Process the service_unavailable signal."""

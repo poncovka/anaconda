@@ -48,6 +48,13 @@ class AnacondaBossInterface(BossInterface):
     Used for synchronization with anaconda during transition.
     """
 
+    def SetFlags(self, flags: Dict[Str, Variant]):
+        """Set the Anaconda flags.
+
+        :param flags: a dictionary of flags
+        """
+        self.implementation.set_flags(flags)
+
     def StartModules(self, service_names: List[Str], addons_enabled: Bool):
         """Start the given kickstart modules.
 
