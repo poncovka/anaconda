@@ -355,11 +355,11 @@ class Anaconda(object):
         f.write('Section "Device"\n\tIdentifier "Videocard0"\n\tDriver "%s"\nEndSection\n' % self.xdriver)
         f.close()
 
-    def run_boss_with_dbus(self):
+    def run_boss_with_dbus(self, opts):
         """Ensure suitable DBus is running. If not, start a new session."""
         self._dbus_launcher.start_dbus_session()
         self._dbus_launcher.write_bus_address()
-        run_boss()
+        run_boss(opts)
 
     def cleanup_dbus_session(self):
         """Stop our DBus services and our DBus session if it is our private DBus session.
