@@ -17,12 +17,12 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from pyanaconda.core.constants import REALM_NAME, REALM_DISCOVER, REALM_JOIN
 from pyanaconda.modules.common.constants.services import SECURITY
 from pyanaconda.dbus.property import emits_properties_changed
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 from pyanaconda.modules.common.base import KickstartModuleInterface
 from pyanaconda.dbus.interface import dbus_interface
+from pyanaconda.modules.common.structures.security import RealmStructure
 from pyanaconda.modules.security.constants import SELinuxMode
 
 
@@ -102,30 +102,17 @@ class SecurityInterface(KickstartModuleInterface):
         self.implementation.set_authconfig(args)
 
     @property
-    def Realm(self) -> Dict[Str, Variant]:
+    def Realm(self) -> Structure:
         """Specification of the enrollment in a realm.
 
         :return: a dictionary with a specification
         """
-        realm = self.implementation.realm
-
-        return {
-            REALM_NAME: get_variant(Str, realm.get(REALM_NAME, "")),
-            REALM_DISCOVER: get_variant(List[Str], realm.get(REALM_DISCOVER, [])),
-            REALM_JOIN: get_variant(List[Str], realm.get(REALM_JOIN, []))
-        }
+        return RealmStructure.from_data(self.implementation.realm)
 
     @emits_properties_changed
-    def SetRealm(self, realm: Dict[Str, Variant]):
+    def SetRealm(self, realm: Structure):
         """Specify of the enrollment in a realm.
-
-        Example:
-        {
-            'name': 'domain.example.com',
-            'discover': ['--client-software=sssd'],
-            'join': ['--no-password', '--client-software=sssd']
-        }
 
         :param realm: a dictionary with a specification
         """
-        self.implementation.set_realm(realm)
+        self.implementation.set_realm(RealmStructure.to_data(realm))

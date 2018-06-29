@@ -19,11 +19,11 @@
 #
 import shlex
 
-from pyanaconda.core.constants import REALM_NAME, REALM_DISCOVER, REALM_JOIN
 from pyanaconda.dbus import DBus
 from pyanaconda.core.signal import Signal
 from pyanaconda.modules.common.base import KickstartModule
 from pyanaconda.modules.common.constants.services import SECURITY
+from pyanaconda.modules.common.structures.security import RealmData
 from pyanaconda.modules.security.constants import SELinuxMode
 from pyanaconda.modules.security.kickstart import SecurityKickstartSpecification
 from pyanaconda.modules.security.security_interface import SecurityInterface
@@ -48,11 +48,7 @@ class SecurityModule(KickstartModule):
         self._authconfig_args = []
 
         self.realm_changed = Signal()
-        self._realm = {
-            REALM_NAME: "",
-            REALM_DISCOVER: [],
-            REALM_JOIN: []
-        }
+        self._realm = RealmData()
 
     def publish(self):
         """Publish the module."""
@@ -78,11 +74,13 @@ class SecurityModule(KickstartModule):
             self.set_authconfig(shlex.split(data.authconfig.authconfig))
 
         if data.realm.join_realm:
-            self.set_realm({
-                REALM_NAME: data.realm.join_realm,
-                REALM_DISCOVER: data.realm.discover_options,
-                REALM_JOIN: data.realm.join_args
-            })
+
+            realm = RealmData()
+            realm.name = data.realm.join_realm
+            realm.discover_options = data.realm.discover_options
+            realm.join_options = data.realm.join_args
+
+            self.set_realm(realm)
 
     def generate_kickstart(self):
         """Return the kickstart string."""
@@ -98,10 +96,10 @@ class SecurityModule(KickstartModule):
         if self.authconfig:
             data.authconfig.authconfig = " ".join(self.authconfig)
 
-        if self.realm[REALM_NAME]:
-            data.realm.join_realm = self.realm[REALM_NAME]
-            data.realm.discover_options = self.realm[REALM_DISCOVER]
-            data.realm.join_args = self.realm[REALM_JOIN]
+        if self.realm.name:
+            data.realm.join_realm = self.realm.name
+            data.realm.discover_options = self.realm.discover_options
+            data.realm.join_args = self.realm.join_options
 
         return str(data)
 

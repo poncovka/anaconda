@@ -43,10 +43,9 @@ from pyanaconda.core import util
 from pyanaconda.addons import AddonSection, AddonData, AddonRegistry, collect_addon_paths
 from pyanaconda.bootloader import GRUB2, get_bootloader
 from pyanaconda.core.constants import ADDON_PATHS, IPMI_ABORTED, THREAD_STORAGE, SELINUX_DEFAULT, \
-    REALM_NAME, REALM_DISCOVER, REALM_JOIN, SETUP_ON_BOOT_DISABLED, SETUP_ON_BOOT_RECONFIG, \
     CLEAR_PARTITIONS_ALL, BOOTLOADER_LOCATION_PARTITION, BOOTLOADER_SKIPPED, BOOTLOADER_ENABLED, \
     BOOTLOADER_TIMEOUT_UNSET, FIREWALL_ENABLED, FIREWALL_DISABLED, FIREWALL_USE_SYSTEM_DEFAULTS, \
-    AUTOPART_TYPE_DEFAULT
+    AUTOPART_TYPE_DEFAULT, SETUP_ON_BOOT_DISABLED, SETUP_ON_BOOT_RECONFIG
 from pyanaconda.desktop import Desktop
 from pyanaconda.errors import ScriptError, errorHandler
 from pyanaconda.flags import flags, can_touch_runtime_system
@@ -56,6 +55,7 @@ from pyanaconda.modules.common.constants.services import BOSS, TIMEZONE, LOCALIZ
     USERS, SERVICES, STORAGE, NETWORK
 from pyanaconda.modules.common.constants.objects import DISK_INITIALIZATION, BOOTLOADER, FIREWALL, \
     AUTO_PARTITIONING
+from pyanaconda.modules.common.structures.security import RealmStructure
 from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.platform import platform
 from pyanaconda.pwpolicy import F22_PwPolicy, F22_PwPolicyData
@@ -774,13 +774,13 @@ class Realm(RemovedCommand):
 
     def setup(self):
         security_proxy = SECURITY.get_proxy()
-        realm = security_proxy.Realm
+        realm = RealmStructure.to_data(security_proxy.Realm)
 
-        if not realm[REALM_NAME]:
+        if not realm.name:
             return
 
         try:
-            argv = ["discover", "--verbose"] + realm[REALM_DISCOVER] + [realm[REALM_NAME]]
+            argv = ["discover", "--verbose"] + realm.discover_options + [realm.name]
             output = util.execWithCapture("realm", argv, filter_stderr=True)
         except OSError:
             # TODO: A lousy way of propagating what will usually be
@@ -811,9 +811,9 @@ class Realm(RemovedCommand):
             return
 
         security_proxy = SECURITY.get_proxy()
-        realm = security_proxy.Realm
+        realm = RealmStructure.to_data(security_proxy.Realm)
 
-        for arg in realm[REALM_JOIN]:
+        for arg in realm.join_options:
             if arg.startswith("--no-password") or arg.startswith("--one-time-password"):
                 pw_args = []
                 break
@@ -821,7 +821,7 @@ class Realm(RemovedCommand):
             # no explicit password arg using implicit --no-password
             pw_args = ["--no-password"]
 
-        argv = ["join", "--install", util.getSysroot(), "--verbose"] + pw_args + realm[REALM_JOIN]
+        argv = ["join", "--install", util.getSysroot(), "--verbose"] + pw_args + realm.join_options
         rc = -1
         try:
             rc = util.execWithRedirect("realm", argv)
@@ -829,7 +829,7 @@ class Realm(RemovedCommand):
             pass
 
         if rc == 0:
-            realm_log.info("Joined realm %s", realm[REALM_NAME])
+            realm_log.info("Joined realm %s", realm.name)
 
 class ClearPart(RemovedCommand):
     def __str__(self):
