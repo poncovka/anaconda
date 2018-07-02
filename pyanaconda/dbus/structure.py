@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+from abc import abstractclassmethod, abstractmethod
+
 from pyanaconda.dbus.typing import get_variant, Structure
 from typing import TypeVar, Generic
 
@@ -57,6 +59,15 @@ class DBusStructure(Generic[T]):
     fields = {}
 
     @classmethod
+    @abstractmethod
+    def create_data(cls) -> T:
+        """Create and return a new data object.
+
+        :return: a new data object
+        """
+        pass
+
+    @classmethod
     def from_data(cls, obj: T) -> Structure:
         """Return a DBus structure.
 
@@ -67,7 +78,7 @@ class DBusStructure(Generic[T]):
         """
         structure = {}
 
-        for name, field in cls.fields:
+        for name, field in cls.fields.items():
             type_hint = field.type_hint
             value = getattr(obj, cls._get_attribute_name(name))
             structure[name] = get_variant(type_hint, value)
@@ -87,9 +98,9 @@ class DBusStructure(Generic[T]):
         cls._check_mapping(mapping)
 
         if obj is None:
-            obj = T()
+            obj = cls.create_data()
 
-        for name, value in mapping:
+        for name, value in mapping.items():
             setattr(obj, cls._get_attribute_name(name), value)
 
         return obj

@@ -81,3 +81,7 @@ class RealmStructure(DBusStructure[RealmData]):
         "discover-options": DBusField(List[Str]),
         "join-options": DBusField(List[Str])
     }
+
+    @classmethod
+    def create_data(cls):
+        return RealmData()
