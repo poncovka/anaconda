@@ -18,8 +18,9 @@
 #
 from pyanaconda.dbus.identifier import DBusObjectIdentifier
 from pyanaconda.modules.common.constants.namespaces import STORAGE_NAMESPACE, NETWORK_NAMESPACE, \
-    PARTITIONING_NAMESPACE
+    PARTITIONING_NAMESPACE, NETWORK_MANAGER_NAMESPACE
 
+# Anaconda DBus objects.
 
 BOOTLOADER = DBusObjectIdentifier(
     namespace=STORAGE_NAMESPACE,
@@ -59,4 +60,11 @@ ZFCP = DBusObjectIdentifier(
 FIREWALL = DBusObjectIdentifier(
     namespace=NETWORK_NAMESPACE,
     basename="Firewall"
+)
+
+# Other DBus objects.
+
+NETWORK_MANAGER_SETTINGS = DBusObjectIdentifier(
+    namespace=NETWORK_MANAGER_NAMESPACE,
+    basename="Settings"
 )
