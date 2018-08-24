@@ -21,6 +21,8 @@ from pyanaconda import network
 from pyanaconda import nm
 from pyanaconda.modules.common.constants.services import NETWORK
 from pyanaconda.flags import can_touch_runtime_system, flags
+from pyanaconda.modules.common.errors.network_manager import UnmanagedDeviceError, \
+    UnknownConnectionError
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.tuiobject import Dialog, report_if_failed
@@ -236,7 +238,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
             self._apply = True
             try:
                 nm.nm_activate_device_connection(devname, uuid)
-            except (nm.UnmanagedDeviceError, nm.UnknownConnectionError):
+            except (UnmanagedDeviceError, UnknownConnectionError):
                 self.errors.append(_("Can't apply configuration, device activation failed."))
 
         self.apply()

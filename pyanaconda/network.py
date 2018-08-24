@@ -46,6 +46,8 @@ from pyanaconda.core.i18n import _
 from pyanaconda.core.regexes import HOSTNAME_PATTERN_WITHOUT_ANCHORS, IBFT_CONFIGURED_DEVICE_NAME
 from pykickstart.constants import BIND_TO_MAC
 from pyanaconda.modules.common.constants.services import NETWORK, TIMEZONE
+from pyanaconda.modules.common.errors.network_manager import DeviceNotActiveError, \
+    UnknownDeviceError, UnknownConnectionError
 
 from pyanaconda.anaconda_loggers import get_module_logger, get_ifcfg_logger
 log = get_module_logger(__name__)
@@ -327,7 +329,7 @@ def ensure_active_ifcfg_connection_for_device(ifcfg_path, dev_name, only_replace
             msg = "activating"
             try:
                 nm.nm_activate_device_connection(dev_name, con_uuid)
-            except nm.UnknownConnectionError as e:
+            except UnknownConnectionError as e:
                 log.warning("can't activate connection %s on %s: %s",
                             con_uuid, dev_name, e)
     log.debug("ensure active ifcfg connection for %s (%s -> %s): %s",
@@ -800,7 +802,7 @@ def _add_slave_connection(slave_type, slave_idx, slave, master, activate, values
     if activate:
         try:
             nm.nm_disconnect_device(slave)
-        except nm.DeviceNotActiveError:
+        except DeviceNotActiveError:
             pass
 
     nm.nm_add_connection(values)
@@ -1761,7 +1763,7 @@ def update_slaves_onboot_value(devname, value):
     # Master can be identified by devname or uuid, find master uuid
     try:
         uuid = nm.nm_device_setting_value(devname, "connection", "uuid")
-    except nm.UnknownDeviceError:
+    except UnknownDeviceError:
         # Until activated, the device does not exist, so look in its ifcfg file
         uuid = find_ifcfg_uuid_of_device(devname)
         if not uuid:

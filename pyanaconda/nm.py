@@ -18,20 +18,25 @@
 #
 
 import gi
-gi.require_version("Gio", "2.0")
 gi.require_version("NM", "1.0")
 
-from gi.repository import Gio
 from gi.repository import NM
-from pyanaconda.core.glib import GError, Variant, VariantType
 import struct
 import socket
+
+from pyanaconda.dbus.proxy import get_interface_names
+from pyanaconda.dbus.typing import Variant
+from pyanaconda.flags import flags, can_touch_runtime_system
+from pyanaconda.modules.common.errors import DBusError
+from pyanaconda.modules.common.errors.network_manager import UnknownDeviceError
+from pyanaconda.modules.common.constants.objects import NETWORK_MANAGER_SETTINGS
+from pyanaconda.modules.common.constants.services import NETWORK_MANAGER
+from pyanaconda.modules.common.errors.standard import AccessDeniedError, InvalidArgsError, \
+    UnknownMethodError
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
 
-from pyanaconda.core.constants import DEFAULT_DBUS_TIMEOUT
-from pyanaconda.flags import flags, can_touch_runtime_system
 
 supported_device_types = [
     NM.DeviceType.ETHERNET,
@@ -43,73 +48,46 @@ supported_device_types = [
     NM.DeviceType.TEAM,
 ]
 
-class UnknownDeviceError(ValueError):
-    """Device of specified name was not found by NM"""
-    def __str__(self):
-        return self.__repr__()
-
-class UnmanagedDeviceError(Exception):
-    """Device of specified name is not managed by NM or unavailable"""
-    def __str__(self):
-        return self.__repr__()
-
-class DeviceNotActiveError(Exception):
-    """Device of specified name is not active"""
-    def __str__(self):
-        return self.__repr__()
 
 class PropertyNotFoundError(ValueError):
     """Property of NM object was not found"""
     def __str__(self):
         return self.__repr__()
 
+
 class SettingsNotFoundError(ValueError):
     """Settings NMRemoteConnection object was not found"""
     def __str__(self):
         return self.__repr__()
+
 
 class MultipleSettingsFoundError(ValueError):
     """Too many NMRemoteConnection objects were found"""
     def __str__(self):
         return self.__repr__()
 
-class UnknownMethodGetError(Exception):
-    """Object does not have Get, most probably being invalid"""
-    def __str__(self):
-        return self.__repr__()
-
-# bug #1062417 e.g. for ethernet device without link
-class UnknownConnectionError(Exception):
-    """Connection is not available for the device"""
-    def __str__(self):
-        return self.__repr__()
 
 class AddConnectionError(Exception):
     """Connection is not available for the device"""
     def __str__(self):
         return self.__repr__()
 
+
 # bug #1039006
 class BondOptionsError(AddConnectionError):
     pass
 
-def _get_proxy(bus_type=Gio.BusType.SYSTEM,
-               proxy_flags=Gio.DBusProxyFlags.NONE,
-               info=None,
-               name="org.freedesktop.NetworkManager",
-               object_path="/org/freedesktop/NetworkManager",
-               interface_name="org.freedesktop.NetworkManager",
-               cancellable=None):
+
+def _get_proxy(object_path=None):
+    """Get an proxy of a Network Manager object.
+
+    :param object_path: a DBus path
+    :return: a DBus proxy or None
+    """
     try:
-        proxy = Gio.DBusProxy.new_for_bus_sync(bus_type,
-                                               proxy_flags,
-                                               info,
-                                               name,
-                                               object_path,
-                                               interface_name,
-                                               cancellable)
-    except GError as e:
-        if can_touch_runtime_system("raise GLib.GError", touch_live=True):
+        proxy = NETWORK_MANAGER.get_proxy(object_path)
+    except Exception as e:
+        if can_touch_runtime_system("raise an exception", touch_live=True):
             raise
 
         log.error("_get_proxy failed: %s", e)
@@ -117,22 +95,24 @@ def _get_proxy(bus_type=Gio.BusType.SYSTEM,
 
     return proxy
 
-def _get_property(object_path, prop, interface_name_suffix=""):
-    interface_name = "org.freedesktop.NetworkManager" + interface_name_suffix
-    proxy = _get_proxy(object_path=object_path, interface_name="org.freedesktop.DBus.Properties")
+def _get_property(object_path, property_name, interface_suffix=""):
+    """Get a property of a Network Manager object.
+
+    :param object_path: a DBus path or None
+    :param property_name: a name of the property
+    :param interface_suffix: a suffix of the interface name
+    :return: a value of the property or None
+    """
+    interface_name = NETWORK_MANAGER.interface_name + interface_suffix
+
+    proxy = _get_proxy(object_path)
     if not proxy:
         return None
 
     try:
-        prop = proxy.Get('(ss)', interface_name, prop)
-    except GError as e:
-        if ("org.freedesktop.DBus.Error.AccessDenied" in e.message or
-            "org.freedesktop.DBus.Error.InvalidArgs" in e.message):
-            return None
-        elif "org.freedesktop.DBus.Error.UnknownMethod" in e.message:
-            raise UnknownMethodGetError
-        else:
-            raise
+        prop = proxy.Get(interface_name, property_name)
+    except (AccessDeniedError, InvalidArgsError):
+        return None
 
     return prop
 
@@ -142,7 +122,7 @@ def nm_state():
     :return: state of NetworkManager
     :rtype: integer
     """
-    prop = _get_property("/org/freedesktop/NetworkManager", "State")
+    prop = _get_property(None, "State")
 
     # If this is an image/dir install assume the network is up
     if not prop and (flags.imageInstall or flags.dirInstall):
@@ -204,14 +184,14 @@ def nm_activated_devices():
 
     interfaces = []
 
-    active_connections = _get_property("/org/freedesktop/NetworkManager", "ActiveConnections")
+    active_connections = _get_property(None, "ActiveConnections")
     if not active_connections:
         return []
 
     for ac in active_connections:
         try:
             state = _get_property(ac, "State", ".Connection.Active")
-        except UnknownMethodGetError:
+        except UnknownMethodError:
             continue
         if state != NM.ActiveConnectionState.ACTIVATED:
             continue
@@ -224,19 +204,9 @@ def nm_activated_devices():
 
     return interfaces
 
-def _get_object_iface_names(object_path):
-    connection = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
-    res_xml = connection.call_sync("org.freedesktop.NetworkManager",
-                                   object_path,
-                                   "org.freedesktop.DBus.Introspectable",
-                                   "Introspect",
-                                   None,
-                                   VariantType.new("(s)"),
-                                   Gio.DBusCallFlags.NONE,
-                                   -1,
-                                   None)
-    node_info = Gio.DBusNodeInfo.new_for_xml(res_xml[0])
-    return [iface.name for iface in node_info.interfaces]
+def _get_object_iface_names(object_path=None):
+    proxy = _get_proxy(object_path)
+    return get_interface_names(proxy)
 
 def _device_type_specific_interface(device):
     ifaces = _get_object_iface_names(device)
@@ -259,15 +229,8 @@ def nm_device_property(name, prop):
        :raise PropertyNotFoundError: if property is not found
     """
 
-    retval = None
-
     proxy = _get_proxy()
-    try:
-        device = proxy.GetDeviceByIpIface('(s)', name)
-    except GError as e:
-        if "org.freedesktop.NetworkManager.UnknownDevice" in e.message:
-            raise UnknownDeviceError(name, e)
-        raise
+    device = proxy.GetDeviceByIpIface(name)
 
     retval = _get_property(device, prop, ".Device")
     if not retval:
@@ -375,7 +338,7 @@ def nm_device_is_slave(name):
 
     try:
         master = _get_property(active_con, "Master", ".Connection.Active")
-    except UnknownMethodGetError:
+    except UnknownMethodError:
         # don't crash on obsolete ActiveConnection objects
         return False
 
@@ -547,7 +510,7 @@ def nm_device_ip_config(name, version=4):
     try:
         addresses = _get_property(config, "Addresses", dbus_iface)
     # object is valid only if device is in ACTIVATED state (racy)
-    except UnknownMethodGetError:
+    except UnknownMethodError:
         return []
 
     addr_list = []
@@ -565,7 +528,7 @@ def nm_device_ip_config(name, version=4):
     try:
         nameservers = _get_property(config, "Nameservers", dbus_iface)
     # object is valid only if device is in ACTIVATED state (racy)
-    except UnknownMethodGetError:
+    except UnknownMethodError:
         return []
 
     ns_list = []
@@ -629,7 +592,7 @@ def nm_ntp_servers_from_dhcp():
         try:
             options = _get_property(dhcp4_path, "Options", ".DHCP4Config")
         # object is valid only if device is in ACTIVATED state (racy)
-        except UnknownMethodGetError:
+        except UnknownMethodError:
             options = None
         if options and 'ntp_servers' in options:
             # NTP server addresses returned by DHCP are whitespace delimited
@@ -640,16 +603,16 @@ def nm_ntp_servers_from_dhcp():
         # NetworkManager does not request NTP/SNTP options for DHCP6
     return ntp_servers
 
-def _is_s390_setting(path):
+def _is_s390_setting(object_path):
     """Check if setting of given object path is an s390 setting
 
-       :param path: object path of setting object
-       :type path: str
+       :param object_path: object path of setting object
+       :type object_path: str
        :return: True if the setting is s390 setting, False otherwise
        :rtype: bool
     """
 
-    proxy = _get_proxy(object_path=path, interface_name="org.freedesktop.NetworkManager.Settings.Connection")
+    proxy = _get_proxy(object_path)
     settings = proxy.GetSettings()
     return "s390-subchannels" in settings["802-3-ethernet"]
 
@@ -731,14 +694,14 @@ def _find_settings(value, key1, key2, format_value=lambda x: x):
     """
     retval = []
 
-    proxy = _get_proxy(object_path="/org/freedesktop/NetworkManager/Settings", interface_name="org.freedesktop.NetworkManager.Settings")
+    proxy = _get_proxy(NETWORK_MANAGER_SETTINGS.object_path)
 
     connections = proxy.ListConnections()
     for con in connections:
-        proxy = _get_proxy(object_path=con, interface_name="org.freedesktop.NetworkManager.Settings.Connection")
+        proxy = _get_proxy(object_path=con)
         try:
             settings = proxy.GetSettings()
-        except GError as e:
+        except DBusError as e:
             log.debug("Exception raised in _find_settings: %s", e)
             continue
         try:
@@ -758,7 +721,7 @@ def nm_get_settings(value, key1, key2, format_value=lambda x: x):
     retval = []
     settings_paths = _find_settings(value, key1, key2, format_value)
     for settings_path in settings_paths:
-        proxy = _get_proxy(object_path=settings_path, interface_name="org.freedesktop.NetworkManager.Settings.Connection")
+        proxy = _get_proxy(object_path=settings_path)
         settings = proxy.GetSettings()
         retval.append(settings)
 
@@ -768,14 +731,14 @@ def nm_get_all_settings():
     """Return all settings for logging."""
     retval = []
 
-    proxy = _get_proxy(object_path="/org/freedesktop/NetworkManager/Settings", interface_name="org.freedesktop.NetworkManager.Settings")
+    proxy = _get_proxy(NETWORK_MANAGER_SETTINGS.object_path)
 
     connections = proxy.ListConnections()
     for con in connections:
-        proxy = _get_proxy(object_path=con, interface_name="org.freedesktop.NetworkManager.Settings.Connection")
+        proxy = _get_proxy(object_path=con)
         try:
             settings = proxy.GetSettings()
-        except GError as e:
+        except DBusError as e:
             # The connection may be deleted asynchronously by NM
             log.debug("Exception raised in nm_get_all_settings: %s", e)
             continue
@@ -807,10 +770,10 @@ def nm_device_setting_value(name, key1, key2):
         raise MultipleSettingsFoundError(name)
     else:
         settings_path = settings_paths[0]
-    proxy = _get_proxy(object_path=settings_path, interface_name="org.freedesktop.NetworkManager.Settings.Connection")
+    proxy = _get_proxy(object_path=settings_path)
     try:
         settings = proxy.GetSettings()
-    except GError as e:
+    except DBusError as e:
         log.debug("nm_device_setting_value: %s", e)
         raise SettingsNotFoundError(name)
     try:
@@ -825,20 +788,9 @@ def nm_disconnect_device(name):
        :raise UnknownDeviceError: if device is not found
     """
     proxy = _get_proxy()
-    try:
-        device = proxy.GetDeviceByIpIface('(s)', name)
-    except GError as e:
-        if "org.freedesktop.NetworkManager.UnknownDevice" in e.message:
-            raise UnknownDeviceError(name, e)
-        raise
-
-    device_proxy = _get_proxy(object_path=device, interface_name="org.freedesktop.NetworkManager.Device")
-    try:
-        device_proxy.Disconnect()
-    except GError as e:
-        if "org.freedesktop.NetworkManager.Device.NotActive" in e.message:
-            raise DeviceNotActiveError(name, e)
-        raise
+    device = proxy.GetDeviceByIpIface(name)
+    device_proxy = _get_proxy(object_path=device)
+    device_proxy.Disconnect()
 
 def nm_activate_device_connection(dev_name, con_uuid):
     """Activate device with specified connection.
@@ -859,28 +811,14 @@ def nm_activate_device_connection(dev_name, con_uuid):
         device_path = "/"
     else:
         proxy = _get_proxy()
-        try:
-            device_path = proxy.GetDeviceByIpIface('(s)', dev_name)
-        except GError as e:
-            if "org.freedesktop.NetworkManager.UnknownDevice" in e.message:
-                raise UnknownDeviceError(dev_name, e)
-            raise
+        device_path = proxy.GetDeviceByIpIface(dev_name)
 
     con_paths = _find_settings(con_uuid, 'connection', 'uuid')
     if not con_paths:
         raise SettingsNotFoundError(con_uuid)
 
     nm_proxy = _get_proxy()
-    try:
-        nm_proxy.ActivateConnection('(ooo)', con_paths[0], device_path, "/")
-    except GError as e:
-        if "org.freedesktop.NetworkManager.UnmanagedDevice" in e.message:
-            raise UnmanagedDeviceError(dev_name, e)
-        elif "org.freedesktop.NetworkManager.UnknownConnection" in e.message:
-            raise UnknownConnectionError(dev_name, e)
-        if "org.freedesktop.NetworkManager.UnknownDevice" in e.message:
-            raise UnknownDeviceError(dev_name, e)
-        raise
+    nm_proxy.ActivateConnection(con_paths[0], device_path, "/")
 
 def nm_add_connection(values):
     """Add new connection specified by values.
@@ -907,12 +845,11 @@ def nm_add_connection(values):
             settings[key1] = {}
         settings[key1][key2] = gvalue
 
-    proxy = _get_proxy(object_path="/org/freedesktop/NetworkManager/Settings",
-                       interface_name="org.freedesktop.NetworkManager.Settings")
+    proxy = _get_proxy(NETWORK_MANAGER_SETTINGS.object_path)
     try:
-        connection = proxy.AddConnection('(a{sa{sv}})', settings)
-    except GError as e:
-        if "bond.options: invalid option" in e.message:
+        connection = proxy.AddConnection(settings)
+    except DBusError as e:
+        if "bond.options: invalid option" in str(e):
             raise BondOptionsError(e)
         raise
     return connection
@@ -1014,21 +951,13 @@ def _update_settings(settings_path, new_values):
                          value:
                          default_type_str: str
     """
-    proxy = _get_proxy(object_path=settings_path, interface_name="org.freedesktop.NetworkManager.Settings.Connection")
-    args = None
-    settings = proxy.call_sync("GetSettings",
-                               args,
-                               Gio.DBusCallFlags.NONE,
-                               DEFAULT_DBUS_TIMEOUT,
-                               None)
+    proxy = _get_proxy(object_path=settings_path)
+    settings = proxy.GetSettings()
+
     for key1, key2, value, default_type_str in new_values:
         settings = _gvariant_settings(settings, key1, key2, value, default_type_str)
 
-    proxy.call_sync("Update",
-                    settings,
-                    Gio.DBusCallFlags.NONE,
-                    DEFAULT_DBUS_TIMEOUT,
-                    None)
+    proxy.Update(settings)
 
 def _gvariant_settings(settings, updated_key1, updated_key2, value, default_type_str=None):
     """Update setting of updated_key1, updated_key2 of settings object with value.
