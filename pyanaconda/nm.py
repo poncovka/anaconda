@@ -1093,13 +1093,13 @@ def test():
         try:
             hwaddr = nm_device_hwaddress(devname)
             print("     HwAaddress: %s" % hwaddr)
-        except ValueError as e:
+        except (ValueError, UnknownDeviceError) as e:
             print("     %s" % e)
             hwaddr = ""
 
         try:
             print("     Carrier: %s" % nm_device_carrier(devname))
-        except ValueError as e:
+        except (ValueError, UnknownDeviceError) as e:
             print("     %s" % e)
 
         try:
@@ -1118,7 +1118,7 @@ def test():
                 print("     %s" % e)
         try:
             print("     Nonexisting: %s" % nm_device_property(devname, "Nonexisting"))
-        except ValueError as e:
+        except (ValueError, UnknownDeviceError) as e:
             print("     %s" % e)
 
         try:
@@ -1131,11 +1131,11 @@ def test():
             print("     %s" % e)
         try:
             print("     Setting value %s %s: %s" % ("ipv6", "method", nm_device_setting_value(devname, "ipv6", "method")))
-        except ValueError as e:
+        except (ValueError, UnknownDeviceError) as e:
             print("     %s" % e)
         try:
             print("     Setting value %s %s: %s" % ("ipv7", "method", nm_device_setting_value(devname, "ipv7", "method")))
-        except ValueError as e:
+        except (ValueError, UnknownDeviceError) as e:
             print("     %s" % e)
 
     devname = devs[0]
