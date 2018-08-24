@@ -1440,7 +1440,7 @@ def setOnboot(ksdata):
                 try:
                     nm.nm_update_settings_of_device(devname, [['connection', 'autoconnect', network_data.onboot, None]])
                     log.debug("setting ONBOOT value of %s to %s", devname, network_data.onboot)
-                except (nm.SettingsNotFoundError, nm.UnknownDeviceError) as e:
+                except (nm.SettingsNotFoundError, UnknownDeviceError) as e:
                     log.debug("setOnboot: %s", e)
                     continue
                 except nm.MultipleSettingsFoundError:
@@ -1498,7 +1498,7 @@ def apply_kickstart(ksdata):
                 try:
                     log.debug("pre kickstart - activating connection %s for %s", con_uuid, dev_name)
                     nm.nm_activate_device_connection(dev_name, con_uuid)
-                except (nm.UnknownConnectionError, nm.UnknownDeviceError) as e:
+                except (UnknownConnectionError, UnknownDeviceError) as e:
                     log.warning("pre kickstart: can't activate connection %s on %s: %s",
                                 con_uuid, dev_name, e)
     return applied_devices

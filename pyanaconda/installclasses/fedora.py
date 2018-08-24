@@ -18,6 +18,7 @@
 #
 
 from pyanaconda.installclass import BaseInstallClass
+from pyanaconda.modules.common.errors.network_manager import UnknownDeviceError
 from pyanaconda.product import productName
 from pyanaconda import network
 from pyanaconda import nm
@@ -50,7 +51,7 @@ class FedoraBaseInstallClass(BaseInstallClass):
                 continue
             try:
                 link_up = nm.nm_device_carrier(dev)
-            except (nm.UnknownDeviceError, nm.PropertyNotFoundError):
+            except (UnknownDeviceError, nm.PropertyNotFoundError):
                 continue
             if link_up:
                 network.update_onboot_value(dev, True, ksdata=ksdata)
