@@ -17,6 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# Anaconda namespaces.
+
 ANACONDA_NAMESPACE = (
     "org", "fedoraproject", "Anaconda"
 )
@@ -84,4 +86,10 @@ SERVICES_NAMESPACE = (
 BAZ_NAMESPACE = (
     *ADDONS_NAMESPACE,
     "Baz"
+)
+
+# Other namespaces.
+
+DBUS_NAMESPACE = (
+    "org", "freedesktop", "DBus"
 )
