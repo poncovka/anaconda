@@ -957,12 +957,12 @@ def _update_settings(settings_path, new_values):
                          default_type_str: str
     """
     proxy = _get_proxy(object_path=settings_path)
-    settings = proxy.GetSettings()
+    settings = proxy.GetSettings(unpack_result=False)
 
     for key1, key2, value, default_type_str in new_values:
         settings = _gvariant_settings(settings, key1, key2, value, default_type_str)
 
-    proxy.Update(settings)
+    proxy.Update(settings, pack_args=False)
 
 def _gvariant_settings(settings, updated_key1, updated_key2, value, default_type_str=None):
     """Update setting of updated_key1, updated_key2 of settings object with value.
@@ -1157,8 +1157,16 @@ def test():
     nm_update_settings_of_device(devname, [[key1, key2, original_value, "b"]])
     print("Value of setting %s %s: %s" % (key1, key2, nm_device_setting_value(devname, key1, key2)))
 
-    nm_update_settings_of_device(devname, [[key1, "nonexisting", new_value, None]])
-    nm_update_settings_of_device(devname, [["nonexisting", "nonexisting", new_value, None]])
+    try:
+        nm_update_settings_of_device(devname, [[key1, "nonexisting", new_value, None]])
+    except DBusError as e:
+        print("%s" % e)
+
+    try:
+        nm_update_settings_of_device(devname, [["nonexisting", "nonexisting", new_value, None]])
+    except DBusError as e:
+        print("%s" % e)
+
     try:
         nm_update_settings_of_device("nonexixting", [[key1, key2, new_value, None]])
     except UnknownDeviceError as e:
