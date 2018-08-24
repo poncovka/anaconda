@@ -93,3 +93,7 @@ BAZ_NAMESPACE = (
 DBUS_NAMESPACE = (
     "org", "freedesktop", "DBus"
 )
+
+NETWORK_MANAGER_NAMESPACE = (
+    "org", "freedesktop", "NetworkManager"
+)
