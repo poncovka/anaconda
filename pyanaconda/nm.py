@@ -24,6 +24,7 @@ from gi.repository import NM
 import struct
 import socket
 
+from pyanaconda.dbus import SystemBus
 from pyanaconda.dbus.proxy import get_interface_names
 from pyanaconda.dbus.typing import Variant
 from pyanaconda.flags import flags, can_touch_runtime_system
@@ -85,15 +86,19 @@ def _get_proxy(object_path=None):
     :return: a DBus proxy or None
     """
     try:
-        proxy = NETWORK_MANAGER.get_proxy(object_path)
-    except Exception as e:
-        if can_touch_runtime_system("raise an exception", touch_live=True):
-            raise
+        if SystemBus.check_connection():
+            return NETWORK_MANAGER.get_proxy(object_path)
+        else:
+            error = DBusError("Failed to connect to the system bus.")
 
-        log.error("_get_proxy failed: %s", e)
-        proxy = None
+    except DBusError as e:
+        error = e
 
-    return proxy
+    if can_touch_runtime_system("raise DBus error", touch_live=True):
+        raise error
+
+    log.error("_get_proxy failed: %s", error)
+    return None
 
 def _get_property(object_path, property_name, interface_suffix=""):
     """Get a property of a Network Manager object.
