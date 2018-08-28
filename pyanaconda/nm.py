@@ -93,8 +93,11 @@ class AddConnectionError(Exception):
 class BondOptionsError(AddConnectionError):
     pass
 
+def _get_proxy_flags():
+    return Gio.DBusProxyFlags.DO_NOT_CONNECT_SIGNALS | Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES
+
 def _get_proxy(bus_type=Gio.BusType.SYSTEM,
-               proxy_flags=Gio.DBusProxyFlags.NONE,
+               proxy_flags=_get_proxy_flags(),
                info=None,
                name="org.freedesktop.NetworkManager",
                object_path="/org/freedesktop/NetworkManager",
