@@ -205,9 +205,22 @@ def get_required_packages():
     return proc_res.stdout.decode('utf-8').strip()
 
 
+def get_pip_packages():
+    """Get pip packages for running Anaconda tests."""
+    script = _get_script_dir() + os.path.sep + DEPENDENCY_SOLVER
+    cmd = [script, "--pip"]
+
+    proc_res = _check_subprocess(cmd, "Can't call dependency_solver script.", stdout_pipe=True)
+
+    return proc_res.stdout.decode('utf-8').strip()
+
+
 def install_required_packages(mock_command):
     packages = get_required_packages()
     install_packages_to_mock(mock_command, packages)
+
+    pip_packages = get_pip_packages()
+    install_pip_packages_to_mock(mock_command, pip_packages)
 
 
 def remove_anaconda_in_mock(mock_command):
@@ -260,6 +273,17 @@ def install_packages_to_mock(mock_command, packages):
     cmd.extend(packages.split(" "))
 
     _check_subprocess(cmd, "Can't install packages to mock.")
+
+
+def install_pip_packages_to_mock(mock_command, packages):
+    cmd = _prepare_command(mock_command)
+
+    cmd = _run_cmd_in_chroot(cmd)
+    cmd.append('pip install {}'.format(packages))
+
+    print("vponcova {}".format(packages))
+
+    _check_subprocess(cmd, "Can't install packages via pip to mock.")
 
 
 def prepare_anaconda(mock_command):
@@ -329,7 +353,6 @@ if __name__ == "__main__":
     ns = parse_args()
 
     mock_cmd = create_mock_command(ns.mock_config, ns.uniqueext)
-    mock_init_run = False
     success = True
 
     if not any([ns.init, ns.copy, ns.run_tests, ns.install]):
@@ -343,11 +366,8 @@ if __name__ == "__main__":
 
     if ns.init:
         setup_mock(mock_cmd)
-        mock_init_run = True
-        if ns.install:
-            install_packages_to_mock(mock_cmd, ns.install)
 
-    if ns.install and not mock_init_run:
+    if ns.install:
         install_packages_to_mock(mock_cmd, ns.install)
 
     if ns.copy:
