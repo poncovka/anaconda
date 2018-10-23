@@ -18,6 +18,9 @@
 #
 
 import gi
+
+from pyanaconda.core.configuration.anaconda import conf
+
 gi.require_version("Pango", "1.0")
 gi.require_version("Gdk", "3.0")
 
@@ -129,7 +132,7 @@ class LangsupportSpoke(LangLocaleHandler, NormalSpoke):
     @property
     def showable(self):
         # don't show the language support spoke on live media and in single language mode
-        return not flags.livecdInstall and not flags.singlelang
+        return not conf.system.is_live_os and not flags.singlelang
 
     @property
     def status(self):

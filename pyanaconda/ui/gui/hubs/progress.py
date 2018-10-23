@@ -18,6 +18,7 @@
 
 import gi
 
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.timer import Timer
 
 gi.require_version("Gtk", "3.0")
@@ -217,7 +218,7 @@ class ProgressHub(Hub):
     def initialize(self):
         super().initialize()
 
-        if flags.livecdInstall:
+        if conf.system.is_live_os:
             continueText = self.builder.get_object("rebootLabel")
             continueText.set_text(_("%s is now successfully installed on your system and ready "
                                     "for you to use!  When you are ready, reboot your system to start using it!"))

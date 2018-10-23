@@ -38,6 +38,8 @@ from collections import OrderedDict, namedtuple
 from productmd.treeinfo import TreeInfo
 
 from blivet.size import Size, ROUND_HALF_UP
+
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import DRACUT_ISODIR, DRACUT_REPODIR, DD_ALL, DD_FIRMWARE, \
     DD_RPMS, INSTALL_TREE, ISO_DIR, THREAD_STORAGE, THREAD_PAYLOAD, THREAD_PAYLOAD_RESTART, \
     THREAD_WAIT_FOR_CONNECTING_NM, PayloadRequirementType, GRAPHICAL_TARGET, TEXT_ONLY_TARGET
@@ -894,7 +896,7 @@ class Payload(object):
 
         for kernel in self.kernelVersionList:
             log.info("recreating initrd for %s", kernel)
-            if not flags.imageInstall:
+            if not conf.target.is_image:
                 util.execInSysroot("new-kernel-pkg",
                                    ["--mkinitrd", "--dracut",
                                     "--depmod", "--update", kernel])
@@ -976,7 +978,7 @@ class Payload(object):
         dnfpayload.  Payloads should only implement one of these methods
         by overriding the unneeded one with a pass.
         """
-        if not flags.dirInstall:
+        if conf.target.can_configure_storage:
             self.storage.write()
 
     def writeStorageLate(self):
@@ -987,7 +989,7 @@ class Payload(object):
         """
         if util.getSysroot() != util.getTargetPhysicalRoot():
             self.prepareMountTargets(self.storage)
-        if not flags.dirInstall:
+        if conf.target.can_configure_storage:
             self.storage.write()
 
 

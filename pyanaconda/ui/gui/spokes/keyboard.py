@@ -18,6 +18,9 @@
 #
 
 import gi
+
+from pyanaconda.core.configuration.anaconda import conf
+
 gi.require_version("Gkbd", "3.0")
 gi.require_version("Gtk", "3.0")
 
@@ -342,8 +345,7 @@ class KeyboardSpoke(NormalSpoke):
         self._add_dialog = AddLayoutDialog(self.data)
         self._add_dialog.initialize()
 
-        if flags.can_touch_runtime_system("hide runtime keyboard configuration "
-                                          "warning", touch_live=True):
+        if conf.system.can_touch_keyboard:
             self.builder.get_object("warningBox").hide()
 
         # We want to store layouts' names but show layouts as
@@ -363,7 +365,7 @@ class KeyboardSpoke(NormalSpoke):
 
         self._layoutSwitchLabel = self.builder.get_object("layoutSwitchLabel")
 
-        if not flags.can_touch_runtime_system("test X layouts", touch_live=True):
+        if not conf.system.can_touch_keyboard:
             # Disable area for testing layouts as we cannot make
             # it work without modifying runtime system
 
@@ -415,7 +417,7 @@ class KeyboardSpoke(NormalSpoke):
 
     def _addLayout(self, store, name):
         # first try to add the layout
-        if flags.can_touch_runtime_system("add runtime X layout", touch_live=True):
+        if conf.system.can_touch_keyboard:
             self._xkl_wrapper.add_layout(name)
 
         # valid layout, append it to the store
@@ -428,7 +430,7 @@ class KeyboardSpoke(NormalSpoke):
 
         """
 
-        if flags.can_touch_runtime_system("remove runtime X layout", touch_live=True):
+        if conf.system.can_touch_keyboard:
             self._xkl_wrapper.remove_layout(store[itr][0])
         store.remove(itr)
 
@@ -520,7 +522,7 @@ class KeyboardSpoke(NormalSpoke):
             return
 
         store.swap(cur, prev)
-        if flags.can_touch_runtime_system("reorder runtime X layouts", touch_live=True):
+        if conf.system.can_touch_keyboard:
             self._flush_layouts_to_X()
 
         if not store.iter_previous(cur):
@@ -543,7 +545,7 @@ class KeyboardSpoke(NormalSpoke):
             return
 
         store.swap(cur, nxt)
-        if flags.can_touch_runtime_system("reorder runtime X layouts", touch_live=True):
+        if conf.system.can_touch_keyboard:
             self._flush_layouts_to_X()
 
         if activate_default:

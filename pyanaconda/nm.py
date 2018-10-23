@@ -18,6 +18,9 @@
 #
 
 import gi
+
+from pyanaconda.core.configuration.anaconda import conf
+
 gi.require_version("Gio", "2.0")
 gi.require_version("NM", "1.0")
 
@@ -31,7 +34,6 @@ from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
 
 from pyanaconda.core.constants import DEFAULT_DBUS_TIMEOUT
-from pyanaconda.flags import flags, can_touch_runtime_system
 
 supported_device_types = [
     NM.DeviceType.ETHERNET,
@@ -112,7 +114,7 @@ def _get_proxy(bus_type=Gio.BusType.SYSTEM,
                                                interface_name,
                                                cancellable)
     except GError as e:
-        if can_touch_runtime_system("raise GLib.GError", touch_live=True):
+        if conf.system.can_touch_system_dbus:
             raise
 
         log.error("_get_proxy failed: %s", e)
@@ -148,7 +150,7 @@ def nm_state():
     prop = _get_property("/org/freedesktop/NetworkManager", "State")
 
     # If this is an image/dir install assume the network is up
-    if not prop and (flags.imageInstall or flags.dirInstall):
+    if not prop and conf.system.can_touch_network:
         return NM.State.CONNECTED_GLOBAL
     else:
         return prop

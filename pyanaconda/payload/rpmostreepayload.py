@@ -23,6 +23,7 @@ import sys
 from subprocess import CalledProcessError
 
 from pyanaconda.core import util
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import _
 from pyanaconda.progress import progressQ
@@ -417,7 +418,7 @@ class RPMOSTreePayload(ArchivePayload):
             os.symlink('../loader/grub.cfg', boot_grub2_cfg)
 
         # Skip kernel args setup for dirinstall, there is no bootloader or rootDevice setup.
-        if not flags.dirInstall:
+        if conf.target.can_install_bootloader:
             # OSTree owns the bootloader configuration, so here we give it
             # the argument list we computed from storage, architecture and
             # such.

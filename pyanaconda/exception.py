@@ -39,6 +39,7 @@ from pyanaconda.core import util
 from pyanaconda import startup_utils
 from pyanaconda import product
 from pyanaconda.core.async_utils import run_in_loop
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import THREAD_EXCEPTION_HANDLING_TEST, IPMI_FAILED
 from pyanaconda.errors import NonInteractiveError
 from pyanaconda.core.i18n import _
@@ -231,7 +232,7 @@ class AnacondaExceptionHandler(ExceptionHandler):
         util.ipmi_report(IPMI_FAILED)
 
     def runDebug(self, exc_info):
-        if flags.can_touch_runtime_system("switch console") \
+        if conf.system.can_touch_system \
                 and self._intf_tty_num != 1:
             util.vtActivate(1)
 
@@ -254,7 +255,7 @@ class AnacondaExceptionHandler(ExceptionHandler):
         import pdb
         pdb.post_mortem(exc_info.stack)
 
-        if flags.can_touch_runtime_system("switch console") \
+        if conf.system.can_touch_system \
                 and self._intf_tty_num != 1:
             util.vtActivate(self._intf_tty_num)
 

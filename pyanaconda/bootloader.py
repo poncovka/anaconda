@@ -31,8 +31,10 @@ from ordered_set import OrderedSet
 from pyanaconda.core import util
 from blivet.devicelibs import raid
 from blivet.formats.disklabel import DiskLabel
+
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.product import productName
-from pyanaconda.flags import flags, can_touch_runtime_system
+from pyanaconda.flags import flags
 from blivet.fcoe import fcoe
 import pyanaconda.network
 from pyanaconda.errors import errorHandler, ERROR_RAISE, ZIPLError
@@ -651,7 +653,7 @@ class BootLoader(object):
                 continue
 
             if self.is_valid_stage1_device(device):
-                if flags.imageInstall and device.is_disk:
+                if conf.target.is_image and device.is_disk:
                     # GRUB2 will install to /dev/loop0 but not to
                     # /dev/mapper/<image_name>
                     self.stage1_device = device.parents[0]
@@ -1723,7 +1725,7 @@ class EFIBase(object):
         return "efi/EFI/%s" % (efi_dir,)
 
     def efibootmgr(self, *args, **kwargs):
-        if flags.imageInstall or flags.dirInstall:
+        if not conf.target.is_hardware:
             log.info("Skipping efibootmgr for image/directory install.")
             return ""
 
@@ -2091,7 +2093,7 @@ class IPSeriesYaboot(Yaboot):
         super().install()
 
     def updatePowerPCBootList(self):
-        if not can_touch_runtime_system("updatePowerPCBootList", touch_live=True):
+        if not conf.system.can_touch_boot_list:
             return
 
         log.debug("updatePowerPCBootList: self.stage1_device.path = %s", self.stage1_device.path)
@@ -2153,7 +2155,7 @@ class IPSeriesGRUB2(GRUB2):
 
     # This will update the PowerPC's (ppc) bios boot devive order list
     def updateNVRAMBootList(self):
-        if not can_touch_runtime_system("updateNVRAMBootList", touch_live=True):
+        if not conf.system.can_touch_boot_list:
             return
 
         log.debug("updateNVRAMBootList: self.stage1_device.path = %s", self.stage1_device.path)

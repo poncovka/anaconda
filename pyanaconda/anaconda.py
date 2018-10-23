@@ -25,6 +25,7 @@ from tempfile import mkstemp
 import threading
 
 from pyanaconda import addons
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.dbus.launcher import DBusLauncher
 from pyanaconda.bootloader import get_bootloader
 from pyanaconda.core.constants import DisplayModes
@@ -140,7 +141,7 @@ class Anaconda(object):
                 if self.ksdata.ostreesetup.seen:
                     from pyanaconda.payload.rpmostreepayload import RPMOSTreePayload
                     klass = RPMOSTreePayload
-                elif flags.livecdInstall:
+                elif conf.system.is_live_os:
                     from pyanaconda.payload.livepayload import LiveImagePayload
                     klass = LiveImagePayload
                 elif self.ksdata.method.method == "liveimg":

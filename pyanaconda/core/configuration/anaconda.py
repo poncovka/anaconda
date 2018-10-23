@@ -19,6 +19,7 @@
 #
 import os
 from abc import ABC
+from enum import Enum
 
 from pyanaconda.core.constants import ANACONDA_CONFIG_TMP, ANACONDA_CONFIG_DIR
 from pyanaconda.core.configuration.base import create_parser, read_config, write_config, \
@@ -51,6 +52,10 @@ class Section(ABC):
         """
         set_option(self._parser, self._section_name, option_name, value)
 
+    def set_from_anaconda_opts(self, opts):
+        """Set the section from the cmdline options."""
+        pass
+
 
 class AnacondaSection(Section):
     """The Anaconda section."""
@@ -59,6 +64,145 @@ class AnacondaSection(Section):
     def debug(self):
         """Run Anaconda in the debugging mode."""
         return self._get_option("debug", bool)
+
+
+class SystemType(Enum):
+    BOOT_ISO = "BOOT_ISO"
+    LIVE_OS = "LIVE_OS"
+    UNKNOWN_OS = "UNKNOWN_OS"
+
+
+class InstallationSystem(Section):
+    """The Installation System section."""
+
+    @property
+    def is_unknown_os(self):
+        return False
+
+    @property
+    def is_live_os(self):
+        return False
+
+    @property
+    def is_boot_iso(self):
+        return False
+
+    @property
+    def run_anaconda_service(self):
+        return self.is_boot_iso
+
+    @property
+    def can_reboot(self):
+        return self.is_boot_iso
+
+    @property
+    def write_to_journal(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def do_geolocation(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_touch_system(self):
+        return self.is_boot_iso
+
+    @property
+    def can_touch_ntp(self):
+        return self.is_boot_iso
+
+    @property
+    def can_touch_network(self):
+        return self.is_boot_iso
+
+    @property
+    def can_touch_storage(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_touch_boot_list(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_touch_keyboard(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_touch_system_dbus(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_touch_hostname(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_initialize_network(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_touch_time(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_touch_swap(self):
+        return self.is_boot_iso or self.is_live_os
+
+    @property
+    def can_backup_lvm_metadata(self):
+        return self.is_boot_iso or self.is_live_os
+
+
+class TargetType(Enum):
+    HARDWARE = "HARDWARE"
+    IMAGE = "IMAGE"
+    DIRECTORY = "DIRECTORY"
+
+
+class InstallationTarget(Section):
+    """The Installation Target section."""
+
+    @property
+    def type(self):
+        return self._get_option("type", TargetType)
+
+    @property
+    def is_hardware(self):
+        return False
+
+    @property
+    def is_image(self):
+        return False
+
+    @property
+    def is_directory(self):
+        return False
+
+    @property
+    def physical_root(self):
+        return self._get_option("physical_root")
+
+    @property
+    def can_install_bootloader(self):
+        return self.is_hardware or self.is_image
+
+    @property
+    def can_configure_network(self):
+        return self.is_hardware
+
+    @property
+    def can_configure_storage(self):
+        return self.is_hardware or self.is_image
+
+    @property
+    def can_generate_initramfs(self):
+        return self.is_hardware
+
+    def set_from_anaconda_opts(self, opts):
+        if opts.images:
+            self._set_option("type", TargetType.IMAGE)
+        elif opts.dirinstall:
+            self._set_option("type", TargetType.DIRECTORY)
+            self._set_option("physical_root", opts.dirinstall)
 
 
 class ServicesSection(Section):
@@ -145,16 +289,38 @@ class AnacondaConfiguration(object):
     def __init__(self):
         """Initialize the configuration."""
         self._sources = []
+        self._sections = []
         self._parser = create_parser()
 
         self._anaconda = AnacondaSection("Anaconda", self.get_parser())
+        self._sections.append(self._anaconda)
+
+        self._system = InstallationSystem("Installation System", self.get_parser())
+        self._sections.append(self._system)
+
+        self._target = InstallationTarget("Installation Target", self.get_parser())
+        self._sections.append(self._target)
+
         self._storage = StorageSection("Storage", self.get_parser())
+        self._sections.append(self._storage)
+
         self._services = ServicesSection("Services", self.get_parser())
+        self._sections.append(self._services)
 
     @property
     def anaconda(self):
         """The Anaconda section."""
         return self._anaconda
+
+    @property
+    def system(self):
+        """The Installation System section."""
+        return self._system
+
+    @property
+    def target(self):
+        """The Installation Target section."""
+        return self._target
 
     @property
     def storage(self):
@@ -197,7 +363,8 @@ class AnacondaConfiguration(object):
 
     def validate(self):
         """Validate the configuration."""
-        self._validate_members(self)
+        for section in self._sections:
+            self._validate_members(section)
 
     def _validate_members(self, obj):
         """Validate members of the object.
@@ -215,11 +382,11 @@ class AnacondaConfiguration(object):
                 continue
 
             # Try to get the value of the member.
-            value = getattr(obj, member_name)
+            getattr(obj, member_name)
 
-            # Validate the sections of the configuration object.
-            if isinstance(obj, AnacondaConfiguration) and isinstance(value, Section):
-                self._validate_members(value)
+    def set_from_anaconda_opts(self, opts):
+        for section in self._sections:
+            section.set_from_anaconda_opts(opts)
 
 
 conf = AnacondaConfiguration.from_defaults()

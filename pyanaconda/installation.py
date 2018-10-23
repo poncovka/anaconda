@@ -21,6 +21,7 @@
 from blivet import callbacks
 from blivet.devices import BTRFSDevice
 
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import BOOTLOADER_DISABLED
 from pyanaconda.modules.common.constants.objects import BOOTLOADER, AUTO_PARTITIONING, \
     MANUAL_PARTITIONING
@@ -102,8 +103,7 @@ def doConfiguration(storage, payload, ksdata, instClass):
     configuration_queue.append(os_config)
 
     # schedule network configuration (if required)
-    will_write_network = not flags.flags.imageInstall and not flags.flags.dirInstall
-    if will_write_network:
+    if conf.target.can_configure_network:
         network_config = TaskQueue("Network configuration", N_("Writing network configuration"))
         network_config.append(Task("Network configuration",
                                    ksdata.network.execute, (storage, ksdata, instClass)))
@@ -135,7 +135,7 @@ def doConfiguration(storage, payload, ksdata, instClass):
     bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
     bootloader_enabled = bootloader_proxy.BootloaderMode != BOOTLOADER_DISABLED
 
-    if flags.flags.livecdInstall and boot_on_btrfs and bootloader_enabled:
+    if conf.system.is_live_os and boot_on_btrfs and bootloader_enabled:
         generate_initramfs.append(Task("Write BTRFS bootloader fix", writeBootLoader, (storage, payload, instClass, ksdata)))
     configuration_queue.append(generate_initramfs)
 
@@ -174,11 +174,7 @@ def doConfiguration(storage, payload, ksdata, instClass):
     # But make sure it's not written out in the image and directory installation mode,
     # as that might result in spokes being inadvertently hidden when the actual installation
     # starts from the generate image or directory contents.
-    if flags.flags.imageInstall:
-        log.info("Not writing out user interaction config file due to image install mode.")
-    elif flags.flags.dirInstall:
-        log.info("Not writing out user interaction config file due to directory install mode.")
-    else:
+    if conf.target.is_hardware:
         write_configs.append(Task("Store user interaction config", screen_access.sam.write_out_config_file))
 
     # only add write_configs to the main queue if we actually store some kickstarts/configs
@@ -213,7 +209,7 @@ def doInstall(storage, payload, ksdata, instClass):
     """
     bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
     bootloader_enabled = bootloader_proxy.BootloaderMode != BOOTLOADER_DISABLED
-    can_install_bootloader = not flags.flags.dirInstall and bootloader_enabled
+    can_install_bootloader = not conf.target.can_install_bootloader and bootloader_enabled
 
     installation_queue = TaskQueue("Installation queue")
     # connect progress reporting
@@ -240,7 +236,7 @@ def doInstall(storage, payload, ksdata, instClass):
 
     # Save system time to HW clock.
     # - this used to be before waiting on threads, but I don't think that's needed
-    if flags.can_touch_runtime_system("save system time to HW clock"):
+    if conf.system.can_touch_system:
         # lets just do this as a top-level task - no
 
         save_hwclock = Task("Save system time to HW clock", timezone.save_hw_clock)
@@ -275,10 +271,13 @@ def doInstall(storage, payload, ksdata, instClass):
                                                             resize_format_pre=message_clbk,
                                                             wait_for_entropy=entropy_wait_clbk)
 
-    early_storage.append(Task("Activate filesystems",
-                              task=turn_on_filesystems,
-                              task_args=(storage,),
-                              task_kwargs={"mount_only": flags.flags.dirInstall, "callbacks": callbacks_reg}))
+    if conf.target.can_configure_storage:
+        early_storage.append(Task("Activate filesystems",
+                                  task=turn_on_filesystems,
+                                  task_args=(storage,),
+                                  task_kwargs={"callbacks": callbacks_reg}))
+    else:
+        early_storage.append(Task("Mount filesystems", task=storage.mount_filesystems))
 
     early_storage.append(Task("Write early storage", payload.writeStorageEarly))
     installation_queue.append(early_storage)
@@ -305,7 +304,7 @@ def doInstall(storage, payload, ksdata, instClass):
     pre_install.append(Task("Setup timezone", ksdata.timezone.setup, (ksdata,)))
 
     # make name resolution work for rpm scripts in chroot
-    if flags.can_touch_runtime_system("copy /etc/resolv.conf to sysroot"):
+    if conf.system.can_touch_system:
         # we use a custom Task subclass as the sysroot path has to be resolved
         # only when the task is actually started, not at task creation time
         pre_install.append(WriteResolvConfTask("Copy /resolv.conf to sysroot"))

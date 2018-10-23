@@ -18,6 +18,9 @@
 #
 
 import gi
+
+from pyanaconda.core.configuration.anaconda import conf
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("GObject", "2.0")
 gi.require_version("Pango", "1.0")
@@ -27,7 +30,6 @@ gi.require_version("NM", "1.0")
 from gi.repository import Gtk
 from gi.repository import GObject, Pango, Gio, NM
 
-from pyanaconda.flags import can_touch_runtime_system
 from pyanaconda.core.i18n import _, N_, C_, CN_
 from pyanaconda.flags import flags as anaconda_flags
 from pyanaconda.ui.communication import hubQ
@@ -1507,7 +1509,7 @@ class SecretAgent(dbus.service.Object):
 
 def register_secret_agent(spoke):
 
-    if not can_touch_runtime_system("register anaconda secret agent"):
+    if not conf.system.can_touch_system:
         return False
 
     global secret_agent
@@ -1583,8 +1585,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
     @property
     def completed(self):
         # TODO: check also if source requires updates when implemented
-        return (not can_touch_runtime_system("require network connection")
-                or nm.nm_activated_devices())
+        return not conf.system.can_touch_network or nm.nm_activated_devices()
 
     @property
     def mandatory(self):
@@ -1602,7 +1603,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
         NormalSpoke.initialize(self)
         self.initialize_start()
         self.network_control_box.initialize()
-        if not can_touch_runtime_system("hide hint to use network configuration in DE"):
+        if not conf.system.can_touch_network:
             self.builder.get_object("network_config_vbox").set_no_show_all(True)
             self.builder.get_object("network_config_vbox").hide()
         else:
@@ -1726,7 +1727,7 @@ class NetworkStandaloneSpoke(StandaloneSpoke):
 
     @property
     def completed(self):
-        return (not can_touch_runtime_system("require network connection")
+        return (not conf.system.can_touch_network
                 or nm.nm_activated_devices()
                 or self.data.method.method not in ("url", "nfs"))
 

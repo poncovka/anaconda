@@ -18,6 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import gi
+
+from pyanaconda.core.configuration.anaconda import conf
+
 gi.require_version("NM", "1.0")
 
 from gi.repository import NM
@@ -41,7 +44,7 @@ from blivet.devices import FcoeDiskDevice
 import blivet.arch
 
 from pyanaconda import nm
-from pyanaconda.flags import flags, can_touch_runtime_system
+from pyanaconda.flags import flags
 from pyanaconda.core.i18n import _
 from pyanaconda.core.regexes import HOSTNAME_PATTERN_WITHOUT_ANCHORS, IBFT_CONFIGURED_DEVICE_NAME
 from pykickstart.constants import BIND_TO_MAC
@@ -1287,7 +1290,7 @@ def ks_spec_to_device_name(ksspec=""):
 
 # TODO MOD remove, call module when can_touch_runtime_system is resolved
 def set_hostname(hn):
-    if can_touch_runtime_system("set hostname", touch_live=True):
+    if conf.system.can_touch_hostname:
         log.info("setting installation environment host name to %s", hn)
         network_proxy = NETWORK.get_proxy()
         network_proxy.SetCurrentHostname(hn)
@@ -1359,7 +1362,7 @@ def write_sysconfig_network(rootpath, overwrite=False):
 
 def write_network_config(storage, ksdata, instClass, rootpath):
     # overwrite previous settings for LiveCD or liveimg installations
-    overwrite = flags.livecdInstall or ksdata.method.method == "liveimg"
+    overwrite = conf.system.is_live_os or ksdata.method.method == "liveimg"
 
     network_proxy = NETWORK.get_proxy()
     hostname = network_proxy.Hostname
@@ -1502,9 +1505,6 @@ def apply_kickstart(ksdata):
     return applied_devices
 
 def networkInitialize(ksdata):
-    if not can_touch_runtime_system("networkInitialize", touch_live=True):
-        return
-
     log.debug("devices found %s", nm.nm_devices())
     logIfcfgFiles("network initialization")
 
@@ -1563,7 +1563,7 @@ def _get_ntp_servers_from_dhcp():
 
     # check if some NTP servers were specified from kickstart
     if not timezone_proxy.NTPServers \
-       and not (flags.imageInstall or flags.dirInstall):
+       and conf.target.can_configure_network:
         # no NTP servers were specified, add those from DHCP
         timezone_proxy.SetNTPServers(hostnames)
 

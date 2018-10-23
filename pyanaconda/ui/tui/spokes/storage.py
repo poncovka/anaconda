@@ -19,6 +19,7 @@
 
 from collections import OrderedDict
 
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 from pyanaconda.input_checking import get_policy
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, DISK_INITIALIZATION, \
@@ -134,7 +135,7 @@ class StorageSpoke(NormalTUISpoke):
 
     @property
     def showable(self):
-        return not flags.dirInstall
+        return conf.target.can_configure_storage
 
     @property
     def status(self):

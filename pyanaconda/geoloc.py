@@ -109,6 +109,7 @@ Backends that could possibly be used in the future
    * cell tower geolocation
 
 """
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.util import requests_session
 import requests
 import urllib.parse
@@ -179,7 +180,7 @@ class Geolocation(object):
         """
         geolocation_enabled = True
         # don't use geolocation during image and directory installation
-        if flags.imageInstall or flags.dirInstall:
+        if not conf.system.do_geolocation:
             log.info("Geolocation is disabled for image or directory installation.")
             geolocation_enabled = False
         # don't use geolocation during kickstart installation unless explicitly
@@ -217,7 +218,7 @@ class Geolocation(object):
             else:
                 log.info("Geolocation is enabled.")
         else:
-            if flags.imageInstall or flags.dirInstall:
+            if conf.system.do_geolocation:
                 log.info("Geolocation is disabled for image or directory installation.")
             elif flags.automatedInstall:
                 log.info("Geolocation is disabled due to automated kickstart based installation.")

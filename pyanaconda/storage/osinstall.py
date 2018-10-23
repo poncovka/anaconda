@@ -28,6 +28,9 @@ import parted
 import shutil
 
 import gi
+
+from pyanaconda.core.configuration.anaconda import conf
+
 gi.require_version("BlockDev", "2.0")
 
 from gi.repository import BlockDev as blockdev
@@ -79,9 +82,7 @@ def enable_installer_mode():
 
     # We don't want image installs writing backups of the *image* metadata
     # into the *host's* /etc/lvm. This can get real messy on build systems.
-    if flags.imageInstall:
-        blivet_flags.lvm_metadata_backup = False
-
+    blivet_flags.lvm_metadata_backup = conf.system.can_backup_lvm_metadata
     blivet_flags.auto_dev_updates = True
     blivet_flags.selinux_reset_fcon = True
     blivet_flags.keep_empty_ext_partitions = False
@@ -1727,7 +1728,7 @@ class InstallerStorage(Blivet):
         else:
             self.ignored_disks.extend(ignored_nvdimm_devs)
 
-        if not flags.imageInstall:
+        if conf.system.can_touch_storage:
             iscsi.startup()
             fcoe.startup()
 
@@ -2002,7 +2003,7 @@ class InstallerStorage(Blivet):
         else:
             template = prefix
 
-        if flags.imageInstall:
+        if conf.target.is_image:
             template = "%s_image" % template
 
         return template
@@ -2180,33 +2181,30 @@ def get_containing_device(path, devicetree):
     return devicetree.get_device_by_name(device_name)
 
 
-def turn_on_filesystems(storage, mount_only=False, callbacks=None):
+def turn_on_filesystems(storage, callbacks=None):
     """
     Perform installer-specific activation of storage configuration.
 
     :param callbacks: callbacks to be invoked when actions are executed
     :type callbacks: return value of the :func:`blivet.callbacks.create_new_callbacks_register`
-
     """
-    if not mount_only:
-        if (flags.livecdInstall and not flags.imageInstall and not storage.fsset.active):
-            # turn off any swaps that we didn't turn on
-            # needed for live installs
-            blivet_util.run_program(["swapoff", "-a"])
-        storage.devicetree.teardown_all()
+    if conf.system.is_live_os and conf.target.is_hardware and not storage.fsset.active:
+        # turn off any swaps that we didn't turn on
+        # needed for live installs
+        blivet_util.run_program(["swapoff", "-a"])
 
-        try:
-            storage.do_it(callbacks)
-        except (FSResizeError, FormatResizeError) as e:
-            if error_handler.cb(e) == ERROR_RAISE:
-                raise
+    storage.devicetree.teardown_all()
 
-        storage.turn_on_swap()
+    try:
+        storage.do_it(callbacks)
+    except (FSResizeError, FormatResizeError) as e:
+        if error_handler.cb(e) == ERROR_RAISE:
+            raise
+
+    storage.turn_on_swap()
     # FIXME:  For livecd, skip_root needs to be True.
     storage.mount_filesystems()
-
-    if not mount_only:
-        write_escrow_packets(storage)
+    write_escrow_packets(storage)
 
 
 def write_escrow_packets(storage):
@@ -2304,7 +2302,7 @@ def storage_initialize(storage, ksdata, protected):
         else:
             break
 
-    if protected and not flags.livecdInstall and \
+    if protected and not conf.system.is_live_os and \
        not any(d.protected for d in storage.devices):
         raise UnknownSourceDeviceError(protected)
 

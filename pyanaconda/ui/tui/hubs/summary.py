@@ -16,7 +16,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.ui.lib.space import FileSystemSpaceChecker, DirInstallSpaceChecker
 from pyanaconda.ui.tui.hubs import TUIHub
 from pyanaconda.flags import flags
@@ -45,7 +45,7 @@ class SummaryHub(TUIHub):
         super().__init__(data, storage, payload, instclass)
         self.title = N_("Installation")
 
-        if not flags.dirInstall:
+        if conf.target.can_configure_storage:
             self._checker = FileSystemSpaceChecker(storage, payload)
         else:
             self._checker = DirInstallSpaceChecker(storage, payload)

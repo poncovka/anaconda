@@ -37,6 +37,9 @@
 """
 
 import gi
+
+from pyanaconda.core.configuration.anaconda import conf
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("AnacondaWidgets", "3.3")
@@ -133,7 +136,7 @@ class InstallOptionsDialogBase(GUIObject):
     def _get_sw_needs_text(self, required_space, sw_space, auto_swap):
         tooltip = _("Please wait... software metadata still loading.")
 
-        if flags.livecdInstall:
+        if conf.system.is_live_os:
             sw_text = (_("Your current <b>%(product)s</b> software "
                          "selection requires <b>%(total)s</b> of available "
                          "space, including <b>%(software)s</b> for software and "
@@ -198,7 +201,7 @@ class NeedSpaceDialog(InstallOptionsDialogBase):
         label = self.builder.get_object("need_space_desc_label")
         label.set_markup(label_text)
 
-        if not flags.livecdInstall:
+        if not conf.system.is_live_os:
             label.connect("activate-link", self._modify_sw_link_clicked)
 
         self._set_free_space_labels(disk_free, fs_free)
@@ -234,7 +237,7 @@ class NoSpaceDialog(InstallOptionsDialogBase):
         label = self.builder.get_object("no_space_desc_label")
         label.set_markup(label_text)
 
-        if not flags.livecdInstall:
+        if not conf.system.is_live_os:
             label.connect("activate-link", self._modify_sw_link_clicked)
 
         self._set_free_space_labels(disk_free, fs_free)
@@ -562,7 +565,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
     @property
     def showable(self):
-        return not flags.dirInstall
+        return conf.target.can_configure_storage
 
     @property
     def status(self):
