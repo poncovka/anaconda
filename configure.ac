@@ -128,6 +128,7 @@ AC_CONFIG_FILES([Makefile
                  docs/Makefile
                  dracut/Makefile
                  data/conf.d/Makefile
+                 data/product.d/Makefile
                  data/liveinst/Makefile
                  data/liveinst/console.apps/Makefile
                  data/liveinst/gnome/Makefile
