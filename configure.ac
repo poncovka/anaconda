@@ -127,7 +127,6 @@ AC_CONFIG_FILES([Makefile
                  data/command-stubs/Makefile
                  docs/Makefile
                  dracut/Makefile
-                 pyanaconda/installclasses/Makefile
                  data/conf.d/Makefile
                  data/liveinst/Makefile
                  data/liveinst/console.apps/Makefile

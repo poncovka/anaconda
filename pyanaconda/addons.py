@@ -83,19 +83,19 @@ class AddonRegistry(object):
         return functools.reduce(lambda acc, id_addon: acc + str(id_addon[1]),
                                 self.__dict__.items(), "")
 
-    def execute(self, storage, ksdata, instClass, users, payload):
+    def execute(self, storage, ksdata, users, payload):
         """This method calls execute on all the registered addons."""
         for v in self.__dict__.values():
             if hasattr(v, "execute"):
                 progress_message(N_("Executing %s addon") % v.name)
-                if v.execute.__code__.co_argcount == 6:
-                    v.execute(storage, ksdata, instClass, users, payload)
+                if v.execute.__code__.co_argcount == 5:
+                    v.execute(storage, ksdata, users, payload)
                 else:
-                    v.execute(storage, ksdata, instClass, users)
+                    v.execute(storage, ksdata, users)
                     log.warning("Addon %s is using deprecated method signature", v.name)
-                    log.warning("Use execute(storage, ksdata, instClass, users, payload) instead")
+                    log.warning("Use execute(storage, ksdata, users, payload) instead")
 
-    def setup(self, storage, ksdata, instClass, payload):
+    def setup(self, storage, ksdata, payload):
         """This method calls setup on all the registered addons."""
         # filter out placeholders (should be imported now)
         d = {}
@@ -108,12 +108,12 @@ class AddonRegistry(object):
         self.__dict__ = d
         for v in self.__dict__.values():
             if hasattr(v, "setup"):
-                if v.setup.__code__.co_argcount == 5:
-                    v.setup(storage, ksdata, instClass, payload)
+                if v.setup.__code__.co_argcount == 4:
+                    v.setup(storage, ksdata, payload)
                 else:
-                    v.setup(storage, ksdata, instClass)
+                    v.setup(storage, ksdata)
                     log.warning("Addon %s is using deprecated method signature", v.name)
-                    log.warning("Use setup(storage, ksdata, instClass, payload) instead")
+                    log.warning("Use setup(storage, ksdata, payload) instead")
 
 
 class AddonData(object):
@@ -140,7 +140,7 @@ class AddonData(object):
     def __str__(self):
         return "%%addon %s %s\n%s%%end\n" % (self.name, self.header_args, self.content)
 
-    def setup(self, storage, ksdata, instClass, payload):
+    def setup(self, storage, ksdata, payload):
         """Make the changes to the install system.
 
            This method is called before the installation
@@ -148,7 +148,7 @@ class AddonData(object):
            to call it multiple times without breaking the environment."""
         log.warning("Addon %s doesn't have setup method!", self.name)
 
-    def execute(self, storage, ksdata, instClass, users, payload):
+    def execute(self, storage, ksdata, users, payload):
         """Make the changes to the underlying system.
 
            This method is called only once in the post-install
