@@ -275,6 +275,20 @@ class InstallationTarget(Section):
         return self.type is TargetType.DIRECTORY
 
 
+class BootloaderSection(Section):
+    """The Bootloader section."""
+
+    @property
+    def efi_dir(self):
+        """Name of the EFI directory."""
+        return self._get_option("efi_dir", str)
+
+    @property
+    def menu_auto_hide(self):
+        """Hide the GRUB menu."""
+        return self._get_option("menu_auto_hide", bool)
+
+
 class PartitioningType(Enum):
     """Type of the default partitioning."""
     SERVER = "SERVER"
@@ -386,6 +400,7 @@ class AnacondaConfiguration(object):
         self._anaconda = AnacondaSection("Anaconda", self.get_parser())
         self._system = InstallationSystem("Installation System", self.get_parser())
         self._target = InstallationTarget("Installation Target", self.get_parser())
+        self._bootloader = BootloaderSection("Bootloader", self.get_parser())
         self._storage = StorageSection("Storage", self.get_parser())
         self._services = ServicesSection("Services", self.get_parser())
 
@@ -403,6 +418,11 @@ class AnacondaConfiguration(object):
     def target(self):
         """The Installation Target section."""
         return self._target
+
+    @property
+    def bootloader(self):
+        """The Bootloader section."""
+        return self._bootloader
 
     @property
     def storage(self):
