@@ -25,7 +25,7 @@ from pyanaconda.core.constants import ANACONDA_CONFIG_TMP, ANACONDA_CONFIG_DIR
 from pyanaconda.core.configuration.base import create_parser, read_config, write_config, \
     get_option, set_option
 
-__all__ = ["conf", "AnacondaConfiguration"]
+__all__ = ["conf", "AnacondaConfiguration", "PartitioningType"]
 
 
 class Section(ABC):
@@ -275,6 +275,12 @@ class InstallationTarget(Section):
         return self.type is TargetType.DIRECTORY
 
 
+class PartitioningType(Enum):
+    """Type of the default partitioning."""
+    SERVER = "SERVER"
+    WORKSTATION = "WORKSTATION"
+
+
 class StorageSection(Section):
     """The Storage section."""
 
@@ -301,6 +307,43 @@ class StorageSection(Section):
         during the installation.
         """
         return self._get_option("multipath_friendly_names", bool)
+
+    @property
+    def file_system_type(self):
+        """Default file system type.
+
+        For example: xfs
+        """
+        return self._get_option("file_system_type", str)
+
+    @property
+    def default_partitioning(self):
+        """Default partitioning.
+
+        Valid values:
+
+          SERVER       Choose partitioning for servers.
+          WORKSTATION  Choose partitioning for workstations.
+
+        """
+        return self._get_option("default_partitioning", PartitioningType)
+
+    @property
+    def luks_version(self):
+        """Default version of LUKS.
+
+        Valid values:
+
+          luks1  Use version 1 by default.
+          luks2  Use version 2 by default.
+
+        """
+        value = self._get_option("luks_version", str)
+
+        if value not in ("luks1", "luks2"):
+            raise ValueError("Invalid value: {}".format(value))
+
+        return value
 
 
 class AnacondaConfiguration(object):
