@@ -207,6 +207,16 @@ class InstallationSystem(Section):
         """Can we redirect users to web pages?"""
         return self._is_live_os
 
+    @property
+    def can_detect_unsupported_hardware(self):
+        """Can we try to detect the unsupported hardware?"""
+        return self._get_option("can_detect_unsupported_hardware", bool)
+
+    @property
+    def can_detect_support_removed(self):
+        """Can we try to detect removed support for hardware"""
+        return self._get_option("can_detect_support_removed", bool)
+
 
 class ServicesSection(Section):
     """The Services section."""
