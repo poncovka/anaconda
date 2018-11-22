@@ -16,7 +16,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.flags import flags
 from pyanaconda.ui.categories.software import SoftwareCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
@@ -86,11 +86,9 @@ class SoftwareSpoke(NormalTUISpoke):
             # Otherwise, select the first environment.
             if self.payload.environments:
                 environments = self.payload.environments
-                instclass = self.payload.instclass
 
-                if instclass and instclass.defaultPackageEnvironment and \
-                        instclass.defaultPackageEnvironment in environments:
-                    self._selected_environment = instclass.defaultPackageEnvironment
+                if conf.payload.default_environment in environments:
+                    self._selected_environment = conf.payload.default_environment
                 else:
                     self._selected_environment = environments[0]
 

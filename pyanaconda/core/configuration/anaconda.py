@@ -275,6 +275,39 @@ class InstallationTarget(Section):
         return self.type is TargetType.DIRECTORY
 
 
+class PayloadSection(Section):
+    """The Payload section."""
+
+    @property
+    def default_environment(self):
+        """Default package environment."""
+        return self._get_option("default_environment", str)
+
+    @property
+    def ignored_packages(self):
+        """List of ignored packages."""
+        return self._get_option("ignored_packages", str).split()
+
+    @property
+    def enable_updates(self):
+        """Enable installation of latest updates."""
+        return self._get_option("enable_updates", bool)
+
+    @property
+    def enable_closest_mirror(self):
+        """Enable installation from the closest mirror."""
+        return self._get_option("enable_closest_mirror", bool)
+
+    @property
+    def check_supported_locales(self):
+        """Check if payload supports the locales.
+
+        Should the installer check if the available locales and languages
+        are supported by the payload?
+        """
+        return self._get_option("check_supported_locales", bool)
+
+
 class BootloaderSection(Section):
     """The Bootloader section."""
 
@@ -400,6 +433,7 @@ class AnacondaConfiguration(object):
         self._anaconda = AnacondaSection("Anaconda", self.get_parser())
         self._system = InstallationSystem("Installation System", self.get_parser())
         self._target = InstallationTarget("Installation Target", self.get_parser())
+        self._payload = PayloadSection("Payload", self.get_parser())
         self._bootloader = BootloaderSection("Bootloader", self.get_parser())
         self._storage = StorageSection("Storage", self.get_parser())
         self._services = ServicesSection("Services", self.get_parser())
@@ -418,6 +452,11 @@ class AnacondaConfiguration(object):
     def target(self):
         """The Installation Target section."""
         return self._target
+
+    @property
+    def payload(self):
+        """The Payload section."""
+        return self._payload
 
     @property
     def bootloader(self):
