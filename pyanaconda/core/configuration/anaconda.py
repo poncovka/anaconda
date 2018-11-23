@@ -393,6 +393,23 @@ class StorageSection(Section):
         return value
 
 
+class LicenseSection(Section):
+    """The License section."""
+
+    @property
+    def eula(self):
+        """A path to EULA.
+
+        If the given distribution has an EULA & feels the need to
+        tell the user about it fill in this variable by a path
+        pointing to a file with the EULA on the installed system.
+
+        This is currently used just to show the path to the file to
+        the user at the end of the installation.
+        """
+        return self._get_option("eula", str)
+
+
 class AnacondaConfiguration(object):
     """Representation of the Anaconda configuration."""
 
@@ -437,6 +454,7 @@ class AnacondaConfiguration(object):
         self._bootloader = BootloaderSection("Bootloader", self.get_parser())
         self._storage = StorageSection("Storage", self.get_parser())
         self._services = ServicesSection("Services", self.get_parser())
+        self._license = LicenseSection("License", self.get_parser())
 
     @property
     def anaconda(self):
@@ -472,6 +490,11 @@ class AnacondaConfiguration(object):
     def services(self):
         """The Services section."""
         return self._services
+
+    @property
+    def license(self):
+        """The License section."""
+        return self._license
 
     def get_parser(self):
         """Get the configuration parser.
