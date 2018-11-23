@@ -72,6 +72,33 @@ class AnacondaSection(Section):
         return self._get_option("kickstart_modules").split()
 
 
+class UserInterfaceSection(Section):
+    """The User Interface section."""
+
+    @property
+    def custom_stylesheet(self):
+        """The path to a custom stylesheet."""
+        return self._get_option("custom_stylesheet", str)
+
+    @property
+    def default_help_pages(self):
+        """Default help pages for TUI, GUI and Live OS."""
+        values = self._get_option("default_help_pages", str).split()
+
+        if not values:
+            return "", "", ""
+
+        if len(values) != 3:
+            raise ValueError("Invalid number of values: {}".format(values))
+
+        return tuple(values)
+
+    @property
+    def blivet_gui_supported(self):
+        """Is the partitioning with blivet-gui supported?"""
+        return self._get_option("blivet_gui_supported", bool)
+
+
 class SystemType(Enum):
     """The type of the installation system."""
     BOOT_ISO = "BOOT_ISO"
@@ -448,6 +475,7 @@ class AnacondaConfiguration(object):
         self._parser = create_parser()
 
         self._anaconda = AnacondaSection("Anaconda", self.get_parser())
+        self._ui = UserInterfaceSection("User Interface", self.get_parser())
         self._system = InstallationSystem("Installation System", self.get_parser())
         self._target = InstallationTarget("Installation Target", self.get_parser())
         self._payload = PayloadSection("Payload", self.get_parser())
@@ -460,6 +488,11 @@ class AnacondaConfiguration(object):
     def anaconda(self):
         """The Anaconda section."""
         return self._anaconda
+
+    @property
+    def ui(self):
+        """The User Interface section."""
+        return self._ui
 
     @property
     def system(self):

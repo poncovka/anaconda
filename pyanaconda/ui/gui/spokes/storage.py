@@ -323,10 +323,10 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             self._customPart.set_visible(False)
             self._customPart.set_no_show_all(True)
 
-        if not self.instclass.blivet_gui_supported:
+        if not conf.ui.blivet_gui_supported:
             log.info("Blivet-gui is not supported on %s", self.instclass.name)
 
-        self._enable_blivet_gui(self.instclass.blivet_gui_supported)
+        self._enable_blivet_gui(conf.ui.blivet_gui_supported)
 
         self._last_partitioning_method = self._get_selected_partitioning_method()
 
