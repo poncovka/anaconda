@@ -25,7 +25,7 @@ from pyanaconda.core.constants import ANACONDA_CONFIG_TMP, ANACONDA_CONFIG_DIR
 from pyanaconda.core.configuration.base import create_parser, read_config, write_config, \
     get_option, set_option
 
-__all__ = ["conf", "AnacondaConfiguration", "PartitioningType"]
+__all__ = ["conf", "AnacondaConfiguration", "PartitioningType", "NetworkOnBoot"]
 
 
 class Section(ABC):
@@ -302,6 +302,22 @@ class InstallationTarget(Section):
         return self.type is TargetType.DIRECTORY
 
 
+class NetworkOnBoot(Enum):
+    """Network device to be activated on boot if none was configured so."""
+    NONE = "NONE"
+    DEFAULT_ROUTE_DEVICE = "DEFAULT_ROUTE_DEVICE"
+    FIRST_WIRED_WITH_LINK = "FIRST_WIRED_WITH_LINK"
+
+
+class NetworkSection(Section):
+    """The Network section."""
+
+    @property
+    def default_on_boot(self):
+        """Network device to be activated on boot if none was configured so."""
+        return self._get_option("default_on_boot", NetworkOnBoot)
+
+
 class PayloadSection(Section):
     """The Payload section."""
 
@@ -478,6 +494,7 @@ class AnacondaConfiguration(object):
         self._ui = UserInterfaceSection("User Interface", self.get_parser())
         self._system = InstallationSystem("Installation System", self.get_parser())
         self._target = InstallationTarget("Installation Target", self.get_parser())
+        self._network = NetworkSection("Network", self.get_parser())
         self._payload = PayloadSection("Payload", self.get_parser())
         self._bootloader = BootloaderSection("Bootloader", self.get_parser())
         self._storage = StorageSection("Storage", self.get_parser())
@@ -503,6 +520,11 @@ class AnacondaConfiguration(object):
     def target(self):
         """The Installation Target section."""
         return self._target
+
+    @property
+    def network(self):
+        """The Network section."""
+        return self._network
 
     @property
     def payload(self):
