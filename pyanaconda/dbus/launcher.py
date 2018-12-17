@@ -25,13 +25,14 @@
 #
 
 import os
+import socket
 import time
 from subprocess import TimeoutExpired
 
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.util import startProgram
-from pyanaconda.core.constants import ANACONDA_BUS_ADDR_FILE, ANACONDA_CONFIG_TMP,\
-    ANACONDA_BUS_CONF_FILE
+from pyanaconda.core.constants import ANACONDA_BUS_ADDR_FILE, ANACONDA_CONFIG_TMP, \
+    ANACONDA_BUS_CONF_FILE, ANACONDA_BUS_SOCK_FILE
 from pyanaconda.dbus import DBus
 from pyanaconda.dbus.constants import DBUS_ANACONDA_SESSION_ADDRESS, DBUS_FLAG_NONE
 from pyanaconda.modules.common.constants.services import BOSS
@@ -44,8 +45,6 @@ __all__ = ["AnacondaDBusLauncher"]
 
 class AnacondaDBusLauncher(object):
     """Class for launching the Anaconda DBus modules."""
-
-    DBUS_LAUNCH_BIN = "dbus-daemon"
 
     def __init__(self):
         self._dbus_daemon_process = None
@@ -106,10 +105,16 @@ class AnacondaDBusLauncher(object):
 
     def _start_dbus_session(self):
         """Start dbus session if not running already."""
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_NONBLOCK)
+        sock.bind(ANACONDA_BUS_SOCK_FILE)
+
+        # pylint: disable=environment-modify
+        os.environ["LISTEN_PID"] = str(os.getpid())
+        os.environ["LISTEN_FDS"] = "1"
+
         command = [
-            self.DBUS_LAUNCH_BIN,
-            '--print-address',
-            "--syslog",
+            "dbus-broker-launch",
+            "--scope=user"
             "--config-file={}".format(ANACONDA_BUS_CONF_FILE)
         ]
 
@@ -124,7 +129,7 @@ class AnacondaDBusLauncher(object):
         if not address:
             raise IOError("Unable to start DBus session!")
 
-        self._bus_address = address
+        self._bus_address = ANACONDA_BUS_SOCK_FILE
 
     def _stop_dbus_session(self, timeout):
         """Stop DBus service and clean bus address file."""

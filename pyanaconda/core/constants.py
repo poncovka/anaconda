@@ -70,6 +70,7 @@ DEFAULT_REPOS = [productName.split('-')[0].lower(),
                  "BaseOS"]
 
 ANACONDA_BUS_CONF_FILE = "/usr/share/anaconda/dbus/anaconda-bus.conf"
+ANACONDA_BUS_SOCK_FILE = "/run/anaconda/bus.socket"
 ANACONDA_BUS_ADDR_FILE = "/run/anaconda/bus.address"
 
 ANACONDA_DATA_DIR = "/usr/share/anaconda"
