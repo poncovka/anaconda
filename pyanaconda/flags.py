@@ -21,7 +21,6 @@ import selinux
 
 from pykickstart.constants import SELINUX_DISABLED
 from pyanaconda.core.constants import SELINUX_DEFAULT, ANACONDA_ENVIRON
-from pyanaconda.core.kernel import KernelArguments
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -71,8 +70,6 @@ class Flags(object):
         self.hmc = False
         # current runtime environments
         self.environs = [ANACONDA_ENVIRON]
-        # parse the boot commandline
-        self.cmdline = KernelArguments.from_defaults()
         # Lock it down: no more creating new flags!
         self.__dict__['_in_init'] = False
 
