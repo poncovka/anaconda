@@ -43,6 +43,7 @@ import blivet.arch
 from pyanaconda import nm
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import _
+from pyanaconda.core.kernel import KernelArguments
 from pyanaconda.core.regexes import HOSTNAME_PATTERN_WITHOUT_ANCHORS, IBFT_CONFIGURED_DEVICE_NAME
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.configuration.network import NetworkOnBoot
@@ -734,7 +735,7 @@ def _bound_hwaddr_of_device(devname):
     :rtype: str or None
 
     """
-    ifname_values = flags.cmdline.get("ifname", "").split()
+    ifname_values = KernelArguments.get("ifname", "").split()
     for ifname in ifname_values:
         dev, mac = ifname.split(":", 1)
         if dev == devname:
@@ -1151,7 +1152,7 @@ def get_team_slaves(master_specs):
 
 def ibftIface():
     iface = ""
-    ipopts = flags.cmdline.get('ip')
+    ipopts = KernelArguments.get('ip')
     # Examples (dhcp, static):
     # ibft0:dhcp
     # 10.34.102.244::10.34.102.54:255.255.255.0::ibft0:none
@@ -1165,9 +1166,9 @@ def ibftIface():
 
 def hostname_from_cmdline(cmdline):
     # legacy hostname= option
-    hostname = flags.cmdline.get('hostname', "")
+    hostname = KernelArguments.get('hostname', "")
     # ip= option
-    ipopts = flags.cmdline.get('ip')
+    ipopts = KernelArguments.get('ip')
     # Example (2 options):
     # ens3:dhcp 10.34.102.244::10.34.102.54:255.255.255.0:myhostname:ens9:none
     if ipopts:

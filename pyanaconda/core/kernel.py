@@ -133,6 +133,17 @@ class KernelArguments(object):
     """
 
     @classmethod
+    def get(cls, name, default=None):
+        """Get the value of a kernel argument.
+
+        :param name: a name of the argument
+        :param default: a default value
+        :return: a value of the kernel argument
+        """
+        args = cls.from_defaults()
+        return args.get(name, default=default)
+
+    @classmethod
     def from_defaults(cls):
         """Load the default files.
 

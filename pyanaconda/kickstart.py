@@ -38,6 +38,7 @@ from contextlib import contextmanager
 from pyanaconda import keyboard, network, nm, ntp, screen_access, timezone
 from pyanaconda.core import util
 from pyanaconda.core.configuration.anaconda import conf
+from pyanaconda.core.kernel import KernelArguments
 from pyanaconda.core.kickstart import VERSION, commands as COMMANDS
 from pyanaconda.addons import AddonSection, AddonData, AddonRegistry, collect_addon_paths
 from pyanaconda.bootloader import GRUB2, get_bootloader
@@ -1399,7 +1400,7 @@ class Network(COMMANDS.Network):
         setting_only_hostname = nd.hostname and len(args) <= 2
         if not setting_only_hostname:
             if not nd.device:
-                ksdevice = flags.cmdline.get('ksdevice')
+                ksdevice = KernelArguments.get('ksdevice')
                 if ksdevice:
                     network_log.info('setting %s from ksdevice for missing kickstart --device', ksdevice)
                     nd.device = ksdevice

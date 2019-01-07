@@ -32,6 +32,7 @@ from pyanaconda.core import util
 from blivet.devicelibs import raid
 from blivet.formats.disklabel import DiskLabel
 
+from pyanaconda.core.kernel import KernelArguments
 from pyanaconda.modules.common.constants.objects import FCOE
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.product import productName
@@ -806,7 +807,7 @@ class BootLoader(object):
         # FIPS
         #
         boot_device = storage.mountpoints.get("/boot")
-        if flags.cmdline.get("fips") == "1" and boot_device:
+        if KernelArguments.get("fips") == "1" and boot_device:
             self.boot_args.add("boot=%s" % self.stage2_device.fstab_spec)
 
         #
@@ -916,7 +917,7 @@ class BootLoader(object):
             if opt not in flags.cmdline:
                 continue
 
-            arg = flags.cmdline.get(opt)
+            arg = KernelArguments.get(opt)
             new_arg = opt
             if arg:
                 new_arg += "=%s" % arg
@@ -954,7 +955,7 @@ class BootLoader(object):
 
     def _set_console(self):
         """ Set console options based on boot arguments. """
-        console = flags.cmdline.get("console", "")
+        console = KernelArguments.get("console", "")
         console = os.path.basename(console)
         self.console, _x, self.console_options = console.partition(",")
 
@@ -2489,7 +2490,7 @@ bootloader_by_platform = {
     platform.ArmEFI: ArmEFIGRUB,
 }
 
-if flags.cmdline.get("legacygrub") == "1":
+if KernelArguments.get("legacygrub") == "1":
     log.info("Using legacy grub (0.9x)")
     bootloader_by_platform.update({
         platform.X86: GRUB,
