@@ -21,33 +21,14 @@ import glob
 from collections import OrderedDict
 from pyanaconda.core.constants import CMDLINE_APPEND, CMDLINE_LIST, CMDLINE_FILES
 
+__all__ = ["KernelArguments"]
 
-class KernelArguments(OrderedDict):
-    """The kernel arguments.
+
+class KernelArgumentsDict(OrderedDict):
+    """The dictionary of kernel arguments.
 
     Hold boot arguments as an OrderedDict.
     """
-
-    @classmethod
-    def from_defaults(cls):
-        """Load the default files.
-
-        :return: an instance of KernelArguments
-        """
-        args = cls()
-        args.read(CMDLINE_FILES)
-        return args
-
-    @classmethod
-    def from_string(cls, cmdline):
-        """Load the given cmdline.
-
-        :param cmdline: a string with the kernel cmdline
-        :return: an instance of KernelArguments
-        """
-        args = cls()
-        args.read_string(cmdline)
-        return args
 
     def read(self, filenames):
         """Read and parse a file name (or a list of file names).
@@ -143,3 +124,31 @@ class KernelArguments(OrderedDict):
             elif a == 'no' + arg:
                 result = False  # XXX: should noarg=off -> True?
         return result
+
+
+class KernelArguments(object):
+    """The kernel arguments.
+
+    Hold boot arguments as an OrderedDict.
+    """
+
+    @classmethod
+    def from_defaults(cls):
+        """Load the default files.
+
+        :return: an instance of KernelArgumentsDict
+        """
+        args = KernelArgumentsDict()
+        args.read(CMDLINE_FILES)
+        return args
+
+    @classmethod
+    def from_string(cls, cmdline):
+        """Load the given cmdline.
+
+        :param cmdline: a string with the kernel cmdline
+        :return: an instance of KernelArgumentsDict
+        """
+        args = KernelArgumentsDict()
+        args.read_string(cmdline)
+        return args
