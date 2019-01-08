@@ -1164,7 +1164,7 @@ def ibftIface():
                     break
     return iface
 
-def hostname_from_cmdline(cmdline):
+def hostname_from_cmdline():
     # legacy hostname= option
     hostname = KernelArguments.get('hostname', "")
     # ip= option
@@ -1544,7 +1544,7 @@ def networkInitialize(ksdata):
     # initialize ksdata hostname
     network_proxy = NETWORK.get_proxy()
     if network_proxy.Hostname == DEFAULT_HOSTNAME:
-        bootopts_hostname = hostname_from_cmdline(flags.cmdline)
+        bootopts_hostname = hostname_from_cmdline()
         if bootopts_hostname:
             update_hostname_data(ksdata, bootopts_hostname)
 

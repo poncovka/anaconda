@@ -282,7 +282,7 @@ if __name__ == "__main__":
 
     # do this early so we can set flags before initializing logging
     from pyanaconda.flags import flags
-    (opts, depr) = parse_arguments(boot_cmdline=flags.cmdline)
+    (opts, depr) = parse_arguments()
 
     from pyanaconda.core.configuration.anaconda import conf
     conf.set_from_opts(opts)
