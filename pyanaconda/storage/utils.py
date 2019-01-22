@@ -432,3 +432,20 @@ def _nvdimm_create_ksdata(action=None, namespace=None, mode=None, sectorsize=Non
     if sectorsize is not None:
         nvdimm_data.sectorsize = sectorsize
     return nvdimm_data
+
+
+def unmount_images(storage):
+    """Unmount the image files.
+
+    :param storage: an instance of the Blivet's storage object
+    """
+    storage.umount_filesystems(swapoff=False)
+    storage.devicetree.teardown_all()
+
+    for image_name in storage.devicetree.disk_images:
+        dev = storage.devicetree.get_device_by_name(image_name)
+
+        for loop in dev.parents:
+            loop.controllable = True
+
+        dev.deactivate(recursive=True)

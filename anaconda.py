@@ -80,15 +80,9 @@ def exitHandler(rebootData, storage):
     if anaconda.payload:
         anaconda.payload.unsetup()
 
+    from pyanaconda.storage.utils import unmount_images
     if not conf.target.is_hardware:
-        anaconda.storage.umount_filesystems(swapoff=False)
-        devicetree = anaconda.storage.devicetree
-        devicetree.teardown_all()
-        for imageName in devicetree.disk_images:
-            dev = devicetree.get_device_by_name(imageName)
-            for loop in dev.parents:
-                loop.controllable = True
-            dev.deactivate(recursive=True)
+        unmount_images(anaconda.storage)
 
     # Clean up the PID file
     if pidfile:
