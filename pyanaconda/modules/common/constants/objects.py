@@ -70,6 +70,10 @@ FCOE = DBusObjectIdentifier(
     basename="FCoE"
 )
 
+ISCSI = DBusObjectIdentifier(
+    namespace=STORAGE_NAMESPACE,
+    basename="iSCSI"
+)
 
 NVDIMM = DBusObjectIdentifier(
     namespace=STORAGE_NAMESPACE,
