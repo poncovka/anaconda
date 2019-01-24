@@ -61,6 +61,11 @@ FCOE = DBusObjectIdentifier(
     basename="FCoE"
 )
 
+ISCSI = DBusObjectIdentifier(
+    namespace=STORAGE_NAMESPACE,
+    basename="iSCSI"
+)
+
 ZFCP = DBusObjectIdentifier(
     namespace=STORAGE_NAMESPACE,
     basename="zFCP"
