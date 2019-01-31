@@ -697,14 +697,16 @@ if __name__ == "__main__":
 
     # Protect some devices.
     protected_devices = anaconda.get_protected_devices(opts)
+    anaconda.storage.config.protected_dev_specs.extend(protected_devices)
     disk_select_proxy.SetProtectedDevices(protected_devices)
 
     from pyanaconda.payload import payloadMgr
     from pyanaconda.timezone import time_initialize
 
     if not conf.target.is_directory:
-        threadMgr.add(AnacondaThread(name=constants.THREAD_STORAGE, target=initialize_storage,
-                                     args=(anaconda.storage, protected_devices)))
+        threadMgr.add(AnacondaThread(name=constants.THREAD_STORAGE,
+                                     target=initialize_storage,
+                                     args=(anaconda.storage, )))
 
     from pyanaconda.modules.common.constants.services import TIMEZONE
     timezone_proxy = TIMEZONE.get_proxy()
