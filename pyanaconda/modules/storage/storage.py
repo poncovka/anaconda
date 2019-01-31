@@ -33,7 +33,7 @@ from pyanaconda.modules.storage.storage_interface import StorageInterface
 from pyanaconda.modules.storage.zfcp import ZFCPModule
 
 from pyanaconda.anaconda_loggers import get_module_logger
-from pyanaconda.storage.initialization import enable_installer_mode
+from pyanaconda.storage.initialization import enable_installer_mode, create_storage
 
 log = get_module_logger(__name__)
 
@@ -45,6 +45,9 @@ class StorageModule(KickstartModule):
         super().__init__()
         # Initialize Blivet.
         enable_installer_mode()
+
+        # An instance of Blivet.
+        self._storage = create_storage()
 
         # Initialize modules.
         self._modules = []
@@ -98,8 +101,13 @@ class StorageModule(KickstartModule):
         """Process the kickstart data."""
         log.debug("Processing kickstart data...")
 
+        # Process the kickstart data in modules.
         for kickstart_module in self._modules:
             kickstart_module.process_kickstart(data)
+
+        # Set the default filesystem type.
+        if data.autopart.autopart and data.autopart.fstype:
+            self._storage.set_default_fstype(data.autopart.fstype)
 
     def generate_temporary_kickstart(self):
         """Return the temporary kickstart string."""

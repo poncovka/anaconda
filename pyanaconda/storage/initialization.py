@@ -83,43 +83,34 @@ def create_storage():
     from pyanaconda.storage.osinstall import InstallerStorage
 
     storage = InstallerStorage()
-    _set_storage_defaults(storage)
+    set_storage_defaults(storage)
 
     return storage
 
 
-def _set_storage_defaults(storage):
+def set_storage_defaults(storage):
     """Set the storage default values."""
-    fstype = None
-    boot_fstype = None
-
-    # Get the default fstype from a kickstart file.
-    auto_part_proxy = STORAGE.get_proxy(AUTO_PARTITIONING)
-
-    if auto_part_proxy.Enabled and auto_part_proxy.FilesystemType:
-        fstype = auto_part_proxy.FilesystemType
-        boot_fstype = fstype
-    # Or from the configuration.
-    elif conf.storage.file_system_type:
-        fstype = conf.storage.file_system_type
-        boot_fstype = None
-
-    # Set the default fstype.
-    if fstype:
-        storage.set_default_fstype(fstype)
-
-    # Set the default boot fstype.
-    if boot_fstype:
-        storage.set_default_boot_fstype(boot_fstype)
+    # Set the default filesystem type.
+    storage.set_default_fstype(conf.storage.file_system_type or storage.default_fstype)
 
     # Set the default LUKS version.
-    luks_version = conf.storage.luks_version
-
-    if luks_version:
-        storage.set_default_luks_version(luks_version)
+    storage.set_default_luks_version(conf.storage.luks_version or storage.default_luks_version)
 
     # Set the default partitioning.
     storage.set_default_partitioning(get_default_partitioning())
+
+
+def set_storage_defaults_from_kickstart(storage):
+    """Set the storage default values from a kickstart file.
+
+    FIXME: A temporary workaround for UI.
+    """
+    auto_part_proxy = STORAGE.get_proxy(AUTO_PARTITIONING)
+    fstype = auto_part_proxy.FilesystemType
+
+    if auto_part_proxy.Enabled and fstype:
+        storage.set_default_fstype(fstype)
+        storage.set_default_boot_fstype(fstype)
 
 
 def load_plugin_s390():
