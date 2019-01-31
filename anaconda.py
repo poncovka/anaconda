@@ -680,9 +680,10 @@ if __name__ == "__main__":
     from pyanaconda.modules.common.constants.services import STORAGE
     from pyanaconda.modules.common.constants.objects import DISK_SELECTION
     from pyanaconda.storage.utils import device_matches
+    disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
+
     matched = device_matches("LABEL=OEMDRV", disks_only=True)
     for oemdrv_disk in matched:
-        disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
         ignored_disks = disk_select_proxy.IgnoredDisks
 
         if oemdrv_disk not in ignored_disks:
@@ -694,12 +695,16 @@ if __name__ == "__main__":
     from pyanaconda.storage.utils import ignore_nvdimm_blockdevs
     ignore_nvdimm_blockdevs(ksdata.nvdimm)
 
+    # Protect some devices.
+    protected_devices = anaconda.get_protected_devices(opts)
+    disk_select_proxy.SetProtectedDevices(protected_devices)
+
     from pyanaconda.payload import payloadMgr
     from pyanaconda.timezone import time_initialize
 
     if not conf.target.is_directory:
         threadMgr.add(AnacondaThread(name=constants.THREAD_STORAGE, target=initialize_storage,
-                                     args=(anaconda.storage, anaconda.protected)))
+                                     args=(anaconda.storage, protected_devices)))
 
     from pyanaconda.modules.common.constants.services import TIMEZONE
     timezone_proxy = TIMEZONE.get_proxy()
