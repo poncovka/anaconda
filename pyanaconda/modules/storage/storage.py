@@ -19,6 +19,7 @@
 #
 from blivet import arch
 
+from pyanaconda.core.signal import Signal
 from pyanaconda.dbus import DBus
 from pyanaconda.modules.common.base import KickstartModule
 from pyanaconda.modules.common.constants.services import STORAGE
@@ -29,6 +30,7 @@ from pyanaconda.modules.storage.disk_selection import DiskSelectionModule
 from pyanaconda.modules.storage.fcoe import FCOEModule
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
 from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, ManualPartitioningModule
+from pyanaconda.modules.storage.reset import StorageResetTask
 from pyanaconda.modules.storage.storage_interface import StorageInterface
 from pyanaconda.modules.storage.zfcp import ZFCPModule
 
@@ -48,6 +50,7 @@ class StorageModule(KickstartModule):
 
         # An instance of Blivet.
         self._storage = create_storage()
+        self.storage_changed = Signal()
 
         # Initialize modules.
         self._modules = []
@@ -122,3 +125,33 @@ class StorageModule(KickstartModule):
             kickstart_module.setup_kickstart(data)
 
         return str(data)
+
+    @property
+    def storage(self):
+        """The storage model.
+
+        :return: an instance of Blivet
+        """
+        return self._storage
+
+    def set_storage(self, storage):
+        self._storage = storage
+        self.storage_changed.emit()
+        log.debug("The storage model has changed.")
+
+    def reset_with_task(self):
+        """Reset the storage model.
+
+        The copy of the current model will be reset. It the reset
+        succeeds, the models will be switched.
+
+        :return: a DBus path to a task
+        """
+        storage = self._storage.copy()
+        task = StorageResetTask(storage)
+
+        # FIXME: Don't set the storage if the task has failed.
+        task.stopped_signal.connect(lambda: self.set_storage(storage))
+
+        path = self.publish_task(STORAGE.namespace, task)
+        return path

@@ -29,6 +29,7 @@ from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
 from pyanaconda.flags import flags
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, AUTO_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.storage.reset import StorageResetTask
 from pyanaconda.platform import platform
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -131,11 +132,10 @@ def initialize_storage(storage):
 
     :param storage: an instance of the Blivet's storage object
     """
-    storage.shutdown()
-
     while True:
         try:
-            storage.reset()
+            task = StorageResetTask(storage)
+            task.run()
         except StorageError as e:
             if error_handler.cb(e) == ERROR_RAISE:
                 raise

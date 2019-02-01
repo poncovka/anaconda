@@ -1,7 +1,7 @@
 #
-# DBus interface for the storage.
+# Storage reset
 #
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 #
 # This copyrighted material is made available to anyone wishing to use,
 # modify, copy, or redistribute it subject to the terms and conditions of
@@ -17,19 +17,27 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from pyanaconda.modules.common.constants.services import STORAGE
-from pyanaconda.modules.common.base import KickstartModuleInterface
-from pyanaconda.dbus.interface import dbus_interface
-from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
+from pyanaconda.modules.common.task import Task
 
 
-@dbus_interface(STORAGE.interface_name)
-class StorageInterface(KickstartModuleInterface):
-    """DBus interface for Storage module."""
+class StorageResetTask(Task):
+    """A task for resetting the storage model.
 
-    def ResetWithTask(self) -> ObjPath:
-        """Reset the storage model.
+    Scan the system’s storage configuration and store it in the tree.
+    """
 
-        :return: a path to a task
+    def __init__(self, storage):
+        """Create a new task.
+
+        :param storage: an instance of Blivet
         """
-        return self.implementation.reset_with_task()
+        super().__init__()
+        self._storage = storage
+
+    @property
+    def name(self):
+        return "Reset the storage model"
+
+    def run(self):
+        """Run the task."""
+        self._storage.reset()
