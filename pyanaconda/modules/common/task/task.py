@@ -117,11 +117,8 @@ class Task(AbstractTask):
 
         Call this method after the task has stopped. If there was raised
         an exception during the task run, it will be raised here again.
-
-        :return: a result of the task
         """
         threadMgr.raise_if_error(self._thread_name)
-        return self.result
 
     @classmethod
     def _generate_thread_name(cls):

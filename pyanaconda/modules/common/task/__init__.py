@@ -58,7 +58,7 @@ def sync_run_task(task_proxy, callback=None):
 
         sleep(1)
 
-    return task_proxy.Finish()
+    task_proxy.Finish()
 
 
 def async_run_task(task_proxy, callback):

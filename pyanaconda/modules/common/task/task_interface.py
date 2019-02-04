@@ -63,10 +63,18 @@ class TaskInterface(InterfaceTemplate):
         """
         return get_variant(Bool, bool(value))
 
+    def emit_result(self, value):
+        """Emit the result changed signal.
+
+        :param value: a value of the result
+        """
+        result = self.convert_result(value)
+        self.ResultChanged(result)
+
     def connect_signals(self):
         """Connect signals to the implementation."""
         self.implementation.progress_changed_signal.connect(self.ProgressChanged)
-        self.implementation.result_changed_signal.connect(self._emit_result_changed)
+        self.implementation.result_changed_signal.connect(self.emit_result)
 
         self.implementation.started_signal.connect(self.Started)
         self.implementation.stopped_signal.connect(self.Stopped)
@@ -128,14 +136,12 @@ class TaskInterface(InterfaceTemplate):
         """Cancel the task."""
         self.implementation.cancel()
 
-    @property
-    def Result(self) -> Variant:
-        """The result of this task.
+    def Finish(self):
+        """Finish the task after it stopped.
 
-        :return: a variant with the result
+        This method will raise an error if the task has failed.
         """
-        result = self.implementation.result
-        return self.convert_result(result)
+        self.implementation.finish()
 
     @dbus_signal
     def ResultChanged(self, value: Variant):
@@ -145,23 +151,10 @@ class TaskInterface(InterfaceTemplate):
         """
         pass
 
-    def _emit_result_changed(self, value):
-        """Emit the result changed signal.
+    def GetResult(self) -> Variant:
+        """Get the result of the task.
 
-        :param value: a value of the result
+        :return: a variant with the result value
         """
-        result = self.convert_result(value)
-        self.ResultChanged(result)
-
-    def Finish(self) -> Variant:
-        """Finish the task after it stopped.
-
-        This method will raise an error if the task has failed.
-        Otherwise, it will return the result of the task.
-
-        The result is converted into a boolean variant by default.
-
-        :return: a variant with the result
-        """
-        result = self.implementation.finish()
+        result = self.implementation.get_result()
         return self.convert_result(result)
