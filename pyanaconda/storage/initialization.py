@@ -22,14 +22,13 @@ from gi.repository import BlockDev as blockdev
 from blivet import util as blivet_util, udev, arch
 from blivet.errors import StorageError, UnknownSourceDeviceError
 from blivet.flags import flags as blivet_flags
-from blivet.iscsi import iscsi
 
 from pyanaconda.anaconda_logging import program_log_lock
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
 from pyanaconda.flags import flags
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, AUTO_PARTITIONING, \
-    DISK_INITIALIZATION, FCOE, ZFCP
+    DISK_INITIALIZATION, FCOE, ZFCP, ISCSI
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.storage.osinstall import InstallerStorage
 from pyanaconda.storage.partitioning import get_default_partitioning
@@ -179,7 +178,8 @@ def reset_storage(storage):
 
     # Reload additional modules.
     if not conf.target.is_image:
-        iscsi.startup()
+        iscsi_proxy = STORAGE.get_proxy(ISCSI)
+        iscsi_proxy.ReloadModule()
 
         fcoe_proxy = STORAGE.get_proxy(FCOE)
         fcoe_proxy.ReloadModule()
