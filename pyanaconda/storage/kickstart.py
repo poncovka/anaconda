@@ -16,7 +16,9 @@
 # Red Hat, Inc.
 #
 from blivet.devices import PartitionDevice, TmpFSDevice, LVMLogicalVolumeDevice, \
-    LVMVolumeGroupDevice, MDRaidArrayDevice, BTRFSDevice
+    LVMVolumeGroupDevice, MDRaidArrayDevice, BTRFSDevice, MultipathDevice, iScsiDiskDevice, \
+    NVDIMMNamespaceDevice
+from blivet.iscsi import iscsi
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import CLEAR_PARTITIONS_NONE, CLEAR_PARTITIONS_LIST, \
@@ -24,6 +26,7 @@ from pyanaconda.core.constants import CLEAR_PARTITIONS_NONE, CLEAR_PARTITIONS_LI
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, AUTO_PARTITIONING, \
     DISK_INITIALIZATION
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.storage.utils import nvdimm_update_ksdata_for_used_devices
 
 log = get_module_logger(__name__)
 
@@ -40,6 +43,8 @@ def update_storage_ksdata(storage, ksdata):
         return
 
     _update_disk_selection(storage)
+    _update_iscsi(storage, ksdata)
+    _update_nvdimm(storage, ksdata)
     _update_autopart(storage)
     _update_clearpart(storage)
     _update_custom_storage(storage, ksdata)
@@ -56,6 +61,90 @@ def _update_disk_selection(storage):
         disk_select_proxy.SetIgnoredDisks(storage.ignored_disks)
     elif storage.exclusive_disks:
         disk_select_proxy.SetSelectedDisks(storage.exclusive_disks)
+
+
+def _update_iscsi(storage, ksdata):
+    """Update data for iSCSI.
+
+    :param storage: an instance of the storage
+    :param ksdata: an instance of kickstart data
+    """
+    iscsi_devices = _find_iscsi_devices(
+        [d for d in getDisks(storage.devicetree) if d.name in selected_disks]
+    )
+
+    if not iscsi_devices:
+        return
+
+    iscsi_list = []
+
+    for device in iscsi_devices:
+
+        dev_node = device.node
+
+        iscsi_data = ksdata.IscsiData()
+        iscsi_data.ipaddr = dev_node.address
+        iscsi_data.target = dev_node.name
+        iscsi_data.port = dev_node.port
+
+        # Bind interface to target
+        if iscsi.ifaces:
+            iscsi_data.iface = iscsi.ifaces[dev_node.iface]
+
+        if dev_node.username and dev_node.password:
+            iscsi_data.user = dev_node.username
+            iscsi_data.password = dev_node.password
+
+        if dev_node.r_username and dev_node.r_password:
+            iscsi_data.user_in = dev_node.r_username
+            iscsi_data.password_in = dev_node.r_password
+
+        for saved_iscsi in iscsi_list:
+            if iscsi_data.ipaddr == saved_iscsi.ipaddr \
+                    and iscsi_data.target == saved_iscsi.target \
+                    and iscsi_data.port == saved_iscsi.port:
+                break
+        else:
+            iscsi_list.append(iscsi_data)
+
+    ksdata.iscsiname.iscsiname = iscsi.initiator
+    ksdata.iscsi.iscsi = iscsi_list
+
+
+def _find_iscsi_devices(disks):
+    devices = []
+
+    # Find all selected disks and add all iscsi disks to iscsi_devices list
+    for d in disks:
+
+        # Get parents of a multipath devices
+        if isinstance(d, MultipathDevice):
+            for parent_dev in d.parents:
+                if (isinstance(parent_dev, iScsiDiskDevice)
+                        and not parent_dev.ibft
+                        and not parent_dev.offload):
+                    devices.append(parent_dev)
+
+        # Add no-ibft iScsiDiskDevice. IBFT disks are added automatically so there is
+        # no need to have them in KS.
+        elif isinstance(d, iScsiDiskDevice) and not d.ibft and not d.offload:
+            devices.append(d)
+
+    return devices
+
+
+def _update_nvdimm(storage, ksdata):
+    """Update data for NVDIMM.
+
+    :param storage: an instance of the storage
+    :param ksdata: an instance of kickstart data
+    """
+    namespaces = [
+        d.devname for d in getDisks(storage.devicetree)
+        if d.name in selected_disks and isinstance(d, NVDIMMNamespaceDevice)
+    ]
+
+    nvdimm_update_ksdata_for_used_devices(ksdata, namespaces)
 
 
 def _update_autopart(storage):
