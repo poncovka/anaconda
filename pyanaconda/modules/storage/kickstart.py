@@ -18,13 +18,14 @@
 # Red Hat, Inc.
 #
 from blivet.fcoe import fcoe
+from blivet.iscsi import iscsi
 from blivet.zfcp import zfcp
 from blivet.formats import get_format
 from blivet.formats.disklabel import DiskLabel
 from pykickstart.constants import CLEARPART_TYPE_NONE
 from pykickstart.errors import KickstartParseError
 
-from pyanaconda import nm
+from pyanaconda import nm, network
 from pyanaconda.core.i18n import _
 from pyanaconda.core.kickstart import VERSION, KickstartSpecification, commands as COMMANDS
 from pyanaconda.storage.utils import device_matches
@@ -122,6 +123,8 @@ class IgnoreDisk(COMMANDS.IgnoreDisk):
 
 
 class Fcoe(COMMANDS.Fcoe):
+    """The fcoe kickstart command."""
+
     def parse(self, args):
         fc = super().parse(args)
 
@@ -141,6 +144,55 @@ class Fcoe(COMMANDS.Fcoe):
             log.info("Adding FCoE SAN on %s: %s", fc.nic, msg)
 
         return fc
+
+
+class Iscsi(COMMANDS.Iscsi):
+    """The iscsi kickstart command."""
+
+    def parse(self, args):
+        tg = super().parse(args)
+
+        # Check data.
+        if tg.iface and not network.wait_for_network_devices([tg.iface]):
+            raise KickstartParseError(_("Network interface \"{nic}\" required by iSCSI "
+                                        "\"{target}\" target is not up.")
+                                      .format({"nic": tg.iface, "iscsiTarget": tg.target}),
+                                      lineno=self.lineno)
+
+        if (iscsi.mode == "bind" and not tg.iface) or (iscsi.mode == "default" and tg.iface):
+            raise KickstartParseError(_("iSCSI --iface must be specified (binding used) either "
+                                        "for all targets or for none"), lineno=self.lineno)
+
+        # Create interfaces.
+        if iscsi.mode == "none" and tg.iface:
+            iscsi.create_interfaces(nm.nm_activated_devices())
+
+        # Add target.
+        try:
+            log.info("Add iSCSI target %s at %s via %s.", tg.target, tg.ipaddr, tg.iface)
+            iscsi.add_target(
+                ipaddr=tg.ipaddr,
+                port=tg.port,
+                user=tg.user,
+                pw=tg.password,
+                user_in=tg.user_in,
+                pw_in=tg.password_in,
+                target=tg.target,
+                iface=tg.iface
+            )
+        except (IOError, ValueError) as e:
+            raise KickstartParseError(str(e), lineno=self.lineno)
+
+        return tg
+
+
+class IscsiName(COMMANDS.IscsiName):
+    """The iscsiname kickstart command."""
+
+    def parse(self, args):
+        retval = super().parse(args)
+        iscsi.initiator = self.iscsiname
+        return retval
 
 
 class ZFCP(COMMANDS.ZFCP):
@@ -171,7 +223,8 @@ class StorageKickstartSpecification(KickstartSpecification):
         "clearpart": ClearPart,
         "fcoe": Fcoe,
         "ignoredisk": IgnoreDisk,
-        "iscsiname": COMMANDS.IscsiName,
+        "iscsi": Iscsi,
+        "iscsiname": IscsiName,
         "logvol": COMMANDS.LogVol,
         "mount": COMMANDS.Mount,
         "part": COMMANDS.Partition,
@@ -186,6 +239,7 @@ class StorageKickstartSpecification(KickstartSpecification):
     commands_data = {
         "BTRFSData": COMMANDS.BTRFSData,
         "FcoeData": COMMANDS.FcoeData,
+        "IscsiData": COMMANDS.IscsiData,
         "LogVolData": COMMANDS.LogVolData,
         "MountData": COMMANDS.MountData,
         "PartData": COMMANDS.PartData,
