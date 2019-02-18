@@ -18,6 +18,7 @@
 # Red Hat, Inc.
 #
 from pyanaconda.dbus.interface import dbus_interface
+from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 from pyanaconda.modules.common.constants.objects import INTERACTIVE_PARTITIONING
 from pyanaconda.modules.storage.partitioning.base_interface import PartitioningInterface
 
@@ -25,6 +26,11 @@ from pyanaconda.modules.storage.partitioning.base_interface import PartitioningI
 @dbus_interface(INTERACTIVE_PARTITIONING.interface_name)
 class InteractivePartitioningInterface(PartitioningInterface):
     """DBus interface for the interactive partitioning module."""
+
+    def GetDevices(self) -> List[Structure]:
+        """Get a list of devices."""
+        # FIXME: We need a data structure for devices.
+        return self.implementation.get_devices()
 
     def HideUnusableDisks(self):
         """Hide removable disks containing install media."""

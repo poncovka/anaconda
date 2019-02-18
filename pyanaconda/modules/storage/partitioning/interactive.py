@@ -44,6 +44,10 @@ class InteractivePartitioningModule(PartitioningModule):
             InteractivePartitioningInterface(self)
         )
 
+    def get_devices(self):
+        """Get a list of devices."""
+        return self._storage_playground.devices
+
     def hide_unusable_disks(self):
         """Hide removable disks containing install media."""
         for disk in self._storage_playground.disks:
