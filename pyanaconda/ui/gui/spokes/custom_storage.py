@@ -357,22 +357,30 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     @property
     def unusedDevices(self):
-        unused_devices = [d for d in self._storage_playground.unused_devices
-                                if d.disks and d.media_present and
-                                not d.partitioned and (d.direct or d.isleaf)]
+        unused_devices = [
+            d for d in self._storage_playground.unused_devices
+            if d.disks and d.media_present and not d.partitioned and (d.direct or d.isleaf)
+        ]
+
         # add incomplete VGs and MDs
-        incomplete = [d for d in self._storage_playground.devicetree._devices
-                            if not getattr(d, "complete", True)]
-        unused_devices.extend(incomplete)
-        unused_devices.extend(d for d in self._storage_playground.partitioned if not d.format.supported)
-        return unused_devices
+        incomplete = [
+            d for d in self._storage_playground.devicetree._devices
+            if not getattr(d, "complete", True)
+        ]
+
+        # A
+        unsupported = [
+            d for d in self._storage_playground.partitioned
+            if not d.format.supported
+        ]
+
+        return unused_devices + incomplete + unsupported
 
     @property
     def bootLoaderDevices(self):
         devices = []
-        format_types = ["biosboot", "prepboot"]
         for device in self._devices:
-            if device.format.type not in format_types:
+            if device.format.type not in ["biosboot", "prepboot"]:
                 continue
 
             disk_names = (d.name for d in device.disks)
@@ -474,21 +482,22 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def get_new_devices(self):
         # A device scheduled for formatting only belongs in the new root.
-        new_devices = [d for d in self._devices if d.direct and
-                                                   not d.format.exists and
-                                                   not d.partitioned]
+        new_devices = [
+            d for d in self._devices
+            if d.direct and not d.format.exists and not d.partitioned
+        ]
 
         # If mountpoints have been assigned to any existing devices, go ahead
         # and pull those in along with any existing swap devices. It doesn't
         # matter if the formats being mounted exist or not.
-        new_mounts = [d for d in self._storage_playground.mountpoints.values() if d.exists]
+        mountpoints = self._partitioning_proxy.GetMountpoints()
+        new_mounts = [d for d in mountpoints.values() if d.exists]
+
         if new_mounts or new_devices:
-            new_devices.extend(self._storage_playground.mountpoints.values())
+            new_devices.extend(mountpoints.values())
             new_devices.extend(self.bootLoaderDevices)
 
-        new_devices = list(set(new_devices))
-
-        return new_devices
+        return list(set(new_devices))
 
     def _set_page_label_text(self):
         if self._accordion.is_multiselection:
@@ -635,7 +644,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._show_mountpoint(page=firstPage, mountpoint=mountpointToShow)
 
         self._applyButton.set_sensitive(False)
-        self._resetButton.set_sensitive(len(self._storage_playground.devicetree.actions.find()) > 0)
+
+        actions = self._partitioning_proxy.GetActions()
+        self._resetButton.set_sensitive(bool(actions))
 
     ###
     ### RIGHT HAND SIDE METHODS
