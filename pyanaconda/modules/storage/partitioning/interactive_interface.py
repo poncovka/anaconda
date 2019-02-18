@@ -32,6 +32,11 @@ class InteractivePartitioningInterface(PartitioningInterface):
         # FIXME: We need a data structure for devices.
         return self.implementation.get_devices()
 
+    def GetActions(self) -> List[Structure]:
+        """Get a list of actions."""
+        # FIXME: We need a data structure for actions.
+        return self.implementation.get_actions()
+
     def HideUnusableDisks(self):
         """Hide removable disks containing install media."""
         self.implementation.hide_unusable_disks()
