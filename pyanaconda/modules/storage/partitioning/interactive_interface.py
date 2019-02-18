@@ -32,6 +32,11 @@ class InteractivePartitioningInterface(PartitioningInterface):
         # FIXME: We need a data structure for devices.
         return self.implementation.get_devices()
 
+    def GetMountpoints(self) -> Dict[Str, Structure]:
+        """Get a list of mountpoints."""
+        # FIXME: We need a data structure for devices.
+        return self.implementation.get_mountpoints()
+
     def GetActions(self) -> List[Structure]:
         """Get a list of actions."""
         # FIXME: We need a data structure for actions.

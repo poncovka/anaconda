@@ -48,6 +48,10 @@ class InteractivePartitioningModule(PartitioningModule):
         """Get a list of devices."""
         return self._storage_playground.devices
 
+    def get_mountpoints(self):
+        """Get a dictionary of mountpoints."""
+        return self._storage_playground.mountpoints
+
     def get_actions(self):
         """Get a list of actions."""
         return self._storage_playground.devicetree.actions.find()
