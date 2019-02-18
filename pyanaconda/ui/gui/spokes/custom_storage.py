@@ -26,9 +26,6 @@
 # - Implement striping and mirroring for LVM.
 # - Activating reformat should always enable resize for existing devices.
 import gi
-
-from pyanaconda.modules.common.task import sync_run_task
-
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("AnacondaWidgets", "3.3")
@@ -50,6 +47,9 @@ from pyanaconda.bootloader import BootLoaderError
 from pyanaconda.modules.common.constants.objects import DISK_INITIALIZATION, BOOTLOADER, \
     AUTO_PARTITIONING, INTERACTIVE_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.errors.configuration import BootloaderConfigurationError
+from pyanaconda.modules.common.errors.storage import InvalidStorageError
+from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.platform import platform
 
 from blivet import devicefactory
@@ -1711,34 +1711,38 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         StorageCheckHandler.errors = []
         StorageCheckHandler.warnings = []
 
-        # We can't overwrite the main Storage instance because all the other
-        # spokes have references to it that would get invalidated, but we can
-        # achieve the same effect by updating/replacing a few key attributes.
-        self.storage.devicetree._devices = self._storage_playground.devicetree._devices
-        self.storage.devicetree._actions = self._storage_playground.devicetree._actions
-        self.storage.devicetree._hidden = self._storage_playground.devicetree._hidden
-        self.storage.devicetree.names = self._storage_playground.devicetree.names
-        self.storage.roots = self._storage_playground.roots
-
-        # set up bootloader and check the configuration
-        bootloader_errors = []
         try:
-            self.storage.set_up_bootloader()
-        except BootLoaderError as e:
+            # Finish the configuration.
+            task_path = self._partitioning_proxy.ConfigureWithTask()
+            task_proxy = STORAGE.get_proxy(task_path)
+            sync_run_task(task_proxy)
+        except BootloaderConfigurationError as e:
             log.error("storage configuration failed: %s", e)
-            bootloader_errors = str(e).split("\n")
+            StorageCheckHandler.errors = str(e).split("\n")
             self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
 
-        StorageCheckHandler.checkStorage(self)
+        try:
+            # Validate the partitioning.
+            task_path = self._partitioning_proxy.ValidateWithTask()
+            task_proxy = STORAGE.get_proxy(task_path)
+            sync_run_task(task_proxy)
+        except InvalidStorageError as e:
+            # FIXME: Handle also the warnings.
+            StorageCheckHandler.errors.append(str(e))
+        else:
+            # Apply the partitioning.
+            self._storage_proxy.apply_storage()
 
-        if self.errors or bootloader_errors:
-            self.set_warning(_("Error checking storage configuration.  <a href=\"\">Click for details</a> or press Done again to continue."))
+        if self.errors:
+            self.set_warning(_("Error checking storage configuration.  <a href=\"\">"
+                               "Click for details</a> or press Done again to continue."))
         elif self.warnings:
-            self.set_warning(_("Warning checking storage configuration.  <a href=\"\">Click for details</a> or press Done again to continue."))
+            self.set_warning(_("Warning checking storage configuration.  <a href=\"\">"
+                               "Click for details</a> or press Done again to continue."))
 
         # on_info_bar_clicked requires self._error to be set, so set it to the
         # list of all errors and warnings that storage checking found.
-        self._error = "\n".join(bootloader_errors + self.errors + self.warnings)
+        self._error = "\n".join(self.errors + self.warnings)
 
         return self._error == ""
 
