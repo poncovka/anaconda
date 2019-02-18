@@ -25,3 +25,11 @@ from pyanaconda.modules.storage.partitioning.base_interface import PartitioningI
 @dbus_interface(INTERACTIVE_PARTITIONING.interface_name)
 class InteractivePartitioningInterface(PartitioningInterface):
     """DBus interface for the interactive partitioning module."""
+
+    def HideUnusableDisks(self):
+        """Hide removable disks containing install media."""
+        self.implementation.hide_unusable_disks()
+
+    def UnhideUnusableDisks(self):
+        """Restore the hidden disks."""
+        self.implementation.unhide_unusable_disks()

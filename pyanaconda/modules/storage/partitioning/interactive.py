@@ -33,12 +33,29 @@ log = get_module_logger(__name__)
 class InteractivePartitioningModule(PartitioningModule):
     """The interactive partitioning module."""
 
+    def __init__(self):
+        super().__init__()
+        self._hidden_disks = []
+
     def publish(self):
         """Publish the module."""
         DBus.publish_object(
             INTERACTIVE_PARTITIONING.object_path,
             InteractivePartitioningInterface(self)
         )
+
+    def hide_unusable_disks(self):
+        """Hide removable disks containing install media."""
+        for disk in self._storage_playground.disks:
+            if disk.protected or not disk.media_present:
+                self._hidden_disks.append(disk)
+                self._storage_playground.devicetree.hide(disk)
+
+    def unhide_unusable_disks(self):
+        """Restore the hidden disks."""
+        while self._hidden_disks:
+            disk = self._hidden_disks.pop()
+            self._storage_playground.devicetree.unhide(disk)
 
     def configure_with_task(self):
         """Schedule the partitioning actions."""
