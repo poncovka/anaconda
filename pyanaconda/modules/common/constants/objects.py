@@ -56,6 +56,11 @@ CUSTOM_PARTITIONING = DBusObjectIdentifier(
     basename="Custom"
 )
 
+INTERACTIVE_PARTITIONING = DBusObjectIdentifier(
+    namespace=PARTITIONING_NAMESPACE,
+    basename="Interactive"
+)
+
 FCOE = DBusObjectIdentifier(
     namespace=STORAGE_NAMESPACE,
     basename="FCoE"

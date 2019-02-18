@@ -24,7 +24,7 @@ from pyanaconda.core.signal import Signal
 from pyanaconda.dbus import DBus
 from pyanaconda.modules.common.base import KickstartModule
 from pyanaconda.modules.common.constants.objects import AUTO_PARTITIONING, MANUAL_PARTITIONING, \
-    CUSTOM_PARTITIONING
+    CUSTOM_PARTITIONING, INTERACTIVE_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.storage.bootloader import BootloaderModule
 from pyanaconda.modules.storage.dasd import DASDModule
@@ -36,6 +36,7 @@ from pyanaconda.modules.storage.installation import MountFilesystemsTask, Activa
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
 from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, \
     ManualPartitioningModule, CustomPartitioningModule
+from pyanaconda.modules.storage.partitioning.interactive import InteractivePartitioningModule
 from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
 from pyanaconda.modules.storage.reset import StorageResetTask
 from pyanaconda.modules.storage.storage_interface import StorageInterface
@@ -94,6 +95,9 @@ class StorageModule(KickstartModule):
 
         self._custom_part_module = CustomPartitioningModule()
         self._add_partitioning_module(CUSTOM_PARTITIONING.object_path, self._custom_part_module)
+
+        self._inter_part_module = InteractivePartitioningModule()
+        self._add_partitioning_module(INTERACTIVE_PARTITIONING.object_path, self._inter_part_module)
 
     def _add_module(self, storage_module):
         """Add a base kickstart module."""
