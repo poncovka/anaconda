@@ -26,6 +26,9 @@
 # - Implement striping and mirroring for LVM.
 # - Activating reformat should always enable resize for existing devices.
 import gi
+
+from pyanaconda.modules.common.task import sync_run_task
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("AnacondaWidgets", "3.3")
@@ -45,7 +48,7 @@ from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
 from pyanaconda.core.util import lowerASCII
 from pyanaconda.bootloader import BootLoaderError
 from pyanaconda.modules.common.constants.objects import DISK_INITIALIZATION, BOOTLOADER, \
-    AUTO_PARTITIONING
+    AUTO_PARTITIONING, INTERACTIVE_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.platform import platform
 
@@ -185,7 +188,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         NormalSpoke.__init__(self, data, storage, payload)
 
         self._back_already_clicked = False
-        self._storage_playground = None
 
         self.passphrase = ""
 
@@ -218,10 +220,13 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._auto_part_observer = STORAGE.get_observer(AUTO_PARTITIONING)
         self._auto_part_observer.connect()
 
+        self._storage_proxy = STORAGE.get_proxy()
+        self._partitioning_proxy = STORAGE.get_proxy(INTERACTIVE_PARTITIONING)
+
     def apply(self):
         self.clear_errors()
 
-        self._unhide_unusable_disks()
+        self._partitioning_proxy.UnhideUnusableDisks()
 
         new_swaps = (dev for dev in self.get_new_devices() if dev.format.type == "swap")
         self.storage.set_fstab_swaps(new_swaps)
@@ -408,24 +413,15 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._summaryLabel.set_text(summary)
         self._summaryLabel.set_use_underline(True)
 
-    @ui_storage_logged
-    def _hide_unusable_disks(self):
-        self._hidden_disks = []
-
-        for disk in self._storage_playground.disks:
-            if disk.protected or not disk.media_present:
-                # hide removable disks containing install media
-                self._hidden_disks.append(disk)
-                self._storage_playground.devicetree.hide(disk)
-
-    def _unhide_unusable_disks(self):
-        for disk in reversed(self._hidden_disks):
-            self._storage_playground.devicetree.unhide(disk)
-
     def _reset_storage(self):
-        self._storage_playground = self.storage.copy()
-        self._hide_unusable_disks()
-        self._devices = self._storage_playground.devices
+        # Reset the storage for testing.
+        # We should only reset the copy in the partitioning module.
+        task_path = self._storage_proxy.ResetWithTask()
+        task_proxy = STORAGE.get_proxy(task_path)
+        sync_run_task(task_proxy)
+
+        self._partitioning_proxy.HideUnusableDisks()
+        self._devices = self._partitioning_proxy.GetDevices()
 
     def refresh(self):
         self.clear_errors()
