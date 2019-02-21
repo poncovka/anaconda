@@ -177,9 +177,6 @@ class AutomaticPartitioningExecutor(PartitioningExecutor):
             storage.set_default_fstype(fstype)
             storage.set_default_boot_fstype(fstype)
 
-        # Set the default partitioning.
-        storage.set_default_partitioning(get_default_partitioning())
-
         # Set the encryption.
         if auto_part_proxy.Encrypted:
             storage.encrypted_autopart = True

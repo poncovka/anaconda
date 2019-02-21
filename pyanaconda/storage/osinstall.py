@@ -40,7 +40,8 @@ from pyanaconda.core.constants import shortProductName, CLEAR_PARTITIONS_NONE, \
 from pyanaconda.bootloader.execution import BootloaderExecutor
 from pyanaconda.platform import platform as _platform
 from pyanaconda.storage.fsset import FSSet
-from pyanaconda.storage.partitioning import get_full_partitioning_requests
+from pyanaconda.storage.partitioning import get_full_partitioning_requests, \
+    get_default_partitioning
 from pyanaconda.storage.utils import download_escrow_certificate, find_live_backing_device
 from pyanaconda.storage.root import find_existing_installations
 from pyanaconda.modules.common.constants.services import NETWORK
@@ -80,7 +81,6 @@ class InstallerStorage(Blivet):
 
         self.autopart_escrow_cert = None
         self.autopart_add_backup_passphrase = False
-        self.autopart_requests = []
 
         self._default_boot_fstype = None
 
@@ -240,12 +240,13 @@ class InstallerStorage(Blivet):
     def _check_valid_luks_version(self, version):
         get_format("luks", luks_version=version)
 
-    def set_default_partitioning(self, requests):
-        """Set the default partitioning.
+    @property
+    def autopart_requests(self):
+        """The default partitioning requests.
 
-        :param requests: a list of partitioning specs
+        :return: a list of full partitioning specs
         """
-        self.autopart_requests = get_full_partitioning_requests(self, _platform, requests)
+        return get_full_partitioning_requests(self, _platform, get_default_partitioning())
 
     def set_up_bootloader(self, early=False):
         """ Set up the boot loader.
