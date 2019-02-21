@@ -27,7 +27,7 @@ from blivet.iscsi import iscsi
 from pyanaconda.anaconda_logging import program_log_lock
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
-from pyanaconda.modules.common.constants.objects import DISK_SELECTION, AUTO_PARTITIONING, \
+from pyanaconda.modules.common.constants.objects import DISK_SELECTION, \
     DISK_INITIALIZATION, FCOE, ZFCP
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.storage.osinstall import InstallerStorage
@@ -89,20 +89,6 @@ def create_storage():
     storage.set_default_luks_version(conf.storage.luks_version or storage.default_luks_version)
 
     return storage
-
-
-def set_storage_defaults_from_kickstart(storage):
-    """Set the storage default values from a kickstart file.
-
-    FIXME: A temporary workaround for UI.
-    """
-    # Set the default filesystem types.
-    auto_part_proxy = STORAGE.get_proxy(AUTO_PARTITIONING)
-    fstype = auto_part_proxy.FilesystemType
-
-    if auto_part_proxy.Enabled and fstype:
-        storage.set_default_fstype(fstype)
-        storage.set_default_boot_fstype(fstype)
 
 
 def load_plugin_s390():

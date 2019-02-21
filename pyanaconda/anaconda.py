@@ -50,7 +50,6 @@ class Anaconda(object):
         self._payload = None
         self.proxy = None
         self.decorated = False
-        self._storage = None
         self.mehConfig = None
 
         # Data for inhibiting the screensaver
@@ -135,14 +134,7 @@ class Anaconda(object):
 
     @property
     def storage(self):
-        if not self._storage:
-            from pyanaconda.storage.initialization import create_storage
-            self._storage = create_storage()
-
-            from pyanaconda.storage.initialization import set_storage_defaults_from_kickstart
-            set_storage_defaults_from_kickstart(self._storage)
-
-        return self._storage
+        return None
 
     @property
     def display_mode(self):
