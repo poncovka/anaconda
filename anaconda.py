@@ -602,9 +602,6 @@ if __name__ == "__main__":
     # Now that LANG is set, do something with it
     localization.setup_locale(os.environ["LANG"], localization_proxy, text_mode=anaconda.tui_mode)
 
-    from pyanaconda.storage.initialization import enable_installer_mode, initialize_storage
-    enable_installer_mode()
-
     # Initialize the network now, in case the display needs it
     from pyanaconda.network import networkInitialize, wait_for_connecting_NM_thread, wait_for_connected_NM
 
@@ -693,7 +690,6 @@ if __name__ == "__main__":
 
     # Specify protected devices.
     protected_devices = anaconda.get_protected_devices(opts)
-    anaconda.storage.config.protected_dev_specs.extend(protected_devices)
 
     from pyanaconda.modules.common.constants.services import STORAGE
     from pyanaconda.modules.common.constants.objects import DISK_SELECTION
@@ -702,6 +698,7 @@ if __name__ == "__main__":
 
     from pyanaconda.payload import payloadMgr
     from pyanaconda.timezone import time_initialize
+    from pyanaconda.storage.initialization import initialize_storage
 
     if not conf.target.is_directory:
         threadMgr.add(AnacondaThread(name=constants.THREAD_STORAGE,

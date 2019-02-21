@@ -20,18 +20,18 @@ gi.require_version("BlockDev", "2.0")
 from gi.repository import BlockDev as blockdev
 
 from blivet import util as blivet_util, udev, arch
-from blivet.errors import StorageError, UnknownSourceDeviceError
+from blivet.errors import StorageError
 from blivet.flags import flags as blivet_flags
-from blivet.iscsi import iscsi
 
 from pyanaconda.anaconda_logging import program_log_lock
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
-from pyanaconda.modules.common.constants.objects import DISK_SELECTION, \
-    DISK_INITIALIZATION, FCOE, ZFCP
+from pyanaconda.modules.common.constants.objects import DISK_SELECTION, DISK_INITIALIZATION
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.storage.osinstall import InstallerStorage
 from pyanaconda.platform import platform
+
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -113,7 +113,8 @@ def initialize_storage(storage):
 
     :param storage: an instance of the Blivet's storage object
     """
-    storage.shutdown()
+    # FIXME: Do we need to do the shutdown?
+    # storage.shutdown()
 
     while True:
         try:
@@ -126,10 +127,11 @@ def initialize_storage(storage):
         else:
             break
 
+    # FIXME: Do we need to check this?
     # FIXME: This is a temporary workaround for live OS.
     # TODO: Shouldn't we move this somewhere else?
-    if not conf.system._is_live_os and not any(d.protected for d in storage.devices):
-        raise UnknownSourceDeviceError()
+    # if not conf.system._is_live_os and not any(d.protected for d in storage.devices):
+    #     raise UnknownSourceDeviceError()
 
 
 def select_all_disks_by_default(storage):
@@ -160,27 +162,14 @@ def reset_storage(storage):
 
     :param storage: an instance of the Blivet's storage object
     """
+    # FIXME: Do we need to set up the disk initialization now?
     # Update the config.
-    update_storage_config(storage.config)
+    # update_storage_config(storage.config)
 
-    # Set the ignored and exclusive disks.
-    disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
-    storage.ignored_disks = disk_select_proxy.IgnoredDisks
-    storage.exclusive_disks = disk_select_proxy.SelectedDisks
-
-    # Reload additional modules.
-    if not conf.target.is_image:
-        iscsi.startup()
-
-        fcoe_proxy = STORAGE.get_proxy(FCOE)
-        fcoe_proxy.ReloadModule()
-
-        if arch.is_s390():
-            zfcp_proxy = STORAGE.get_proxy(ZFCP)
-            zfcp_proxy.ReloadModule()
-
-    # Do the reset.
-    storage.reset()
+    storage_proxy = STORAGE.get_proxy()
+    task_path = storage_proxy.ResetWithTask()
+    task_object = STORAGE.get_proxy(task_path)
+    sync_run_task(task_object)
 
 
 def update_storage_config(config):
