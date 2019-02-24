@@ -21,6 +21,7 @@ from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.base import KickstartModuleInterface
 from pyanaconda.dbus.interface import dbus_interface
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
+from pyanaconda.dbus.structure import get_structure
 
 
 @dbus_interface(STORAGE.interface_name)
@@ -33,6 +34,21 @@ class StorageInterface(KickstartModuleInterface):
         :return: a path to a task
         """
         return self.implementation.reset_with_task()
+
+    def GetDeviceData(self, name) -> Structure:
+        """Get the device data.
+
+        :param name: a device name
+        :return: a structure with device data
+        """
+        return get_structure(self.implementation.get_device_data(name))
+
+    def GetAvailableDisks(self) -> List[Str]:
+        """Get the available disks.
+
+        :return: a list of device names
+        """
+        return self.implementation.get_available_disks()
 
     def ApplyPartitioning(self, partitioning: ObjPath):
         """Apply the partitioning.

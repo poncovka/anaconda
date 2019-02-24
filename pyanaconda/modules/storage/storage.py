@@ -25,6 +25,7 @@ from pyanaconda.modules.common.base import KickstartModule
 from pyanaconda.modules.common.constants.objects import AUTO_PARTITIONING, MANUAL_PARTITIONING, \
     CUSTOM_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.modules.storage.bootloader import BootloaderModule
 from pyanaconda.modules.storage.dasd import DASDModule
 from pyanaconda.modules.storage.disk_initialization import DiskInitializationModule
@@ -44,6 +45,8 @@ from pyanaconda.modules.storage.zfcp import ZFCPModule
 from pyanaconda.storage.initialization import enable_installer_mode, create_storage
 
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.storage.utils import get_available_disks
+
 log = get_module_logger(__name__)
 
 
@@ -199,6 +202,29 @@ class StorageModule(KickstartModule):
         # Publish the task.
         path = self.publish_task(STORAGE.namespace, task)
         return path
+
+    def get_device_data(self, name):
+        """Get the device data.
+
+        :param name: a device name
+        :return: an instance of DeviceData
+        """
+        # Find the device.
+        device = self.storage.devicetree.get_device_by_name(name, hidden=True)
+
+        # Collect the data.
+        data = DeviceData()
+        data.name = device.name
+        data.model = device.model
+        data.size = device.size
+        return data
+
+    def get_available_disks(self):
+        """Get the available disks.
+
+        :return: a list of device names
+        """
+        return [d.name for d in get_available_disks(self.storage.devicetree)]
 
     def apply_partitioning(self, object_path):
         """Apply a partitioning.
