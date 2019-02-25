@@ -48,7 +48,7 @@ from pyanaconda.modules.storage.zfcp import ZFCPModule
 from pyanaconda.storage.initialization import enable_installer_mode, create_storage
 
 from pyanaconda.anaconda_loggers import get_module_logger
-from pyanaconda.storage.utils import get_available_disks
+from pyanaconda.storage.utils import get_available_disks, get_required_device_size
 
 log = get_module_logger(__name__)
 
@@ -286,6 +286,14 @@ class StorageModule(KickstartModule):
         :return: a total size
         """
         return self.storage.get_file_system_free_space(names)
+
+    def get_required_device_size(self, required_space):
+        """Get device size we need to get the required space on the device.
+
+        :param required_space: a required space
+        :return: a required device size
+        """
+        return get_required_device_size(required_space)
 
     def apply_partitioning(self, object_path):
         """Apply a partitioning.

@@ -76,6 +76,14 @@ class StorageInterface(KickstartModuleInterface):
         """
         return str(self.implementation.get_file_system_free_space(names))
 
+    def GetRequiredDeviceSize(self, required_space: Str) -> Str:
+        """Get device size we need to get the required space on the device.
+
+        :param required_space: a required space
+        :return: a required device size
+        """
+        return str(self.implementation.get_required_device_size(required_space))
+
     def ApplyPartitioning(self, partitioning: ObjPath):
         """Apply the partitioning.
 

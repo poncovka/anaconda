@@ -27,10 +27,10 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
 from pyanaconda.core.i18n import _, C_, N_, P_
+from pyanaconda.storage.utils import get_required_device_size
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.utils import blockedHandler, escape_markup, timed_action
 from blivet.size import Size
-from blivet.formats.fs import FS
 
 __all__ = ["ResizeDialog"]
 
@@ -81,7 +81,7 @@ class ResizeDialog(GUIObject):
 
         self._required_label = self.builder.get_object("requiredSpaceLabel")
         markup = _("Installation requires a total of <b>%s</b> for system data.")
-        required_dev_size = self.payload.requiredDeviceSize(FS.biggest_overhead_FS())
+        required_dev_size = get_required_device_size(self.payload.spaceRequired)
         self._required_label.set_markup(markup % escape_markup(str(required_dev_size)))
 
         self._reclaimDescLabel = self.builder.get_object("reclaimDescLabel")
@@ -312,7 +312,7 @@ class ResizeDialog(GUIObject):
             self._deleteButton.set_sensitive(False)
 
     def _update_reclaim_button(self, got):
-        required_dev_size = self.payload.requiredDeviceSize(FS.biggest_overhead_FS())
+        required_dev_size = get_required_device_size(self.payload.spaceRequired)
         self._resizeButton.set_sensitive(got+self._initialFreeSpace >= required_dev_size)
 
     # pylint: disable=arguments-differ
