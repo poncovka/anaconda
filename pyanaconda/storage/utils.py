@@ -577,6 +577,15 @@ def apply_disk_selection(storage, selected_names):
         bootloader_proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
         storage.bootloader.reset()
 
+    # Hide/unhide selected disks.
+    available_disks = get_available_disks(storage.devicetree)
+
+    for disk in available_disks:
+        if disk.name not in selected_names and disk in storage.devices:
+            storage.devicetree.hide(disk)
+        elif disk.name in selected_names and disk not in storage.devices:
+            storage.devicetree.unhide(disk)
+
 
 def get_disks_summary(selected_names):
     """Get a summary of the selected disks

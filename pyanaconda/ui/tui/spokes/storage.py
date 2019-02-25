@@ -370,14 +370,6 @@ class StorageSpoke(NormalTUISpoke):
                 data.SetPassphrase(passphrase)
 
     def apply(self):
-        for disk in self.available_disks:
-            if disk.name not in self.selected_disks and \
-               disk in self.storage.devices:
-                self.storage.devicetree.hide(disk)
-            elif disk.name in self.selected_disks and \
-                 disk not in self.storage.devices:
-                self.storage.devicetree.unhide(disk)
-
         self._bootloader_observer.proxy.SetPreferredLocation(BOOTLOADER_LOCATION_MBR)
 
         apply_disk_selection(self.storage, self.selected_disks)
