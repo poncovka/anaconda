@@ -370,13 +370,20 @@ class StorageSpoke(NormalTUISpoke):
                 data.SetPassphrase(passphrase)
 
     def apply(self):
+        """Apply the current configuration."""
+        log.debug("Apply the storage configuration")
+
+        # Force the preferred location of the bootloader.
         self._bootloader_observer.proxy.SetPreferredLocation(BOOTLOADER_LOCATION_MBR)
 
+        # Apply the disk selection.
         apply_disk_selection(self.storage, self.selected_disks)
-        update_storage_config(self.storage.config)
 
     def execute(self):
+        """Execute the current configuration."""
+        log.debug("Execute the storage configuration")
         print(_("Generating updated storage configuration"))
+
         try:
             do_kickstart_storage(self.storage, self.data)
         except (StorageError, KickstartParseError) as e:
