@@ -73,7 +73,7 @@ class StorageInterface(KickstartModuleInterface):
         """
         self.implementation.apply_partitioning(partitioning)
 
-    def GetRootDevice(self):
+    def GetRootDevice(self) -> Str:
         """Get the root device.
 
         :return: a name of the root device
