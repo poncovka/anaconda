@@ -25,8 +25,10 @@ from blivet.flags import flags as blivet_flags
 
 from pyanaconda.anaconda_logging import program_log_lock
 from pyanaconda.core.configuration.anaconda import conf
+from pyanaconda.core.constants import BOOTLOADER_DRIVE_UNSET
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
-from pyanaconda.modules.common.constants.objects import DISK_SELECTION, DISK_INITIALIZATION
+from pyanaconda.modules.common.constants.objects import DISK_SELECTION, DISK_INITIALIZATION, \
+    BOOTLOADER
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.storage.osinstall import InstallerStorage
@@ -155,21 +157,36 @@ def select_all_disks_by_default(storage):
     return selected_disks
 
 
-def reset_storage(storage):
+def reset_storage(storage, reset_exclusive=False):
     """Reset the storage.
 
     FIXME: A temporary workaround for UI,
 
+    Reset the exclusive disks if you want to scan all devices.
+
     :param storage: an instance of the Blivet's storage object
+    :param reset_exclusive: should we reset the list of disks to scan?
     """
     # FIXME: Do we need to set up the disk initialization now?
     # Update the config.
     # update_storage_config(storage.config)
 
+    # Reset the exclusive disks.
+    if reset_exclusive:
+        disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
+        disk_select_proxy.SetExlusiveDisks([])
+
+    # Reset the storage.
     storage_proxy = STORAGE.get_proxy()
     task_path = storage_proxy.ResetWithTask()
     task_object = STORAGE.get_proxy(task_path)
     sync_run_task(task_object)
+
+
+def reset_bootloader():
+    """Reset the bootloader."""
+    bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
+    bootloader_proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
 
 
 def update_storage_config(config):

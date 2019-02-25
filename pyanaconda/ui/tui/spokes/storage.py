@@ -58,7 +58,7 @@ from pyanaconda.core.constants import THREAD_STORAGE, THREAD_STORAGE_WATCHER, \
 from pyanaconda.core.i18n import _, P_, N_, C_
 from pyanaconda.bootloader import BootLoaderError
 from pyanaconda.storage.initialization import initialize_storage, update_storage_config, \
-    reset_storage, select_all_disks_by_default
+    reset_storage, select_all_disks_by_default, reset_bootloader
 
 from pykickstart.base import BaseData
 from pykickstart.errors import KickstartParseError
@@ -408,11 +408,8 @@ class StorageSpoke(NormalTUISpoke):
             # Set the errors.
             self.errors = [str(e)]
 
-            # Forget the exclusive disks. We want to scan everything.
-            self._disk_select_observer.proxy.SetExlusiveDisks([])
-
             # Reset the storage.
-            reset_storage(self.storage)
+            reset_storage(self.storage, reset_exclusive=True)
 
             # Apply the disk selection again.
             apply_disk_selection(self.storage, self.selected_disks)
@@ -425,7 +422,7 @@ class StorageSpoke(NormalTUISpoke):
             self.errors = [str(e)]
 
             # Reset the bootloader.
-            self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
+            reset_bootloader()
 
         except InvalidStorageError as e:
             # FIXME: Process errors and warnings.
