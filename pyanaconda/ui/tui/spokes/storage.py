@@ -393,12 +393,6 @@ class StorageSpoke(NormalTUISpoke):
         apply_disk_selection(self.storage, self.selected_disks)
         update_storage_config(self.storage.config)
 
-        # If autopart is selected we want to remove whatever has been
-        # created/scheduled to make room for autopart.
-        # If custom is selected, we want to leave alone any storage layout the
-        # user may have set up before now.
-        self.storage.config.clear_non_existent = self._auto_part_observer.proxy.Enabled
-
     def execute(self):
         print(_("Generating updated storage configuration"))
         try:

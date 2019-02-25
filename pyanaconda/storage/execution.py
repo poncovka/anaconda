@@ -63,8 +63,12 @@ def do_kickstart_storage(storage, data=None, partitioning=None):
     """
     log.debug("Setting up the storage from the kickstart data.")
 
+    # Get the partitioning executor.
+    if not partitioning:
+        partitioning = get_partitioning_executor(data)
+
     # Clear partitions.
-    clear_partitions(storage)
+    clear_partitions(storage, partitioning.clear_non_existent)
 
     if not any(d for d in storage.disks
                if not d.format.hidden and not d.protected):
@@ -77,9 +81,6 @@ def do_kickstart_storage(storage, data=None, partitioning=None):
     BootloaderExecutor().execute(storage, dry_run=True)
 
     # Execute the partitioning.
-    if not partitioning:
-        partitioning = get_partitioning_executor(data)
-
     partitioning.execute(storage)
 
     # Validate the post-install snapshot requests here.
@@ -103,7 +104,7 @@ def get_partitioning_executor(data):
         return CustomPartitioningExecutor(data)
 
 
-def clear_partitions(storage):
+def clear_partitions(storage, clear_non_existent):
     """Clear partitions.
 
     :param storage: instance of the Blivet's storage object
@@ -114,6 +115,7 @@ def clear_partitions(storage):
     storage.config.clear_part_devices = disk_init_proxy.DevicesToClear
     storage.config.initialize_disks = disk_init_proxy.InitializeLabelsEnabled
     storage.config.zero_mbr = disk_init_proxy.FormatUnrecognizedEnabled
+    storage.storage.config.clear_non_existent = clear_non_existent
 
     disk_label = disk_init_proxy.DefaultDiskLabel
 
@@ -149,6 +151,19 @@ def validate_snapshot_requests(storage, data):
 class PartitioningExecutor(ABC):
     """Base class for partitioning executors."""
 
+    @property
+    def clear_non_existent(self):
+        """Should we remove scheduled/non-existent devices?
+
+        If automatic partitioning is selected we want to remove whatever has
+        been created or scheduled to make room for the partitioning. If custom
+        is selected, we want to leave alone any storage layout the user may
+        have set up before now.
+
+        :return: True or False
+        """
+        return False
+
     @abstractmethod
     def execute(self, storage):
         """Execute the partitioning.
@@ -160,6 +175,11 @@ class PartitioningExecutor(ABC):
 
 class AutomaticPartitioningExecutor(PartitioningExecutor):
     """The executor of the automatic partitioning."""
+
+    @property
+    def clear_non_existent(self):
+        """Should we remove scheduled/non-existent devices?"""
+        return True
 
     def execute(self, storage):
         """Execute the automatic partitioning."""

@@ -418,12 +418,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self.storage.encrypted_autopart = self._auto_part_observer.proxy.Encrypted
         self.storage.encryption_passphrase = self._auto_part_observer.proxy.Passphrase
 
-        # If autopart is selected we want to remove whatever has been
-        # created/scheduled to make room for autopart.
-        # If custom is selected, we want to leave alone any storage layout the
-        # user may have set up before now.
-        self.storage.config.clear_non_existent = self._auto_part_observer.proxy.Enabled
-
     @async_action_nowait
     def execute(self):
         # Spawn storage execution as a separate thread so there's no big delay
