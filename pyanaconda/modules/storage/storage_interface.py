@@ -72,3 +72,10 @@ class StorageInterface(KickstartModuleInterface):
         :param partitioning: a path to a partitioning
         """
         self.implementation.apply_partitioning(partitioning)
+
+    def GetRootDevice(self):
+        """Get the root device.
+
+        :return: a name of the root device
+        """
+        return self.implementation.get_root_device()

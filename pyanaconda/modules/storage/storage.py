@@ -301,6 +301,13 @@ class StorageModule(KickstartModule):
         self.set_storage(storage.copy())
         log.debug("Applied the partitioning from %s.", object_path)
 
+    def get_root_device(self):
+        """Get the root device.
+
+        :return: a name of the root device
+        """
+        return self.storage.root_device.name
+
     def install_with_tasks(self, sysroot):
         """Returns installation tasks of this module.
 
