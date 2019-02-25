@@ -400,7 +400,7 @@ class StorageSpoke(NormalTUISpoke):
             sync_run_task(task_proxy)
 
             # Apply the partitioning.
-            self._storage_proxy.ApplyPartitioning(AUTO_PARTITIONING)
+            self._storage_proxy.ApplyPartitioning(AUTO_PARTITIONING.object_path)
 
         except StorageConfigurationError as e:
             log.error("Storage configuration has failed: %s", e)
