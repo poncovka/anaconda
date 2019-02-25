@@ -402,11 +402,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self._auto_part_observer.proxy.SetEncrypted(self.encrypted)
         self._auto_part_observer.proxy.SetPassphrase(self.passphrase)
 
-        boot_drive = self._bootloader_observer.proxy.Drive
-        if boot_drive and boot_drive not in self.selected_disks:
-            self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
-            self.storage.bootloader.reset()
-
         self._disk_init_observer.proxy.SetInitializeLabelsEnabled(True)
 
         if not self.autopart_missing_passphrase:

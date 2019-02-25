@@ -36,6 +36,7 @@ from blivet.devicefactory import DEVICE_TYPE_MD
 from blivet.devicefactory import DEVICE_TYPE_PARTITION
 from blivet.devicefactory import DEVICE_TYPE_DISK
 from blivet.devicefactory import is_supported_device_type
+from pyanaconda.core.constants import BOOTLOADER_DRIVE_UNSET
 from pykickstart.errors import KickstartError
 
 from pyanaconda.core import util
@@ -43,7 +44,8 @@ from pyanaconda.core.i18n import N_, _, P_
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler, ERROR_RAISE
 from pyanaconda.modules.common.constants.services import NETWORK, STORAGE
-from pyanaconda.modules.common.constants.objects import DISK_SELECTION, NVDIMM, DISK_INITIALIZATION
+from pyanaconda.modules.common.constants.objects import DISK_SELECTION, NVDIMM, \
+    DISK_INITIALIZATION, BOOTLOADER
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP
@@ -566,6 +568,14 @@ def apply_disk_selection(storage, selected_names):
     # Set the drives to clear.
     disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
     disk_init_proxy.SetDrivesToClear(selected_names)
+
+    # Unset the bootloader drive.
+    bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
+    boot_drive = bootloader_proxy.Drive
+
+    if boot_drive and boot_drive not in selected_names:
+        bootloader_proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
+        storage.bootloader.reset()
 
 
 def get_disks_summary(selected_names):

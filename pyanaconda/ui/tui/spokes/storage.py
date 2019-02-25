@@ -379,11 +379,6 @@ class StorageSpoke(NormalTUISpoke):
                 self.storage.devicetree.unhide(disk)
 
         self._bootloader_observer.proxy.SetPreferredLocation(BOOTLOADER_LOCATION_MBR)
-        boot_drive = self._bootloader_observer.proxy.Drive
-
-        if boot_drive and boot_drive not in self.selected_disks:
-            self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
-            self.storage.bootloader.reset()
 
         apply_disk_selection(self.storage, self.selected_disks)
         update_storage_config(self.storage.config)
