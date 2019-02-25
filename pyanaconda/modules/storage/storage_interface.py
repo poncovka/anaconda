@@ -35,7 +35,7 @@ class StorageInterface(KickstartModuleInterface):
         """
         return self.implementation.reset_with_task()
 
-    def GetDeviceData(self, name) -> Structure:
+    def GetDeviceData(self, name: Str) -> Structure:
         """Get the device data.
 
         :param name: a device name
@@ -50,7 +50,7 @@ class StorageInterface(KickstartModuleInterface):
         """
         return self.implementation.get_available_disks()
 
-    def GetCapacity(self, names) -> Str:
+    def GetCapacity(self, names: List[Str]) -> Str:
         """Get total capacity of disks.
 
         :param names: names of disks
@@ -58,7 +58,7 @@ class StorageInterface(KickstartModuleInterface):
         """
         return str(self.implementation.get_capacity(names))
 
-    def GetFreeSpace(self, names) -> Str:
+    def GetFreeSpace(self, names: List[Str]) -> Str:
         """Get total free space on disks.
 
         :param names: names of disks
