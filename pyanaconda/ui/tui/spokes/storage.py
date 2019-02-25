@@ -26,7 +26,11 @@ from pyanaconda.input_checking import get_policy
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, DISK_INITIALIZATION, \
     BOOTLOADER, AUTO_PARTITIONING, MANUAL_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.errors.configuration import StorageConfigurationError, \
+    BootloaderConfigurationError
+from pyanaconda.modules.common.errors.storage import InvalidStorageError
 from pyanaconda.modules.common.structures.storage import DeviceData
+from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.tuiobject import Dialog, PasswordDialog
@@ -92,6 +96,9 @@ class StorageSpoke(NormalTUISpoke):
         super().__init__(data, storage, payload)
 
         self._storage_proxy = STORAGE.get_proxy()
+
+        # FIXME: Get the default partitioning module.
+        self._partitioning_proxy = STORAGE.get_proxy(AUTO_PARTITIONING)
 
         self._bootloader_observer = STORAGE.get_observer(BOOTLOADER)
         self._bootloader_observer.connect()
@@ -382,40 +389,50 @@ class StorageSpoke(NormalTUISpoke):
     def execute(self):
         """Execute the current configuration."""
         log.debug("Execute the storage configuration")
-        print(_("Generating updated storage configuration"))
 
         try:
-            do_kickstart_storage(self.storage, self.data)
-        except (StorageError, KickstartParseError) as e:
-            log.error("storage configuration failed: %s", e)
+            print(_("Generating updated storage configuration"))
+            task_path = self._partitioning_proxy.ConfigureWithTask()
+            task_proxy = STORAGE.get_proxy(task_path)
+            sync_run_task(task_proxy)
+
+            print(_("Checking storage configuration..."))
+            task_path = self._partitioning_proxy.ValidateWithTask()
+            task_proxy = STORAGE.get_proxy(task_path)
+            sync_run_task(task_proxy)
+
+            # Apply the partitioning.
+            self._storage_proxy.ApplyPartitioning(AUTO_PARTITIONING)
+
+        except StorageConfigurationError as e:
+            log.error("Storage configuration has failed: %s", e)
             print(_("storage configuration failed: %s") % e)
+            # Set the errors.
             self.errors = [str(e)]
 
-            # Prepare for reset.
-            self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
-            self._disk_init_observer.proxy.SetInitializationMode(CLEAR_PARTITIONS_ALL)
-            self._disk_init_observer.proxy.SetInitializeLabelsEnabled(False)
-            self.storage.autopart_type = self._auto_part_observer.proxy.Type
+            # Forget the exclusive disks. We want to scan everything.
+            self._disk_select_observer.proxy.SetExlusiveDisks([])
 
-            # The reset also calls self.storage.config.update().
+            # Reset the storage.
             reset_storage(self.storage)
 
-            # Now set data back to the user's specified config.
+            # Apply the disk selection again.
             apply_disk_selection(self.storage, self.selected_disks)
-        except BootLoaderError as e:
-            log.error("BootLoader setup failed: %s", e)
+
+        except BootloaderConfigurationError as e:
+            log.error("BootLoader configuration has failed: %s", e)
             print(_("storage configuration failed: %s") % e)
+
+            # Set the errors.
             self.errors = [str(e)]
+
+            # Reset the bootloader.
             self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
-        else:
-            print(_("Checking storage configuration..."))
-            report = storage_checker.check(self.storage)
-            print("\n".join(report.all_errors))
-            report.log(log)
-            self.errors = report.errors
-            self.warnings = report.warnings
+
+        except InvalidStorageError as e:
+            # FIXME: Process errors and warnings.
+            self.errors = [str(e)]
         finally:
-            resetCustomStorageData(self.data)
             self._ready = True
 
     def initialize(self):
