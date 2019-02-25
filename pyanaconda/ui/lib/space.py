@@ -19,8 +19,8 @@
 import os
 from blivet.size import Size
 from pyanaconda.core import util
-
 from pyanaconda.core.i18n import _
+from pyanaconda.modules.common.constants.services import STORAGE
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -48,11 +48,31 @@ class FileSystemSpaceChecker(object):
 
     def _calculate_free_space(self):
         """Calculate the available space."""
-        return Size(self.storage.file_system_free_space)
+        storage_proxy = STORAGE.get_proxy()
+        free_space = storage_proxy.GetFileSystemFreeSpace(["/", "/usr"])
+        return Size(free_space)
 
     def _calculate_needed_space(self):
         """Calculate the needed space."""
         return self.payload.spaceRequired
+
+    def _calculate_deficit(self, needed):
+        """Calculate the deficit.
+
+        Return None if the deficit cannot be calculated.
+
+        :param needed: a needed space
+        :return: a deficit size or None
+        """
+        storage_proxy = STORAGE.get_proxy()
+        device = storage_proxy.GetRootDevice()
+
+        if not device:
+            return None
+
+        current = storage_proxy.GetDeviceData(device)["size"]
+        required = storage_proxy.GetRequiredDeviceSize(str(needed))
+        return Size(required) - Size(current)
 
     def check(self):
         """Check configured storage against software selections.  When this
@@ -67,18 +87,17 @@ class FileSystemSpaceChecker(object):
         """
         free = self._calculate_free_space()
         needed = self._calculate_needed_space()
-        log.info("fs space: %s  needed: %s", free, needed)
+        deficit = self._calculate_deficit(needed)
+        log.info("fs space: %s  needed: %s  deficit: %s", free, needed, deficit)
 
         if free > needed:
             result = True
             message = ""
-        elif not self.storage.root_device:
+        elif not deficit:
             result = False
             message = _("Not enough space in file systems for the current software selection.")
         else:
             result = False
-            required = self.payload.requiredDeviceSize(self.storage.root_device.format)
-            deficit = required - self.storage.root_device.size
             message = _("Not enough space in file systems for the current software selection. "
                         "An additional {} is needed.").format(deficit)
 
@@ -97,3 +116,7 @@ class DirInstallSpaceChecker(FileSystemSpaceChecker):
         """Calculate the available space."""
         stat = os.statvfs(util.getSysroot())
         return Size(stat.f_bsize * stat.f_bfree)
+
+    def _calculate_deficit(self, needed):
+        """Calculate the deficit."""
+        return None

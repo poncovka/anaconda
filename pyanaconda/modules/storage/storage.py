@@ -293,7 +293,7 @@ class StorageModule(KickstartModule):
         :param required_space: a required space
         :return: a required device size
         """
-        return get_required_device_size(required_space)
+        return get_required_device_size(Size(required_space))
 
     def apply_partitioning(self, object_path):
         """Apply a partitioning.
