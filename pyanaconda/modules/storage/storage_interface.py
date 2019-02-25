@@ -58,13 +58,23 @@ class StorageInterface(KickstartModuleInterface):
         """
         return str(self.implementation.get_capacity(names))
 
-    def GetFreeSpace(self, names: List[Str]) -> Str:
+    def GetDiskFreeSpace(self, names: List[Str]) -> Str:
         """Get total free space on disks.
 
         :param names: names of disks
         :return: a total size
         """
-        return str(self.implementation.get_free_space(names))
+        return str(self.implementation.get_disk_free_space(names))
+
+    def GetFileSystemFreeSpace(self, names: List[Str]):
+        """Get the total free space on the file system.
+
+        For example: ["/", "/usr"]
+
+        :param names: names of mount points
+        :return: a total size
+        """
+        return str(self.implementation.get_file_system_free_space(names))
 
     def ApplyPartitioning(self, partitioning: ObjPath):
         """Apply the partitioning.

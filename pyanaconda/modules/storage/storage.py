@@ -268,17 +268,24 @@ class StorageModule(KickstartModule):
         """
         return sum((disk.size for disk in map(self.get_device_by_name, names)), Size(0))
 
-    def get_free_space(self, names):
+    def get_disk_free_space(self, names):
         """Get total free space on disks.
 
         :param names: names of disks
         :return: a total size
         """
-        # Get the snapshot of the free space.
-        snapshot = self.storage.get_free_space(disks=map(self.get_device_by_name, names))
+        disks = list(map(self.get_device_by_name, names))
+        return self.storage.get_disk_free_space(disks)
 
-        # Calculate the total free space from the snapshot.
-        return sum((disk_free for disk_free, fs_free in snapshot.values()), Size(0))
+    def get_file_system_free_space(self, names):
+        """Get the total free space on the file system.
+
+        For example: ["/", "/usr"]
+
+        :param names: names of mount points
+        :return: a total size
+        """
+        return self.storage.get_file_system_free_space(names)
 
     def apply_partitioning(self, object_path):
         """Apply a partitioning.

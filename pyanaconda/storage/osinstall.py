@@ -321,14 +321,17 @@ class InstallerStorage(Blivet):
     def root_device(self):
         return self.fsset.root_device
 
-    @property
-    def file_system_free_space(self):
-        """ Combined free space in / and /usr as :class:`blivet.size.Size`. """
-        mountpoints = ["/", "/usr"]
+    def get_file_system_free_space(self, mount_points=("/", "/usr")):
+        """Get free space on the given mount points.
+
+        :param mount_points: a list of mount points
+        :return: a total size
+        """
         free = Size(0)
         btrfs_volumes = []
-        for mountpoint in mountpoints:
-            device = self.mountpoints.get(mountpoint)
+
+        for mount_point in mount_points:
+            device = self.mountpoints.get(mount_point)
             if not device:
                 continue
 
@@ -346,6 +349,14 @@ class InstallerStorage(Blivet):
                 free += device.format.free_space_estimate(device.size)
 
         return free
+
+    def get_disk_free_space(self, disks=None):
+        """Get free space on the given disks."""
+        # Get the dictionary of free spaces for each disk.
+        snapshot = super().get_free_space(disks)
+
+        # Calculate the total free space.
+        return sum((disk_free for disk_free, fs_free in snapshot.values()), Size(0))
 
     @property
     def free_space_snapshot(self):

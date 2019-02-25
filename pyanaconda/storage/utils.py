@@ -597,11 +597,11 @@ def get_disks_summary(selected_names):
 
     count = len(selected_names)
     capacity = storage_proxy.GetCapacity(selected_names)
-    free_space = storage_proxy.GetFreeSpace(selected_names)
+    free_space = storage_proxy.GetDiskFreeSpace(selected_names)
 
     return P_(
-        "%(count)d disk selected; %(capacity)s capacity; %(free)s free",
-        "%(count)d disks selected; %(capacity)s capacity; %(free)s free",
+        "{count} disk selected; {capacity} capacity; {free} free",
+        "{count} disks selected; {capacity} capacity; {free} free",
         count).format(count=count, capacity=capacity, free=free_space)
 
 
