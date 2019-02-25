@@ -227,7 +227,7 @@ class StorageModule(KickstartModule):
         data = DeviceData()
         data.name = device.name
         data.model = device.model
-        data.size = device.size
+        data.size = str(device.size)
         data.is_disk = device.is_disk
 
         # Add additional attributes for multipath, iSCSI or FCoE.
