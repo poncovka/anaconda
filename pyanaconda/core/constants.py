@@ -382,3 +382,8 @@ MOUNT_POINT_FORMAT = "format"
 MOUNT_POINT_REFORMAT = "reformat"
 MOUNT_POINT_FORMAT_OPTIONS = "format-options"
 MOUNT_POINT_MOUNT_OPTIONS = "mount-options"
+
+# Storage-related messages.
+NO_DISKS_DETECTED = N_("No disks detected. Please shut down the computer, connect at least one "
+                       "disk, and restart to complete installation.")
+NO_DISKS_SELECTED = N_("No disks selected; please select at least one disk to install to.")

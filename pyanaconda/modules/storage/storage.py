@@ -18,6 +18,9 @@
 # Red Hat, Inc.
 #
 from blivet import arch
+from blivet.devices import MultipathDevice, iScsiDiskDevice, FcoeDiskDevice, DASDDevice, \
+    ZFCPDiskDevice
+from blivet.size import Size
 
 from pyanaconda.core.signal import Signal
 from pyanaconda.dbus import DBus
@@ -203,6 +206,14 @@ class StorageModule(KickstartModule):
         path = self.publish_task(STORAGE.namespace, task)
         return path
 
+    def get_device_by_name(self, name):
+        """Find a device by its name.
+
+        :param name: a name of the device
+        :return: an instance of the Blivet's device
+        """
+        return self.storage.devicetree.get_device_by_name(name, hidden=True)
+
     def get_device_data(self, name):
         """Get the device data.
 
@@ -210,13 +221,36 @@ class StorageModule(KickstartModule):
         :return: an instance of DeviceData
         """
         # Find the device.
-        device = self.storage.devicetree.get_device_by_name(name, hidden=True)
+        device = self.get_device_by_name(name)
 
-        # Collect the data.
+        # Collect the device data.
         data = DeviceData()
         data.name = device.name
         data.model = device.model
         data.size = device.size
+        data.is_disk = device.is_disk
+
+        # Add additional attributes for multipath, iSCSI or FCoE.
+        if isinstance(device, (MultipathDevice, iScsiDiskDevice, FcoeDiskDevice)):
+            if hasattr(device, "wwn"):
+                data.add_attr("wwn", device.wwn)
+
+        # Add additional attributes for DASD.
+        if isinstance(device, DASDDevice):
+            if hasattr(device, "busid"):
+                data.add_attr("busid", device.busid)
+
+        # Add additional attribute for ZFCP.
+        if isinstance(device, ZFCPDiskDevice):
+            if hasattr(device, "fcp_lun"):
+                data.add_attr("fcp_lun", device.fcp_lun)
+
+            if hasattr(device, "wwpn"):
+                data.add_attr("wwpn", device.wwpn)
+
+            if hasattr(device, "hba_id"):
+                data.add_attr("hba_id", device.hba_id)
+
         return data
 
     def get_available_disks(self):
@@ -225,6 +259,26 @@ class StorageModule(KickstartModule):
         :return: a list of device names
         """
         return [d.name for d in get_available_disks(self.storage.devicetree)]
+
+    def get_capacity(self, names):
+        """Get total capacity of disks.
+
+        :param names: names of disks
+        :return: a total capacity
+        """
+        return sum((disk.size for disk in map(self.get_device_by_name, names)), Size(0))
+
+    def get_free_space(self, names):
+        """Get total free space on disks.
+
+        :param names: names of disks
+        :return: a total size
+        """
+        # Get the snapshot of the free space.
+        snapshot = self.storage.get_free_space(disks=map(self.get_device_by_name, names))
+
+        # Calculate the total free space from the snapshot.
+        return sum((disk_free for disk_free, fs_free in snapshot.values()), Size(0))
 
     def apply_partitioning(self, object_path):
         """Apply a partitioning.

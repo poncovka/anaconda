@@ -30,6 +30,8 @@ class DeviceData(object):
         self._name = ""
         self._model = ""
         self._size = ""
+        self._is_disk = False
+        self._attrs = {}
 
     @property
     def name(self) -> Str:
@@ -44,7 +46,7 @@ class DeviceData(object):
         self._name = name
 
     @property
-    def model(self):
+    def model(self) -> Str:
         """A model of the device.
 
         :return: a model name
@@ -66,3 +68,35 @@ class DeviceData(object):
     @size.setter
     def size(self, size: Str):
         self._size = size
+
+    @property
+    def is_disk(self) -> Bool:
+        """Is this device a disk?
+
+        :return: True or False
+        """
+        return self._is_disk
+
+    @is_disk.setter
+    def is_disk(self, is_disk: Bool):
+        self._is_disk = is_disk
+
+    @property
+    def attrs(self) -> Dict[Str, Str]:
+        """Additional attributes.
+
+        :return: a dictionary of attributes
+        """
+        return self._attrs
+
+    @attrs.setter
+    def attrs(self, attrs: Dict[Str, Str]):
+        self._attrs = attrs
+
+    def add_attr(self, name, value):
+        """Add an additional attribute.
+
+        :param name: a name of the attribute
+        :param value: a value of the attribute
+        """
+        self._attrs[name] = str(value)

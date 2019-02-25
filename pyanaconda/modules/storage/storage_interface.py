@@ -50,6 +50,22 @@ class StorageInterface(KickstartModuleInterface):
         """
         return self.implementation.get_available_disks()
 
+    def GetCapacity(self, names) -> Str:
+        """Get total capacity of disks.
+
+        :param names: names of disks
+        :return: a total capacity
+        """
+        return str(self.implementation.get_capacity(names))
+
+    def GetFreeSpace(self, names) -> Str:
+        """Get total free space on disks.
+
+        :param names: names of disks
+        :return: a total size
+        """
+        return str(self.implementation.get_free_space(names))
+
     def ApplyPartitioning(self, partitioning: ObjPath):
         """Apply the partitioning.
 

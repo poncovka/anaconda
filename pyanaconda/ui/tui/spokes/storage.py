@@ -19,16 +19,19 @@
 
 from collections import OrderedDict
 
+from pyanaconda.dbus.structure import apply_structure
+
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 from pyanaconda.input_checking import get_policy
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, DISK_INITIALIZATION, \
     BOOTLOADER, AUTO_PARTITIONING, MANUAL_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.tuiobject import Dialog, PasswordDialog
 from pyanaconda.storage.utils import get_supported_filesystems, get_supported_autopart_choices, \
-    get_available_disks, filter_disks_by_names, apply_disk_selection, check_disk_selection
+    filter_disks_by_names, apply_disk_selection, check_disk_selection, get_disks_summary
 from pyanaconda.storage.checker import storage_checker
 from pyanaconda.storage.format_dasd import DasdFormatting
 
@@ -46,7 +49,8 @@ from pyanaconda.core.constants import THREAD_STORAGE, THREAD_STORAGE_WATCHER, \
     DEFAULT_AUTOPART_TYPE, PAYLOAD_STATUS_PROBING_STORAGE, CLEAR_PARTITIONS_ALL, \
     CLEAR_PARTITIONS_LINUX, CLEAR_PARTITIONS_NONE, CLEAR_PARTITIONS_DEFAULT, \
     BOOTLOADER_LOCATION_MBR, BOOTLOADER_DRIVE_UNSET, AUTOPART_TYPE_DEFAULT, SecretType, \
-    MOUNT_POINT_REFORMAT, MOUNT_POINT_PATH, MOUNT_POINT_DEVICE, MOUNT_POINT_FORMAT
+    MOUNT_POINT_REFORMAT, MOUNT_POINT_PATH, MOUNT_POINT_DEVICE, MOUNT_POINT_FORMAT, \
+    NO_DISKS_DETECTED, NO_DISKS_SELECTED
 from pyanaconda.core.i18n import _, P_, N_, C_
 from pyanaconda.bootloader import BootLoaderError
 from pyanaconda.storage.initialization import initialize_storage, update_storage_config, \
@@ -88,6 +92,8 @@ class StorageSpoke(NormalTUISpoke):
     def __init__(self, data, storage, payload):
         super().__init__(data, storage, payload)
 
+        self._storage_proxy = STORAGE.get_proxy()
+
         self._bootloader_observer = STORAGE.get_observer(BOOTLOADER)
         self._bootloader_observer.connect()
 
@@ -101,17 +107,16 @@ class StorageSpoke(NormalTUISpoke):
         self._auto_part_observer.connect()
 
         self.selected_disks = self._disk_select_observer.proxy.SelectedDisks
+        self.available_disks = []
 
         self.title = N_("Installation Destination")
         self._ready = False
         self._container = None
         self.select_all = False
-        self.autopart = None
 
         # This list gets set up once in initialize and should not be modified
         # except perhaps to add advanced devices. It will remain the full list
         # of disks that can be included in the install.
-        self.disks = []
         self.errors = []
         self.warnings = []
 
@@ -155,48 +160,21 @@ class StorageSpoke(NormalTUISpoke):
         else:
             return _("Custom partitioning selected")
 
-    def _update_disk_list(self, disk):
-        """ Update self.selected_disks based on the selection."""
-
-        name = disk.name
-
-        # if the disk isn't already selected, select it.
-        if name not in self.selected_disks:
-            self.selected_disks.append(name)
-        # If the disk is already selected, deselect it.
-        elif name in self.selected_disks:
-            self.selected_disks.remove(name)
-
-    def _update_summary(self):
-        """ Update the summary based on the UI. """
-        count = 0
-        capacity = 0
-        free = Size(0)
-
-        # pass in our disk list so hidden disks' free space is available
-        free_space = self.storage.get_free_space(disks=self.disks)
-        selected = filter_disks_by_names(self.disks, self.selected_disks)
-
-        for disk in selected:
-            capacity += disk.size
-            free += free_space[disk.name][0]
-            count += 1
-
-        summary = (P_(("%d disk selected; %s capacity; %s free ..."),
-                      ("%d disks selected; %s capacity; %s free ..."),
-                      count) % (count, str(Size(capacity)), free))
-
-        if len(self.disks) == 0:
-            summary = _("No disks detected.  Please shut down the computer, "
-                        "connect at least one disk, and restart to complete installation.")
-        elif count == 0:
-            summary = (_("No disks selected; please select at least one disk to install to."))
+    def _get_disk_summary(self):
+        """Get the disk summary based on the UI."""
+        # Summarize the disk selection.
+        if not self.available_disks:
+            summary = _(NO_DISKS_DETECTED)
+        elif not self.selected_disks:
+            summary = (_(NO_DISKS_SELECTED))
+        else:
+            summary = get_disks_summary(self.selected_disks)
 
         # Append storage errors to the summary
         if self.errors:
-            summary = summary + "\n" + "\n".join(self.errors)
+            summary += "\n" + "\n".join(self.errors)
         elif self.warnings:
-            summary = summary + "\n" + "\n".join(self.warnings)
+            summary += "\n" + "\n".join(self.warnings)
 
         return summary
 
@@ -208,78 +186,57 @@ class StorageSpoke(NormalTUISpoke):
         print(_(PAYLOAD_STATUS_PROBING_STORAGE))
         threadMgr.wait(THREAD_STORAGE_WATCHER)
 
-        if not any(d in self.storage.disks for d in self.disks):
-            # something happened to self.storage (probably reset), need to
-            # reinitialize the list of disks
-            self.update_disks()
-
-        # synchronize our local data store with the global ksdata
-        # Commment out because there is no way to select a disk right
-        # now without putting it in ksdata.  Seems wrong?
-        # self.selected_disks = self.data.ignoredisk.onlyuse[:]
-        self.autopart = self._auto_part_observer.proxy.Enabled
+        # reinitialize the list of disks
+        self.update_disks()
 
         self._container = ListColumnContainer(1, spacing=1)
 
-        message = self._update_summary()
-
         # loop through the disks and present them.
-        for disk in self.disks:
-            disk_info = self._format_disk_info(disk)
-            c = CheckboxWidget(title=disk_info, completed=(disk.name in self.selected_disks))
-            self._container.add(c, self._update_disk_list_callback, disk)
+        for disk_name in self.available_disks:
+            disk_info = self._format_disk_info(disk_name)
+            c = CheckboxWidget(title=disk_info, completed=(disk_name in self.selected_disks))
+            self._container.add(c, self._update_disk_list_callback, disk_name)
 
         # if we have more than one disk, present an option to just
         # select all disks
-        if len(self.disks) > 1:
+        if self.available_disks:
             c = CheckboxWidget(title=_("Select all"), completed=self.select_all)
             self._container.add(c, self._select_all_disks_callback)
 
         self.window.add_with_separator(self._container)
-        self.window.add_with_separator(TextWidget(message))
+        self.window.add_with_separator(TextWidget(self._get_disk_summary()))
 
     def _select_all_disks_callback(self, data):
         """ Mark all disks as selected for use in partitioning. """
         self.select_all = True
-        for disk in self.disks:
-            if disk.name not in self.selected_disks:
-                self._update_disk_list(disk)
+        for disk_name in self.available_disks:
+            if disk_name not in self.selected_disks:
+                self.selected_disks.append(disk_name)
 
     def _update_disk_list_callback(self, data):
-        disk = data
+        disk_name = data
         self.select_all = False
-        self._update_disk_list(disk)
 
-    def _format_disk_info(self, disk):
+        if disk_name not in self.selected_disks:
+            self.selected_disks.append(disk_name)
+        else:
+            self.selected_disks.remove(disk_name)
+
+    def _format_disk_info(self, disk_name):
         """ Some specialized disks are difficult to identify in the storage
             spoke, so add and return extra identifying information about them.
 
             Since this is going to be ugly to do within the confines of the
             CheckboxWidget, pre-format the display string right here.
         """
-        # show this info for all disks
-        format_str = "%s: %s (%s)" % (disk.model, disk.size, disk.name)
+        # Get the disk data.
+        disk_data = apply_structure(self._storage_proxy.GetDeviceData(disk_name), DeviceData())
 
-        disk_attrs = []
-        # now check for/add info about special disks
-        if (isinstance(disk, MultipathDevice) or
-                isinstance(disk, iScsiDiskDevice) or
-                isinstance(disk, FcoeDiskDevice)):
-            if hasattr(disk, "wwn"):
-                disk_attrs.append(disk.wwn)
-        elif isinstance(disk, DASDDevice):
-            if hasattr(disk, "busid"):
-                disk_attrs.append(disk.busid)
-        elif isinstance(disk, ZFCPDiskDevice):
-            if hasattr(disk, "fcp_lun"):
-                disk_attrs.append(disk.fcp_lun)
-            if hasattr(disk, "wwpn"):
-                disk_attrs.append(disk.wwpn)
-            if hasattr(disk, "hba_id"):
-                disk_attrs.append(disk.hba_id)
+        # Show this info for all disks
+        format_str = "%s: %s (%s)" % (disk_data.model, disk_data.size, disk_data.name)
 
         # now append all additional attributes to our string
-        for attr in disk_attrs:
+        for attr in disk_data.attrs.values():
             format_str += ", %s" % attr
 
         return format_str
@@ -298,12 +255,9 @@ class StorageSpoke(NormalTUISpoke):
                         # Wait for storage.
                         threadMgr.wait(THREAD_STORAGE)
 
-                        # Get selected disks.
-                        disks = filter_disks_by_names(self.disks, self.selected_disks)
-
                         # Check if some of the disks should be formatted.
                         dasd_formatting = DasdFormatting()
-                        dasd_formatting.search_disks(disks)
+                        dasd_formatting.search_disks(self.selected_disks)
 
                         if dasd_formatting.should_run():
                             # We want to apply current selection before running dasdfmt to
@@ -417,12 +371,11 @@ class StorageSpoke(NormalTUISpoke):
                 data.SetPassphrase(passphrase)
 
     def apply(self):
-        self.autopart = self._auto_part_observer.proxy.Enabled
-
-        if self.autopart and self._auto_part_observer.proxy.Type == AUTOPART_TYPE_DEFAULT:
+        if self._auto_part_observer.proxy.Enabled \
+                and self._auto_part_observer.proxy.Type == AUTOPART_TYPE_DEFAULT:
             self._auto_part_observer.proxy.SetType(AUTOPART_TYPE_LVM)
 
-        for disk in self.disks:
+        for disk in self.available_disks:
             if disk.name not in self.selected_disks and \
                disk in self.storage.devices:
                 self.storage.devicetree.hide(disk)
@@ -522,11 +475,14 @@ class StorageSpoke(NormalTUISpoke):
 
     def update_disks(self):
         threadMgr.wait(THREAD_STORAGE)
-        self.disks = get_available_disks(self.storage.devicetree)
+        self.available_disks = self._storage_proxy.GetAvailableDisks()
 
         # if only one disk is available, go ahead and mark it as selected
-        if len(self.disks) == 1:
-            self._update_disk_list(self.disks[0])
+        if len(self.available_disks) == 1:
+            disk_name = self.available_disks[0]
+
+            if disk_name not in self.selected_disks:
+                self.selected_disks.append(disk_name)
 
 
 class PartTypeSpoke(NormalTUISpoke):

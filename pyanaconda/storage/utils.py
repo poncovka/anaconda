@@ -568,6 +568,24 @@ def apply_disk_selection(storage, selected_names):
     disk_init_proxy.SetDrivesToClear(selected_names)
 
 
+def get_disks_summary(selected_names):
+    """Get a summary of the selected disks
+
+    :param selected_names: a list of selected disk names
+    :return: a string with a summary
+    """
+    storage_proxy = STORAGE.get_proxy()
+
+    count = len(selected_names)
+    capacity = storage_proxy.GetCapacity(selected_names)
+    free_space = storage_proxy.GetFreeSpace(selected_names)
+
+    return P_(
+        "%(count)d disk selected; %(capacity)s capacity; %(free)s free",
+        "%(count)d disks selected; %(capacity)s capacity; %(free)s free",
+        count).format(count=count, capacity=capacity, free=free_space)
+
+
 def check_disk_selection(storage, selected_disks):
     """Return a list of errors related to a proposed disk selection.
 

@@ -868,7 +868,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         elif not anySelected:
             # There may be an underlying reason that no disks were selected, give them priority.
             if not self._check_problems():
-                self.set_warning(_("No disks selected; please select at least one disk to install to."))
+                self.set_warning()
         else:
             self.clear_info()
 

@@ -113,6 +113,7 @@ def clear_partitions(storage):
     storage.config.clear_part_disks = disk_init_proxy.DrivesToClear
     storage.config.clear_part_devices = disk_init_proxy.DevicesToClear
     storage.config.initialize_disks = disk_init_proxy.InitializeLabelsEnabled
+    storage.config.zero_mbr = disk_init_proxy.FormatUnrecognizedEnabled
 
     disk_label = disk_init_proxy.DefaultDiskLabel
 
