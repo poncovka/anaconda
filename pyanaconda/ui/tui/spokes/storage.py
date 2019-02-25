@@ -446,9 +446,6 @@ class StorageSpoke(NormalTUISpoke):
         threadMgr.add(AnacondaThread(name=THREAD_STORAGE_WATCHER,
                                      target=self._initialize))
 
-        self.selected_disks = self._disk_select_observer.proxy.SelectedDisks
-        # Probably need something here to track which disks are selected?
-
     def _initialize(self):
         """
         Secondary initialize so wait for the storage thread to complete before
