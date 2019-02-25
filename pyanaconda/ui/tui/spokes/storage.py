@@ -132,9 +132,7 @@ class StorageSpoke(NormalTUISpoke):
 
     @property
     def completed(self):
-        retval = bool(self.storage.root_device and not self.errors)
-
-        return retval
+        return self._storage_proxy.GetRootDevice() and not self.errors
 
     @property
     def ready(self):
@@ -153,7 +151,7 @@ class StorageSpoke(NormalTUISpoke):
     @property
     def status(self):
         """ A short string describing the current status of storage setup. """
-        if flags.automatedInstall and not self.storage.root_device:
+        if flags.automatedInstall and not self._storage_proxy.GetRootDevice():
             return _("Kickstart insufficient")
         elif not self._disk_select_observer.proxy.SelectedDisks:
             return _("No disks selected")
