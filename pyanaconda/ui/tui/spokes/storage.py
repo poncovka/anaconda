@@ -46,9 +46,9 @@ from pyanaconda.storage.execution import do_kickstart_storage
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import THREAD_STORAGE, THREAD_STORAGE_WATCHER, \
-    DEFAULT_AUTOPART_TYPE, PAYLOAD_STATUS_PROBING_STORAGE, CLEAR_PARTITIONS_ALL, \
+    PAYLOAD_STATUS_PROBING_STORAGE, CLEAR_PARTITIONS_ALL, \
     CLEAR_PARTITIONS_LINUX, CLEAR_PARTITIONS_NONE, CLEAR_PARTITIONS_DEFAULT, \
-    BOOTLOADER_LOCATION_MBR, BOOTLOADER_DRIVE_UNSET, AUTOPART_TYPE_DEFAULT, SecretType, \
+    BOOTLOADER_LOCATION_MBR, BOOTLOADER_DRIVE_UNSET, SecretType, \
     MOUNT_POINT_REFORMAT, MOUNT_POINT_PATH, MOUNT_POINT_DEVICE, MOUNT_POINT_FORMAT, \
     NO_DISKS_DETECTED, NO_DISKS_SELECTED
 from pyanaconda.core.i18n import _, P_, N_, C_
@@ -57,7 +57,6 @@ from pyanaconda.storage.initialization import initialize_storage, update_storage
     reset_storage, select_all_disks_by_default
 
 from pykickstart.base import BaseData
-from pykickstart.constants import AUTOPART_TYPE_LVM
 from pykickstart.errors import KickstartParseError
 
 from simpleline.render.containers import ListColumnContainer
@@ -371,10 +370,6 @@ class StorageSpoke(NormalTUISpoke):
                 data.SetPassphrase(passphrase)
 
     def apply(self):
-        if self._auto_part_observer.proxy.Enabled \
-                and self._auto_part_observer.proxy.Type == AUTOPART_TYPE_DEFAULT:
-            self._auto_part_observer.proxy.SetType(AUTOPART_TYPE_LVM)
-
         for disk in self.available_disks:
             if disk.name not in self.selected_disks and \
                disk in self.storage.devices:
@@ -621,9 +616,6 @@ class PartitionSchemeSpoke(NormalTUISpoke):
 
         self._auto_part_proxy = STORAGE.get_proxy(AUTO_PARTITIONING)
         pre_select = self._auto_part_proxy.Type
-
-        if pre_select == AUTOPART_TYPE_DEFAULT:
-            pre_select = DEFAULT_AUTOPART_TYPE
 
         supported_choices = get_supported_autopart_choices()
         if supported_choices:

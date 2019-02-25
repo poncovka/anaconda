@@ -122,8 +122,9 @@ class AutoPartitioningModule(PartitioningModule):
         data.autopart.autopart = self.enabled
         data.autopart.fstype = self.fstype
 
-        if self.type != AutoPartitioningType.DEFAULT:
-            data.autopart.type = self.type.value
+        # Use the actual value of the type here.
+        if self._type != AutoPartitioningType.DEFAULT:
+            data.autopart.type = self._type.value
 
         data.autopart.nohome = self.nohome
         data.autopart.noboot = self.noboot
@@ -157,6 +158,9 @@ class AutoPartitioningModule(PartitioningModule):
     @property
     def type(self):
         """Type of a filesystem used on the partitions."""
+        if self._type is AutoPartitioningType.DEFAULT:
+            return AutoPartitioningType.LVM
+
         return self._type
 
     def set_type(self, scheme):

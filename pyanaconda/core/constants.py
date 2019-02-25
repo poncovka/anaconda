@@ -245,10 +245,6 @@ CMDLINE_FILES = [
 CMDLINE_APPEND = ["modprobe.blacklist", "ifname", "ip"]
 CMDLINE_LIST = ["addrepo"]
 
-# The default autopart type is lvm.
-# FIXME: Move this constant to the storage module.
-DEFAULT_AUTOPART_TYPE = AUTOPART_TYPE_LVM
-
 # Is the default autopart type selected?
 AUTOPART_TYPE_DEFAULT = -1
 

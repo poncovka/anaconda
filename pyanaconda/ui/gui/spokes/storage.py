@@ -664,9 +664,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self.autopart = self._auto_part_observer.proxy.Enabled
 
         self.autoPartType = self._auto_part_observer.proxy.Type
-        if self.autoPartType == AUTOPART_TYPE_DEFAULT:
-            self.autoPartType = AUTOPART_TYPE_LVM
-
         self.encrypted = self._auto_part_observer.proxy.Encrypted
         self.passphrase = self._auto_part_observer.proxy.Passphrase
 
