@@ -21,6 +21,7 @@ from glob import glob
 
 import blivet
 from blivet.devices import NetworkStorageDevice
+from blivet.fcoe import fcoe
 from blivet.formats.disklabel import DiskLabel
 from blivet.size import Size
 from ordered_set import OrderedSet
@@ -33,8 +34,6 @@ from pyanaconda.core import util
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.i18n import N_, _
 from pyanaconda.flags import flags
-from pyanaconda.modules.common.constants.objects import FCOE
-from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.nm import nm_device_hwaddress
 
 log = get_module_logger(__name__)
@@ -699,8 +698,6 @@ class BootLoader(object):
 
     def _set_storage_boot_args(self, storage):
         """Set the storage boot args."""
-        fcoe_proxy = STORAGE.get_proxy(FCOE)
-
         # FIPS
         boot_device = storage.mountpoints.get("/boot")
         if flags.cmdline.get("fips") == "1" and boot_device:
@@ -748,10 +745,7 @@ class BootLoader(object):
                 if device != dep and not device.depends_on(dep):
                     continue
 
-                if isinstance(dep, blivet.devices.FcoeDiskDevice):
-                    setup_args = fcoe_proxy.GetDracutArguments(dep.nic)
-                else:
-                    setup_args = dep.dracut_setup_args()
+                setup_args = dep.dracut_setup_args()
 
                 if not setup_args:
                     continue
@@ -774,7 +768,7 @@ class BootLoader(object):
         # (in Network.dracutSetupArgs).
         # Dracut needs the explicit ifname= because biosdevname
         # fails to rename the iface (because of BFS booting from it).
-        for nic in fcoe_proxy.GetNics():
+        for nic in [nic for nic, dcb, auto_vlan in fcoe.nics]:
             try:
                 hwaddr = nm_device_hwaddress(nic)
             except ValueError:
