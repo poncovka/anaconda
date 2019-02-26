@@ -110,6 +110,7 @@ class StorageModule(KickstartModule):
         self._add_partitioning_module(CUSTOM_PARTITIONING.object_path, self._custom_part_module)
 
         # Connect modules to signals.
+        self.storage_changed.connect(self._disk_init_module.on_storage_changed)
         self.storage_changed.connect(self._snapshot_module.on_storage_changed)
 
     def _add_module(self, storage_module):
