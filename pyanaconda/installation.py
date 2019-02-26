@@ -27,7 +27,6 @@ from pyanaconda.modules.common.constants.objects import BOOTLOADER, AUTO_PARTITI
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.modules.storage.snapshot.create import SnapshotCreateTask
-from pyanaconda.storage.installation import turn_on_filesystems, write_storage_configuration
 from pyanaconda.bootloader.installation import write_boot_loader
 from pyanaconda.payload.livepayload import LiveImagePayload
 from pyanaconda.progress import progress_message, progress_step, progress_complete, progress_init
@@ -129,20 +128,18 @@ def doConfiguration(storage, payload, ksdata):
     generate_initramfs = TaskQueue("Initramfs generation", N_("Generating initramfs"))
     generate_initramfs.append(Task("Generate initramfs", payload.recreateInitrds))
 
-    # This works around 2 problems, /boot on BTRFS and BTRFS installations where the initrd is
-    # recreated after the first writeBootLoader call. This reruns it after the new initrd has
-    # been created, fixing the kernel root and subvol args and adding the missing initrd entry.
-    boot_on_btrfs = isinstance(storage.mountpoints.get("/"), BTRFSDevice)
-
-    bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
-    bootloader_enabled = bootloader_proxy.BootloaderMode != BOOTLOADER_DISABLED
-
-    if isinstance(payload, LiveImagePayload) and boot_on_btrfs and bootloader_enabled:
-        generate_initramfs.append(Task("Write BTRFS bootloader fix", write_boot_loader, (storage, payload)))
-
-    # Invoking zipl should be the last thing done on a s390x installation (see #1652727).
-    if arch.is_s390() and not conf.target.is_directory and bootloader_enabled:
-        generate_initramfs.append(Task("Rerun zipl", lambda: util.execInSysroot("zipl", [])))
+    # FIXME: Add DBus support for the special use cases.
+    # # This works around 2 problems, /boot on BTRFS and BTRFS installations where the initrd is
+    # # recreated after the first writeBootLoader call. This reruns it after the new initrd has
+    # # been created, fixing the kernel root and subvol args and adding the missing initrd entry.
+    # boot_on_btrfs = isinstance(storage.mountpoints.get("/"), BTRFSDevice)
+    #
+    # if isinstance(payload, LiveImagePayload) and boot_on_btrfs and bootloader_enabled:
+    #     generate_initramfs.append(Task("Write BTRFS bootloader fix", write_boot_loader, (payload, )))
+    #
+    # # Invoking zipl should be the last thing done on a s390x installation (see #1652727).
+    # if arch.is_s390() and not conf.target.is_directory and bootloader_enabled:
+    #     generate_initramfs.append(Task("Rerun zipl", lambda: util.execInSysroot("zipl", [])))
 
     configuration_queue.append(generate_initramfs)
 
@@ -218,12 +215,6 @@ def doInstall(storage, payload, ksdata):
        The two main tasks for this are putting filesystems onto disks and
        installing packages onto those filesystems.
     """
-    storage_proxy = STORAGE.get_proxy()
-
-    bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
-    bootloader_enabled = bootloader_proxy.BootloaderMode != BOOTLOADER_DISABLED
-    can_install_bootloader = not conf.target.is_directory and bootloader_enabled
-
     installation_queue = TaskQueue("Installation queue")
     # connect progress reporting
     installation_queue.queue_started.connect(lambda x: progress_message(x.status_message))
@@ -274,6 +265,8 @@ def doInstall(storage, payload, ksdata):
                                                             resize_format_pre=message_clbk,
                                                             wait_for_entropy=entropy_wait_clbk)
     # Add the storage configuration tasks.
+    storage_proxy = STORAGE.get_proxy()
+
     for task_path in storage_proxy.InstallWithTasks(util.getSysroot()):
         task_proxy = STORAGE.get_proxy(task_path)
         early_storage.append(Task(task_proxy.Name),
@@ -319,15 +312,12 @@ def doInstall(storage, payload, ksdata):
         # anaconda requires storage packages in order to make sure the target
         # system is bootable and configurable, and some other packages in order
         # to finish setting up the system.
-        payload.requirements.add_packages(storage.packages, reason="storage")
+        payload.requirements.add_packages(storage_proxy.GetPackages(), reason="storage")
         payload.requirements.add_packages(ksdata.realm.packages, reason="realm")
         payload.requirements.add_packages(ksdata.authselect.packages, reason="authselect")
         payload.requirements.add_packages(ksdata.firewall.packages, reason="firewall")
         payload.requirements.add_packages(ksdata.network.packages, reason="network")
         payload.requirements.add_packages(ksdata.timezone.packages, reason="ntp", strong=False)
-
-        if can_install_bootloader:
-            payload.requirements.add_packages(storage.bootloader.packages, reason="bootloader")
         payload.requirements.add_groups(payload.languageGroups(), reason="language groups")
         payload.requirements.add_packages(payload.langpacks(), reason="langpacks", strong=False)
         payload.preInstall()
@@ -353,10 +343,10 @@ def doInstall(storage, payload, ksdata):
         installation_queue.append(late_storage)
 
     # Do bootloader.
-    if can_install_bootloader:
-        bootloader_install = TaskQueue("Bootloader installation", N_("Installing boot loader"))
-        bootloader_install.append(Task("Install bootloader", write_boot_loader, (storage, payload)))
-        installation_queue.append(bootloader_install)
+    # FIXME: Skip the task if the bootloader is disabled.
+    bootloader_install = TaskQueue("Bootloader installation", N_("Installing boot loader"))
+    bootloader_install.append(Task("Install bootloader", write_boot_loader, (payload, )))
+    installation_queue.append(bootloader_install)
 
     post_install = TaskQueue("Post-installation setup tasks", (N_("Performing post-installation setup tasks")))
     post_install.append(Task("Run post-installation setup tasks", payload.postInstall))

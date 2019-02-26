@@ -104,3 +104,30 @@ class StorageInterface(KickstartModuleInterface):
         FIXME: This is just a temporary method.
         """
         self.implementation.write_configuration(sysroot)
+
+    def ConfigureBootloader(self, sysroot: Str, kernel_versions: List[Str]):
+        """Configure the bootloader.
+
+        FIXME: This is just a temporary method.
+
+        :param sysroot: a path to the root of the installed system
+        :param kernel_versions: a list of kernel versions
+        :return:
+        """
+        self.implementation.configure_bootloader(sysroot, kernel_versions)
+
+    def InstallBootloader(self, sysroot: Str):
+        """Install the bootloader.
+
+        FIXME: This is just a temporary method.
+
+        :param sysroot: a path to the root of the installed system
+        """
+        self.implementation.install_bootloader(sysroot)
+
+    def GetPackages(self) -> List[Str]:
+        """Get the required packages.
+
+        :return: a list of package names
+        """
+        return self.implementation.get_packages()

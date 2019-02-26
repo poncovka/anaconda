@@ -31,13 +31,13 @@ from pyanaconda.modules.common.constants.objects import AUTO_PARTITIONING, MANUA
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.modules.storage.bootloader import BootloaderModule
-from pyanaconda.modules.storage.constants import StorageState
+from pyanaconda.modules.storage.constants import StorageState, BootloaderMode
 from pyanaconda.modules.storage.dasd import DASDModule
 from pyanaconda.modules.storage.disk_initialization import DiskInitializationModule
 from pyanaconda.modules.storage.disk_selection import DiskSelectionModule
 from pyanaconda.modules.storage.fcoe import FCOEModule
 from pyanaconda.modules.storage.installation import MountFilesystemsTask, ActivateFilesystemsTask, \
-    WriteConfigurationTask
+    WriteConfigurationTask, ConfigureBootloaderTask, InstallBootloaderTask
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
 from pyanaconda.modules.storage.nvdimm import NVDIMMModule
 from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, \
@@ -360,5 +360,72 @@ class StorageModule(KickstartModule):
 
         :param sysroot: a path to the root of the installed system
         """
+        if conf.target.is_directory:
+            return
+
         task = WriteConfigurationTask(storage=self.storage, sysroot=sysroot)
         task.run()
+
+    def can_configure_bootloader(self):
+        """Can we configure the bootloader?"""
+        if conf.target.is_directory:
+            return False
+
+        if self._bootloader_module.bootloader_mode == BootloaderMode.DISABLED:
+            return False
+
+        return True
+
+    def configure_bootloader(self, sysroot, kernel_versions):
+        """Configure the bootloader.
+
+        FIXME: This is just a temporary method.
+
+        :param sysroot: a path to the root of the installed system
+        :param kernel_versions: a list of kernel versions
+        :return:
+        """
+        if not self.can_configure_bootloader():
+            return
+
+        task = ConfigureBootloaderTask(self.storage, kernel_versions, sysroot)
+        task.run()
+
+    def can_install_bootloader(self):
+        """Can we install the bootloader?"""
+        if conf.target.is_directory:
+            return False
+
+        if self._bootloader_module.bootloader_mode != BootloaderMode.ENABLED:
+            return False
+
+        return True
+
+    def install_bootloader(self, sysroot):
+        """Install the bootloader.
+
+        FIXME: This is just a temporary method.
+
+        :param sysroot: a path to the root of the installed system
+        """
+        if not self.can_install_bootloader():
+            return
+
+        task = InstallBootloaderTask(self.storage)
+        task.run()
+
+    def get_packages(self):
+        """Get a list of packages that need to be installed.
+
+        :return: a list of package names
+        """
+        packages = []
+
+        # Add the storage packages.
+        packages.extend(self.storage.packages)
+
+        # Add the bootloader packages.
+        if self.can_configure_bootloader() or self.can_install_bootloader():
+            packages.extend(self.storage.bootloader.packages)
+
+        return packages
