@@ -269,9 +269,9 @@ def doInstall(storage, payload, ksdata):
 
     for task_path in storage_proxy.InstallWithTasks(util.getSysroot()):
         task_proxy = STORAGE.get_proxy(task_path)
-        early_storage.append(Task(task_proxy.Name),
-                             task=sync_run_task,
-                             task_args=(task_proxy, ))
+        early_storage.append(Task(task_proxy.Name,
+                                  task=sync_run_task,
+                                  task_args=(task_proxy, )))
 
     # Write the storage if possible.
     if payload.needs_storage_configuration and not conf.target.is_directory:
