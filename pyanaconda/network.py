@@ -347,8 +347,7 @@ def copyFileToPath(fileName, destPath='', overwrite=False):
     shutil.copy(fileName, destfile)
     return True
 
-def devices_used_by_fcoe(storage):
-    fcoe_nics = {d.nic for d in storage.devices if isinstance(d, FcoeDiskDevice)}
+def devices_used_by_fcoe(fcoe_nics):
     fcoe_devices = [device for device in nm.nm_devices() if device in fcoe_nics]
     return fcoe_devices
 
