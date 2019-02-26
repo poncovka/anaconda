@@ -23,14 +23,13 @@ from gi.repository import BlockDev as blockdev
 
 from blivet import util as blivet_util, arch
 from blivet.errors import FSResizeError, FormatResizeError
+from blivet.fcoe import fcoe
 from blivet.iscsi import iscsi
+from blivet.zfcp import zfcp
 
 from pyanaconda.core import util
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
-from pyanaconda.modules.common.constants.objects import FCOE
-from pyanaconda.modules.common.constants.services import STORAGE
-from pyanaconda.modules.storage.kickstart import ZFCP
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -116,13 +115,11 @@ def write_storage_configuration(storage, sysroot=None):
     storage.make_mtab()
     storage.fsset.write()
     iscsi.write(sysroot, storage)
-
-    fcoe_proxy = STORAGE.get_proxy(FCOE)
-    fcoe_proxy.WriteConfiguration(sysroot)
+    fcoe.write(sysroot)
 
     if arch.is_s390():
-        zfcp_proxy = STORAGE.get_proxy(ZFCP)
-        zfcp_proxy.WriteConfiguration(sysroot)
+        log.debug("Write zFCP configuration to %s.", sysroot)
+        zfcp.write(sysroot)
 
     _write_dasd_conf(storage, sysroot)
 

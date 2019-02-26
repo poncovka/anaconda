@@ -43,10 +43,3 @@ class ZFCPInterface(KickstartModuleInterfaceTemplate):
         :return: a DBus path to a task
         """
         return self.implementation.discover_with_task(device_number, wwpn, lun)
-
-    def WriteConfiguration(self, sysroot: Str):
-        """Write the configuration to sysroot.
-
-        FIXME: This is just a temporary method.
-        """
-        self.implementation.write_configuration(sysroot)

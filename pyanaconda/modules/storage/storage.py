@@ -22,6 +22,7 @@ from blivet.devices import MultipathDevice, iScsiDiskDevice, FcoeDiskDevice, DAS
     ZFCPDiskDevice
 from blivet.size import Size
 
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.signal import Signal
 from pyanaconda.dbus import DBus
 from pyanaconda.modules.common.base import KickstartModule
@@ -333,21 +334,31 @@ class StorageModule(KickstartModule):
     def install_with_tasks(self, sysroot):
         """Returns installation tasks of this module.
 
-        FIXME: This is a simplified version of the storage installation.
+        Activate and mount the file systems.
 
         :param sysroot: a path to the root of the installed system
         :returns: list of object paths of installation tasks.
         """
         storage = self.storage
+        tasks = []
 
-        tasks = [
-            ActivateFilesystemsTask(storage),
-            MountFilesystemsTask(storage),
-            WriteConfigurationTask(storage, sysroot)
-        ]
+        # Activate the file systems if the target is hardware or image.
+        if not conf.target.is_directory:
+            tasks.append(ActivateFilesystemsTask(storage))
 
-        paths = [
-            self.publish_task(STORAGE.namespace, task) for task in tasks
-        ]
+        # Mount the file systems.
+        tasks.append(MountFilesystemsTask(storage))
 
+        # Publish the tasks.
+        paths = [self.publish_task(STORAGE.namespace, task) for task in tasks]
         return paths
+
+    def write_configuration(self, sysroot):
+        """Write the storage configuration on the installed system.
+
+        FIXME: This is just a temporary method.
+
+        :param sysroot: a path to the root of the installed system
+        """
+        task = WriteConfigurationTask(storage=self.storage, sysroot=sysroot)
+        task.run()

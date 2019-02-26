@@ -44,13 +44,6 @@ class FCOEInterface(KickstartModuleInterfaceTemplate):
         """
         return self.implementation.discover_with_task(nic, dcb, auto_vlan)
 
-    def WriteConfiguration(self, sysroot: Str):
-        """Write the configuration to sysroot.
-
-        FIXME: This is just a temporary method.
-        """
-        self.implementation.write_configuration(sysroot)
-
     def GetNics(self) -> List[Str]:
         """Get all NICs.
 

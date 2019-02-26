@@ -58,11 +58,6 @@ class ZFCPModule(KickstartBaseModule):
         path = self.publish_task(ZFCP.namespace, task)
         return path
 
-    def write_configuration(self, sysroot):
-        """Write the configuration to sysroot."""
-        log.debug("Write zFCP configuration to %s.", sysroot)
-        zfcp.write(sysroot)
-
     def process_kickstart(self, data):
         """Process the kickstart data."""
         self._zfcp_data = data.zfcp.zfcp

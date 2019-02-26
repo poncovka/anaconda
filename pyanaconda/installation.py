@@ -25,6 +25,7 @@ from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import BOOTLOADER_DISABLED
 from pyanaconda.modules.common.constants.objects import BOOTLOADER, AUTO_PARTITIONING, SNAPSHOT
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.modules.storage.snapshot.create import SnapshotCreateTask
 from pyanaconda.storage.installation import turn_on_filesystems, write_storage_configuration
 from pyanaconda.bootloader.installation import write_boot_loader
@@ -217,6 +218,8 @@ def doInstall(storage, payload, ksdata):
        The two main tasks for this are putting filesystems onto disks and
        installing packages onto those filesystems.
     """
+    storage_proxy = STORAGE.get_proxy()
+
     bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
     bootloader_enabled = bootloader_proxy.BootloaderMode != BOOTLOADER_DISABLED
     can_install_bootloader = not conf.target.is_directory and bootloader_enabled
@@ -262,6 +265,7 @@ def doInstall(storage, payload, ksdata):
     # So let's have two task queues - early storage & late storage.
     early_storage = TaskQueue("Early storage configuration", N_("Configuring storage"))
 
+    # FIXME: Figure out what to do with these callbacks.
     # callbacks for blivet
     message_clbk = lambda clbk_data: progress_message(clbk_data.msg)
     entropy_wait_clbk = lambda clbk_data: wait_for_entropy(clbk_data.msg,
@@ -269,18 +273,17 @@ def doInstall(storage, payload, ksdata):
     callbacks_reg = callbacks.create_new_callbacks_register(create_format_pre=message_clbk,
                                                             resize_format_pre=message_clbk,
                                                             wait_for_entropy=entropy_wait_clbk)
-    if not conf.target.is_directory:
-        early_storage.append(Task("Activate filesystems",
-                                  task=turn_on_filesystems,
-                                  task_args=(storage,),
-                                  task_kwargs={"callbacks": callbacks_reg}))
+    # Add the storage configuration tasks.
+    for task_path in storage_proxy.InstallWithTasks(util.getSysroot()):
+        task_proxy = STORAGE.get_proxy(task_path)
+        early_storage.append(Task(task_proxy.Name),
+                             task=sync_run_task,
+                             task_args=(task_proxy, ))
 
-    early_storage.append(Task("Mount filesystems", task=storage.mount_filesystems))
-
+    # Write the storage if possible.
     if payload.needs_storage_configuration and not conf.target.is_directory:
         early_storage.append(Task("Write early storage",
-                                  task=write_storage_configuration,
-                                  task_args=(storage,)))
+                                  task=lambda: storage_proxy.WriteConfiguration(util.getSysroot())))
 
     installation_queue.append(early_storage)
 
@@ -345,8 +348,7 @@ def doInstall(storage, payload, ksdata):
 
         if not conf.target.is_directory:
             late_storage.append(Task("Write late storage",
-                                     task=write_storage_configuration,
-                                     task_args=(storage, )))
+                                     task=lambda: storage_proxy.WriteConfiguration(util.getSysroot())))
 
         installation_queue.append(late_storage)
 

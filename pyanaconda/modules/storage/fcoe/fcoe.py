@@ -58,11 +58,6 @@ class FCOEModule(KickstartBaseModule):
         path = self.publish_task(FCOE.namespace, task)
         return path
 
-    def write_configuration(self, sysroot):
-        """Write the configuration to sysroot."""
-        log.debug("Write FCoE configuration to %s.", sysroot)
-        fcoe.write(sysroot)
-
     def get_nics(self):
         """Get all NICs.
 

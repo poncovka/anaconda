@@ -97,3 +97,10 @@ class StorageInterface(KickstartModuleInterface):
         :return: a name of the root device
         """
         return self.implementation.get_root_device()
+
+    def WriteConfiguration(self, sysroot: Str):
+        """Write the configuration to sysroot.
+
+        FIXME: This is just a temporary method.
+        """
+        self.implementation.write_configuration(sysroot)
