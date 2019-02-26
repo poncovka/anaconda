@@ -30,6 +30,7 @@ from pyanaconda.modules.common.constants.objects import AUTO_PARTITIONING, MANUA
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.modules.storage.bootloader import BootloaderModule
+from pyanaconda.modules.storage.constants import StorageState
 from pyanaconda.modules.storage.dasd import DASDModule
 from pyanaconda.modules.storage.disk_initialization import DiskInitializationModule
 from pyanaconda.modules.storage.disk_selection import DiskSelectionModule
@@ -109,7 +110,7 @@ class StorageModule(KickstartModule):
         self._add_partitioning_module(CUSTOM_PARTITIONING.object_path, self._custom_part_module)
 
         # Connect modules to signals.
-        self.storage_changed.connect(self._snapshot_module.on_storage_reset)
+        self.storage_changed.connect(self._snapshot_module.on_storage_changed)
 
     def _add_module(self, storage_module):
         """Add a base kickstart module."""
@@ -122,7 +123,7 @@ class StorageModule(KickstartModule):
         self._partitioning_modules[object_path] = partitioning_module
 
         # Connect the callbacks.
-        self.storage_changed.connect(partitioning_module.on_storage_reset)
+        self.storage_changed.connect(partitioning_module.on_storage_changed)
 
     def publish(self):
         """Publish the module."""
@@ -171,15 +172,19 @@ class StorageModule(KickstartModule):
         :return: an instance of Blivet
         """
         if not self._storage:
-            self.set_storage(create_storage())
+            self.set_storage(create_storage(), StorageState.CREATED)
 
         return self._storage
 
-    def set_storage(self, storage):
-        """Set the storage model."""
+    def set_storage(self, storage, state):
+        """Set the storage model.
+
+        :param storage: a new storage model
+        :param state: a state from StorageState
+        """
         self._storage = storage
-        self.storage_changed.emit(storage)
-        log.debug("The storage model has changed.")
+        self.storage_changed.emit(storage, state)
+        log.debug("The storage model has changed (%s).", state)
 
     def reset_with_task(self):
         """Reset the storage model.
@@ -199,8 +204,9 @@ class StorageModule(KickstartModule):
 
         # Create the task.
         task = StorageResetTask(storage)
-        # FIXME: Don't set the storage if the task has failed.
-        task.stopped_signal.connect(lambda: self.set_storage(storage))
+
+        # Switch the models if success.
+        task.succeeded_signal.connect(lambda: self.set_storage(storage, StorageState.RESET))
 
         # Publish the task.
         path = self.publish_task(STORAGE.namespace, task)
@@ -313,7 +319,7 @@ class StorageModule(KickstartModule):
         task.run()
 
         # Apply the partitioning.
-        self.set_storage(storage.copy())
+        self.set_storage(storage.copy(), StorageState.PARTED)
         log.debug("Applied the partitioning from %s.", object_path)
 
     def get_root_device(self):

@@ -1088,7 +1088,7 @@ class AutopartitioningInterfaceTestCase(unittest.TestCase):
                 self.fail("The storage shouldn't be available.")
 
         storage = Mock()
-        self.autopart_module.on_storage_reset(storage)
+        self.autopart_module.on_storage_changed(storage)
 
         self.assertEqual(self.autopart_module._current_storage, storage)
         self.assertIsNone(self.autopart_module._storage_playground)
@@ -1099,7 +1099,7 @@ class AutopartitioningInterfaceTestCase(unittest.TestCase):
     @patch('pyanaconda.dbus.DBus.publish_object')
     def configure_with_task_test(self, publisher):
         """Test ConfigureWithTask."""
-        self.autopart_module.on_storage_reset(Mock())
+        self.autopart_module.on_storage_changed(Mock())
         task_path = self.autopart_interface.ConfigureWithTask()
 
         publisher.assert_called_once()
@@ -1114,7 +1114,7 @@ class AutopartitioningInterfaceTestCase(unittest.TestCase):
     @patch('pyanaconda.dbus.DBus.publish_object')
     def validate_with_task_test(self, publisher):
         """Test ValidateWithTask."""
-        self.autopart_module.on_storage_reset(Mock())
+        self.autopart_module.on_storage_changed(Mock())
         task_path = self.autopart_interface.ValidateWithTask()
 
         publisher.assert_called_once()
@@ -1467,7 +1467,7 @@ class ManualPartitioningInterfaceTestCase(unittest.TestCase):
     @patch('pyanaconda.dbus.DBus.publish_object')
     def configure_with_task_test(self, publisher):
         """Test ConfigureWithTask."""
-        self.manual_part_module.on_storage_reset(Mock())
+        self.manual_part_module.on_storage_changed(Mock())
         task_path = self.manual_part_interface.ConfigureWithTask()
 
         publisher.assert_called_once()
@@ -1482,7 +1482,7 @@ class ManualPartitioningInterfaceTestCase(unittest.TestCase):
     @patch('pyanaconda.dbus.DBus.publish_object')
     def validate_with_task_test(self, publisher):
         """Test ValidateWithTask."""
-        self.manual_part_module.on_storage_reset(Mock())
+        self.manual_part_module.on_storage_changed(Mock())
         task_path = self.manual_part_interface.ValidateWithTask()
 
         publisher.assert_called_once()
@@ -1516,7 +1516,7 @@ class CustomPartitioningInterfaceTestCase(unittest.TestCase):
     @patch('pyanaconda.dbus.DBus.publish_object')
     def configure_with_task_test(self, publisher):
         """Test ConfigureWithTask."""
-        self.custom_part_module.on_storage_reset(Mock())
+        self.custom_part_module.on_storage_changed(Mock())
         self.custom_part_module.process_kickstart(Mock())
         task_path = self.custom_part_interface.ConfigureWithTask()
 
@@ -1532,7 +1532,7 @@ class CustomPartitioningInterfaceTestCase(unittest.TestCase):
     @patch('pyanaconda.dbus.DBus.publish_object')
     def validate_with_task_test(self, publisher):
         """Test ValidateWithTask."""
-        self.custom_part_module.on_storage_reset(Mock())
+        self.custom_part_module.on_storage_changed(Mock())
         task_path = self.custom_part_interface.ValidateWithTask()
 
         publisher.assert_called_once()

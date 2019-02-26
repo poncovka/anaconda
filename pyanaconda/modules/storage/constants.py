@@ -29,6 +29,14 @@ from pyanaconda.core.constants import CLEAR_PARTITIONS_NONE, CLEAR_PARTITIONS_AL
 
 
 @unique
+class StorageState(Enum):
+    """The storage model states."""
+    CREATED = "Created"
+    RESET = "Reset"
+    PARTED = "Parted"
+
+
+@unique
 class AutoPartitioningType(Enum):
     """The auto partitioning type."""
     DEFAULT = AUTOPART_TYPE_DEFAULT

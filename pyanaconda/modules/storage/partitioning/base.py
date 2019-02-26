@@ -22,6 +22,7 @@ from abc import abstractmethod
 from pyanaconda.modules.common.base.base import KickstartBaseModule
 from pyanaconda.modules.common.errors.storage import UnavailableStorageError
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.modules.storage.constants import StorageState
 
 log = get_module_logger(__name__)
 
@@ -54,9 +55,15 @@ class PartitioningModule(KickstartBaseModule):
 
         return self._storage_playground
 
-    def on_storage_reset(self, storage):
-        """Keep the instance of the current storage."""
-        self._current_storage = storage
+    def on_storage_changed(self, storage, state):
+        """Update the storage model."""
+        # Keep the created storage just in case.
+        if state is StorageState.CREATED:
+            self._current_storage = storage
+        # Reset the storage playground.
+        elif state is StorageState.RESET:
+            self._current_storage = storage
+            self._storage_playground = None
 
     @abstractmethod
     def configure_with_task(self):
