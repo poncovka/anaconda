@@ -46,7 +46,8 @@ from pyanaconda.modules.storage.snapshot.validate import SnapshotValidateTask
 from pyanaconda.platform import platform
 from pyanaconda.storage import autopart
 from pyanaconda.storage.checker import storage_checker
-from pyanaconda.storage.utils import get_pbkdf_args, lookup_alias, get_available_disk_space
+from pyanaconda.storage.utils import get_pbkdf_args, lookup_alias, get_available_disk_space, \
+    suggest_swap_size
 
 log = get_module_logger(__name__)
 
@@ -377,7 +378,7 @@ class CustomPartitioningExecutor(PartitioningExecutor):
             partition_data.mountpoint = ""
             if partition_data.recommended or partition_data.hibernation:
                 disk_space = get_available_disk_space(storage)
-                size = autopart.swap_suggestion(
+                size = suggest_swap_size(
                     hibernation=partition_data.hibernation,
                     disk_space=disk_space
                 )
@@ -1100,7 +1101,7 @@ class CustomPartitioningExecutor(PartitioningExecutor):
             logvol_data.mountpoint = ""
             if logvol_data.recommended or logvol_data.hibernation:
                 disk_space = get_available_disk_space(storage)
-                size = autopart.swap_suggestion(
+                size = suggest_swap_size(
                     hibernation=logvol_data.hibernation,
                     disk_space=disk_space
                 )
