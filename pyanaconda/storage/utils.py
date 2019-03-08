@@ -48,12 +48,16 @@ from pyanaconda.core.i18n import N_, _, P_
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler, ERROR_RAISE
 from pyanaconda.modules.common.constants.services import NETWORK, STORAGE
-from pyanaconda.modules.common.constants.objects import DISK_SELECTION, NVDIMM, DISK_INITIALIZATION
+from pyanaconda.modules.common.constants.objects import DISK_SELECTION, NVDIMM, \
+    DISK_INITIALIZATION, SNAPSHOT
 
-from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
+from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS, \
+    SNAPSHOT_WHEN_POST_INSTALL
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP
 
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.modules.storage.snapshot.validate import SnapshotValidateTask
+
 log = get_module_logger(__name__)
 
 # TODO: all those constants and mappings should go to blivet
@@ -704,3 +708,22 @@ def suggest_swap_size(quiet=False, hibernation=False, disk_space=None):
         log.info("Swap attempt of %s", swap)
 
     return swap
+
+
+def validate_snapshot_requests(storage, data):
+    """Validate the post-install snapshot requests.
+
+    FIXME: Register the validation in the storage checker.
+
+    :param storage: instance of the Blivet's storage object
+    :param data: an instance of kickstart data
+    """
+    # No post-install snapshots are requested. Do nothing.
+    snapshot_proxy = STORAGE.get_proxy(SNAPSHOT)
+    if not snapshot_proxy.IsRequested(SNAPSHOT_WHEN_POST_INSTALL):
+        return
+
+    # Run the validation task directly.
+    snapshot_requests = data.snapshot.get_requests(SNAPSHOT_WHEN_POST_INSTALL)
+    task = SnapshotValidateTask(storage, snapshot_requests, SNAPSHOT_WHEN_POST_INSTALL)
+    task.run()
