@@ -148,7 +148,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return disks
 
-    def _schedule_implicit_partitions(self, storage, disks, scheme):
+    def _schedule_implicit_partitions(self, storage, disks, scheme, encrypted=False):
         """Schedule creation of a lvm/btrfs member partitions for autopart.
 
         We create one such partition on each disk. They are not allocated until
@@ -157,6 +157,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         :param storage: an InstallerStorage instance
         :param disks: list of partitioned disks with free space
         :param scheme: a type of the partitioning scheme
+        :param encrypted: encrypt the partitions
         :return: list of newly created (unallocated) partitions
         """
         # create a separate pv or btrfs partition for each disk with free space
@@ -167,7 +168,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
             return devs
 
         for disk in disks:
-            if storage.encrypted_autopart:
+            if encrypted:
                 fmt_type = "luks"
                 fmt_args = {"passphrase": luks_data.encryption_passphrase,
                             "cipher": storage.encryption_cipher,
@@ -192,7 +193,8 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return devs
 
-    def _schedule_partitions(self, storage, disks, implicit_devices, scheme, requests):
+    def _schedule_partitions(self, storage, disks, implicit_devices, scheme, requests,
+                             encrypted=False):
         """Schedule creation of autopart/reqpart partitions.
 
         This only schedules the requests for actual partitions.
@@ -201,6 +203,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         :param disks: list of partitioned disks with free space
         :param scheme: a type of the partitioning scheme
         :param requests: list of partitioning requests
+        :param encrypted: encrypt the partitions
         """
         # basis for requests with required_space is the sum of the sizes of the
         # two largest free regions
@@ -275,7 +278,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
                 raise NotEnoughFreeSpaceError(_("No big enough free space on disks for "
                                                 "automatic partitioning"))
 
-            if request.encrypted and storage.encrypted_autopart:
+            if request.encrypted and encrypted:
                 fmt_type = "luks"
                 fmt_args = {"passphrase": luks_data.encryption_passphrase,
                             "cipher": storage.encryption_cipher,
@@ -300,7 +303,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
             # schedule the device for creation
             storage.create_device(dev)
 
-            if request.encrypted and storage.encrypted_autopart:
+            if request.encrypted and encrypted:
                 luks_fmt = get_format(request.fstype,
                                       device=dev.path,
                                       mountpoint=request.mountpoint)
@@ -323,7 +326,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return implicit_devices
 
-    def _schedule_volumes(self, storage, devs, scheme, requests):
+    def _schedule_volumes(self, storage, devs, scheme, requests, encrypted=False):
         """Schedule creation of autopart lvm/btrfs volumes.
 
         Schedules encryption of member devices if requested, schedules creation
@@ -338,6 +341,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         :param devs: a list of member partitions
         :param scheme: a type of the partitioning scheme
         :param requests: list of partitioning requests to operate on
+        :param encrypted: encrypt the partitions
         """
         if not devs:
             return
@@ -351,7 +355,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
             new_volume = storage.new_btrfs
             format_name = "btrfs"
 
-        if storage.encrypted_autopart:
+        if encrypted:
             pvs = []
             for dev in devs:
                 pv = LUKSDevice("luks-%s" % dev.name,

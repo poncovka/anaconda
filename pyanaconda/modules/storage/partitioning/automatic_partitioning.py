@@ -40,7 +40,7 @@ __all__ = ["AutomaticPartitioningTask"]
 class AutomaticPartitioningTask(NonInteractivePartitioningTask):
     """A task for the automatic partitioning configuration."""
 
-    def __init__(self, storage, scheme):
+    def __init__(self, storage, scheme, encrypted=False):
         """Create a task.
 
         :param storage: an instance of Blivet
@@ -48,6 +48,7 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         """
         super().__init__(storage)
         self._scheme = scheme
+        self._encrypted = encrypted
 
     def _configure_partitioning(self, storage):
         """Configure the partitioning.
@@ -68,7 +69,6 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
 
         # Set the encryption.
         if auto_part_proxy.Encrypted:
-            storage.encrypted_autopart = True
             storage.encryption_passphrase = auto_part_proxy.Passphrase
             storage.encryption_cipher = auto_part_proxy.Cipher
             storage.autopart_add_backup_passphrase = auto_part_proxy.BackupPassphraseEnabled
@@ -91,7 +91,7 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
             storage.autopart_pbkdf_args = pbkdf_args
 
         requests = self._get_autopart_requests(storage)
-        self._do_autopart(storage, self._scheme, requests)
+        self._do_autopart(storage, self._scheme, requests, self._encrypted)
 
         report = storage_checker.check(storage)
         report.log(log)
@@ -99,7 +99,8 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         if report.failure:
             raise PartitioningError("autopart failed: \n" + "\n".join(report.all_errors))
 
-    def _do_autopart(self, storage, scheme, requests, min_luks_entropy=MIN_CREATE_ENTROPY):
+    def _do_autopart(self, storage, scheme, requests, encrypted=False,
+                     min_luks_entropy=MIN_CREATE_ENTROPY):
         """Perform automatic partitioning.
 
         :param storage: an instance of Blivet
@@ -107,11 +108,11 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         :param requests: list of partitioning requests
         :param int min_luks_entropy: minimum entropy in bits required for luks format creation
         """
-        log.debug("encrypted_autopart: %s", storage.encrypted_autopart)
         log.debug("scheme: %s", scheme)
+        log.debug("requests:\n%s", "".join([str(p) for p in requests]))
+        log.debug("encrypted: %s", encrypted)
         log.debug("clear_part_type: %s", storage.config.clear_part_type)
         log.debug("clear_part_disks: %s", storage.config.clear_part_disks)
-        log.debug("requests:\n%s", "".join([str(p) for p in requests]))
         log.debug("storage.disks: %s", [d.name for d in storage.disks])
         log.debug("storage.partitioned: %s", [d.name for d in storage.partitioned if d.format.supported])
         log.debug("all names: %s", [d.name for d in storage.devices])
@@ -124,7 +125,7 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
             luks_data.min_entropy = min_luks_entropy
 
         disks = self._get_candidate_disks(storage)
-        devs = self._schedule_implicit_partitions(storage, disks, scheme)
+        devs = self._schedule_implicit_partitions(storage, disks, scheme, encrypted)
         log.debug("candidate disks: %s", disks)
         log.debug("devs: %s", devs)
 
@@ -132,12 +133,12 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
             raise NotEnoughFreeSpaceError(_("Not enough free space on disks for "
                                             "automatic partitioning"))
 
-        devs = self._schedule_partitions(storage, disks, devs, scheme, requests)
+        devs = self._schedule_partitions(storage, disks, devs, scheme, requests, encrypted)
 
         # run the autopart function to allocate and grow partitions
         do_partitioning(storage)
 
-        self._schedule_volumes(storage, devs, scheme, requests)
+        self._schedule_volumes(storage, devs, scheme, requests, encrypted)
 
         # grow LVs
         grow_lvm(storage)
