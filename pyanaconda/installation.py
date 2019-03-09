@@ -264,13 +264,10 @@ def doInstall(storage, payload, ksdata):
     # So let's have two task queues - early storage & late storage.
     early_storage = TaskQueue("Early storage configuration", N_("Configuring storage"))
 
-    # put custom storage info into ksdata, but not if just assigning mount points
-    manual_part_proxy = STORAGE.get_proxy(MANUAL_PARTITIONING)
-
-    if not manual_part_proxy.Enabled:
-        early_storage.append(Task("Insert custom storage to ksdata",
-                                  task=update_storage_ksdata,
-                                  task_args=(storage, ksdata)))
+    # put custom storage info into ksdata
+    early_storage.append(Task("Insert custom storage to ksdata",
+                              task=update_storage_ksdata,
+                              task_args=(storage, ksdata)))
 
     # callbacks for blivet
     message_clbk = lambda clbk_data: progress_message(clbk_data.msg)

@@ -62,7 +62,7 @@ from pyanaconda.core.async_utils import async_action_nowait
 from pyanaconda.ui.helpers import StorageCheckHandler
 from pyanaconda.core.timer import Timer
 
-from pyanaconda.kickstart import resetCustomStorageData
+from pyanaconda.storage.kickstart import reset_custom_storage_data
 from blivet.size import Size
 from blivet.devices import MultipathDevice, ZFCPDiskDevice, iScsiDiskDevice, NVDIMMNamespaceDevice
 from blivet.formats.disklabel import DiskLabel
@@ -536,7 +536,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
                 # run() executes StorageCheckHandler.checkStorage in a seperate thread
                 self.run()
         finally:
-            resetCustomStorageData(self.data)
+            reset_custom_storage_data(self.data)
             self._ready = True
             hubQ.send_ready(self.__class__.__name__, True)
 
