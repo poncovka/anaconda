@@ -148,7 +148,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return disks
 
-    def _schedule_implicit_partitions(self, storage, disks):
+    def _schedule_implicit_partitions(self, storage, disks, scheme):
         """Schedule creation of a lvm/btrfs member partitions for autopart.
 
         We create one such partition on each disk. They are not allocated until
@@ -156,13 +156,14 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         :param storage: an InstallerStorage instance
         :param disks: list of partitioned disks with free space
+        :param scheme: a type of the partitioning scheme
         :return: list of newly created (unallocated) partitions
         """
         # create a separate pv or btrfs partition for each disk with free space
         devs = []
 
         # only schedule the partitions if either lvm or btrfs autopart was chosen
-        if storage.autopart_type == AUTOPART_TYPE_PLAIN:
+        if scheme == AUTOPART_TYPE_PLAIN:
             return devs
 
         for disk in disks:
@@ -177,7 +178,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
                             "pbkdf_args": storage.autopart_pbkdf_args
                             }
             else:
-                if storage.autopart_type in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
+                if scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
                     fmt_type = "lvmpv"
                 else:
                     fmt_type = "btrfs"
@@ -322,7 +323,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return implicit_devices
 
-    def _schedule_volumes(self, storage, devs, requests):
+    def _schedule_volumes(self, storage, devs, scheme, requests):
         """Schedule creation of autopart lvm/btrfs volumes.
 
         Schedules encryption of member devices if requested, schedules creation
@@ -335,12 +336,13 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         :param storage: an instance of Blivet
         :param devs: a list of member partitions
+        :param scheme: a type of the partitioning scheme
         :param requests: list of partitioning requests to operate on
         """
         if not devs:
             return
 
-        if storage.autopart_type in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
+        if scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
             new_container = storage.new_vg
             new_volume = storage.new_lv
             format_name = "lvmpv"
@@ -371,11 +373,10 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         # Second pass, for LVs only.
         pool = None
         for request in requests:
-            btr = storage.autopart_type == AUTOPART_TYPE_BTRFS and request.btr
-            lv = (storage.autopart_type in (AUTOPART_TYPE_LVM,
-                                            AUTOPART_TYPE_LVM_THINP) and request.lv)
-            thinlv = (storage.autopart_type == AUTOPART_TYPE_LVM_THINP and
-                      request.lv and request.thin)
+            btr = bool(scheme == AUTOPART_TYPE_BTRFS and request.btr)
+            lv = bool(scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP) and request.lv)
+            thinlv = bool(scheme == AUTOPART_TYPE_LVM_THINP and request.lv and request.thin)
+
             if thinlv and pool is None:
                 # create a single thin pool in the vg
                 pool = storage.new_lv(parents=[container], thin_pool=True, grow=True)

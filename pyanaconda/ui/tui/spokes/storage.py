@@ -437,7 +437,6 @@ class StorageSpoke(NormalTUISpoke):
             self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
             self._disk_init_observer.proxy.SetInitializationMode(CLEAR_PARTITIONS_ALL)
             self._disk_init_observer.proxy.SetInitializeLabelsEnabled(False)
-            self.storage.autopart_type = self._auto_part_observer.proxy.Type
 
             # The reset also calls self.storage.config.update().
             reset_storage(self.storage)
