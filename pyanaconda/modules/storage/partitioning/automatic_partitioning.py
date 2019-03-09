@@ -47,9 +47,6 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         # Create the auto partitioning proxy.
         auto_part_proxy = STORAGE.get_proxy(AUTO_PARTITIONING)
 
-        # Enable automatic partitioning.
-        storage.do_autopart = True
-
         # Set the filesystem type.
         fstype = auto_part_proxy.FilesystemType
 
@@ -100,7 +97,6 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         # Update the autopart requests.
         self._refresh_swap_size(storage)
 
-        log.debug("do_autopart: %s", storage.do_autopart)
         log.debug("encrypted_autopart: %s", storage.encrypted_autopart)
         log.debug("autopart_type: %s", storage.autopart_type)
         log.debug("clear_part_type: %s", storage.config.clear_part_type)
@@ -110,9 +106,6 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         log.debug("storage.partitioned: %s", [d.name for d in storage.partitioned if d.format.supported])
         log.debug("all names: %s", [d.name for d in storage.devices])
         log.debug("boot disk: %s", getattr(storage.bootloader.stage1_disk, "name", None))
-
-        if not storage.do_autopart:
-            return
 
         if not any(d.format.supported for d in storage.partitioned):
             raise NoDisksError(_("No usable disks selected"))
@@ -128,7 +121,7 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         if not disks:
             raise NotEnoughFreeSpaceError(_("Not enough free space on disks for "
                                             "automatic partitioning"))
-        devs = self._schedule_partitions(storage, disks, devs)
+        devs = self._schedule_partitions(storage, disks, devs, scheme=storage.autopart_type)
 
         # run the autopart function to allocate and grow partitions
         do_partitioning(storage)

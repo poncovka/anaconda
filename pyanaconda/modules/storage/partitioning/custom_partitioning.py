@@ -27,6 +27,7 @@ from blivet.partitioning import do_partitioning, grow_lvm
 from blivet.size import Size
 from blivet.static_data import luks_data
 from bytesize.bytesize import KiB
+from pykickstart.constants import AUTOPART_TYPE_PLAIN
 from pykickstart.errors import KickstartParseError
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -60,9 +61,6 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         """
         log.debug("Executing the custom partitioning.")
         data = self._data
-
-        # Disable automatic partitioning.
-        storage.do_autopart = False
 
         self._execute_reqpart(storage, data)
         self._execute_partition(storage, data)
@@ -108,7 +106,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                                             "automatic partitioning"))
 
         log.debug("Applying requirements:\n%s", "".join(map(str, reqs)))
-        self._schedule_partitions(storage, disks, [], requests=reqs)
+        self._schedule_partitions(storage, disks, [], scheme=AUTOPART_TYPE_PLAIN, requests=reqs)
 
     def _execute_partition(self, storage, data):
         """Execute the partition command.

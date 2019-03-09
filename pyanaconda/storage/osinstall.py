@@ -73,7 +73,6 @@ class InstallerStorage(Blivet):
 
     def __init__(self):
         super().__init__()
-        self.do_autopart = False
         self.encrypted_autopart = False
         self.encryption_cipher = None
         self._escrow_certificates = {}
