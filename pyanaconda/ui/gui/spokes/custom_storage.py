@@ -380,7 +380,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     @property
     def _currentFreeInfo(self):
-        return self._storage_playground.get_free_space(clear_part_type=CLEAR_PARTITIONS_NONE)
+        return self._storage_playground.estimate_free_space(clear_part_type=CLEAR_PARTITIONS_NONE)
 
     def _setCurrentFreeSpace(self):
         """Add up all the free space on selected disks and return it as a Size."""

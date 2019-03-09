@@ -323,7 +323,7 @@ class InstallerStorage(Blivet):
         # Calculate the total free space.
         return sum((disk_free for disk_free, fs_free in snapshot.values()), Size(0))
 
-    def get_free_space(self, disks=None, clear_part_type=None):  # pylint: disable=arguments-differ
+    def estimate_free_space(self, disks=None, clear_part_type=None):  # pylint: disable=arguments-differ
         """ Return a dict with free space info for each disk.
 
              The dict values are 2-tuples: (disk_free, fs_free). fs_free is
