@@ -23,8 +23,7 @@ from blivet.devices import BTRFSDevice
 
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import BOOTLOADER_DISABLED
-from pyanaconda.modules.common.constants.objects import BOOTLOADER, AUTO_PARTITIONING, \
-    MANUAL_PARTITIONING, SNAPSHOT
+from pyanaconda.modules.common.constants.objects import BOOTLOADER, AUTO_PARTITIONING, SNAPSHOT
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.storage.snapshot.create import SnapshotCreateTask
 from pyanaconda.storage.kickstart import update_storage_ksdata
