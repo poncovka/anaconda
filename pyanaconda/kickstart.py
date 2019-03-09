@@ -923,6 +923,20 @@ class Snapshot(COMMANDS.Snapshot):
         """
         return [request for request in self.dataList() if request.when == when]
 
+    def verify_requests(self, storage, constraints, report_error, report_warning):
+        """Verify the validity of snapshot requests for the given storage.
+
+        :param storage: a storage to check
+        :param constraints: a dictionary of constraints
+        :param report_error: a function for error reporting
+        :param report_warning: a function for warning reporting
+        """
+        from pykickstart.constants import  SNAPSHOT_WHEN_POST_INSTALL
+        requests = self.get_requests(SNAPSHOT_WHEN_POST_INSTALL)
+
+        from pyanaconda.modules.storage.snapshot.device import verify_snapshot_requests
+        verify_snapshot_requests(storage, constraints, report_error, report_warning, requests)
+
 
 class Keyboard(RemovedCommand):
 

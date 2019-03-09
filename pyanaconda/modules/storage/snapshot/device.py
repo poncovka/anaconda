@@ -24,7 +24,7 @@ from pyanaconda.core.i18n import _
 
 log = get_module_logger(__name__)
 
-__all__ = ["get_snapshot_device"]
+__all__ = ["get_snapshot_device", "verify_snapshot_requests"]
 
 
 def get_snapshot_device(request, devicetree):
@@ -61,3 +61,22 @@ def get_snapshot_device(request, devicetree):
         )
     except ValueError as e:
         raise KickstartParseError(str(e), lineno=request.lineno)
+
+
+def verify_snapshot_requests(storage, constraints, report_error, report_warning, requests):
+    """Verify the snapshot requests for the given storage.
+
+    This is a callback for the storage checker.
+
+    :param storage: a storage to check
+    :param constraints: a dictionary of constraints
+    :param report_error: a function for error reporting
+    :param report_warning: a function for warning reporting
+    :param requests: a list of snapshot requests
+    """
+    for request in requests:
+        try:
+            log.debug("Snapshot: validating the request for %s", request.name)
+            get_snapshot_device(request, storage.devicetree)
+        except KickstartParseError as e:
+            report_error(str(e))
