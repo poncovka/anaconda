@@ -23,6 +23,7 @@ from pyanaconda.modules.storage.partitioning.custom_partitioning import CustomPa
 from pyanaconda.modules.storage.partitioning.interactive_partitioning import \
     InteractivePartitioningTask
 from pyanaconda.modules.storage.partitioning.manual_partitioning import ManualPartitioningTask
+from pyanaconda.storage.utils import get_pbkdf_args
 
 
 def configure_storage(storage, data=None, interactive=False):
@@ -37,10 +38,31 @@ def configure_storage(storage, data=None, interactive=False):
     if interactive:
         task = InteractivePartitioningTask(storage)
     elif auto_part_proxy.Enabled:
+        luks_version = auto_part_proxy.LUKSVersion or storage.default_luks_version
+        escrow_cert = storage.get_escrow_certificate(auto_part_proxy.Escrowcert)
+
+        pbkdf_args = get_pbkdf_args(
+            luks_version=luks_version,
+            pbkdf_type=auto_part_proxy.PBKDF or None,
+            max_memory_kb=auto_part_proxy.PBKDFMemory,
+            iterations=auto_part_proxy.PBKDFIterations,
+            time_ms=auto_part_proxy.PBKDFTime
+        )
+
+        luks_format_args = {
+            "passphrase": auto_part_proxy.Passphrase,
+            "cipher": auto_part_proxy.Cipher,
+            "luks_version": luks_version,
+            "pbkdf_args": pbkdf_args,
+            "escrow_cert": escrow_cert,
+            "add_backup_passphrase": auto_part_proxy.BackupPassphraseEnabled
+        }
+
         task = AutomaticPartitioningTask(
             storage,
             auto_part_proxy.Type,
-            auto_part_proxy.Encrypted
+            auto_part_proxy.Encrypted,
+            luks_format_args
         )
     elif STORAGE.get_proxy(MANUAL_PARTITIONING).Enabled:
         task = ManualPartitioningTask(storage)

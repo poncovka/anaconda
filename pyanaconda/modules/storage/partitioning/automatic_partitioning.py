@@ -15,10 +15,8 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from blivet.devicelibs.crypto import MIN_CREATE_ENTROPY
 from blivet.errors import PartitioningError, NoDisksError, NotEnoughFreeSpaceError
 from blivet.partitioning import do_partitioning, grow_lvm
-from blivet.static_data import luks_data
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.i18n import _
@@ -30,7 +28,7 @@ from pyanaconda.platform import platform
 from pyanaconda.storage.checker import storage_checker
 from pyanaconda.storage.partitioning import get_full_partitioning_requests, \
     get_default_partitioning
-from pyanaconda.storage.utils import get_pbkdf_args, get_available_disk_space, suggest_swap_size
+from pyanaconda.storage.utils import get_available_disk_space, suggest_swap_size
 
 log = get_module_logger(__name__)
 
@@ -40,7 +38,7 @@ __all__ = ["AutomaticPartitioningTask"]
 class AutomaticPartitioningTask(NonInteractivePartitioningTask):
     """A task for the automatic partitioning configuration."""
 
-    def __init__(self, storage, scheme, encrypted=False):
+    def __init__(self, storage, scheme, encrypted=False, luks_format_args=None):
         """Create a task.
 
         :param storage: an instance of Blivet
@@ -49,6 +47,7 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         super().__init__(storage)
         self._scheme = scheme
         self._encrypted = encrypted
+        self._luks_format_args = luks_format_args or {}
 
     def _configure_partitioning(self, storage):
         """Configure the partitioning.
@@ -67,29 +66,6 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
             storage.set_default_fstype(fstype)
             storage.set_default_boot_fstype(fstype)
 
-        # Set the encryption.
-        if auto_part_proxy.Encrypted:
-            storage.encryption_passphrase = auto_part_proxy.Passphrase
-            storage.encryption_cipher = auto_part_proxy.Cipher
-            storage.autopart_add_backup_passphrase = auto_part_proxy.BackupPassphraseEnabled
-            storage.autopart_escrow_cert = storage.get_escrow_certificate(auto_part_proxy.Escrowcert)
-
-            luks_version = auto_part_proxy.LUKSVersion or storage.default_luks_version
-
-            pbkdf_args = get_pbkdf_args(
-                luks_version=luks_version,
-                pbkdf_type=auto_part_proxy.PBKDF or None,
-                max_memory_kb=auto_part_proxy.PBKDFMemory,
-                iterations=auto_part_proxy.PBKDFIterations,
-                time_ms=auto_part_proxy.PBKDFTime
-            )
-
-            if pbkdf_args and not luks_data.pbkdf_args:
-                luks_data.pbkdf_args = pbkdf_args
-
-            storage.autopart_luks_version = luks_version
-            storage.autopart_pbkdf_args = pbkdf_args
-
         requests = self._get_autopart_requests(storage)
         self._do_autopart(storage, self._scheme, requests, self._encrypted)
 
@@ -99,14 +75,22 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         if report.failure:
             raise PartitioningError("autopart failed: \n" + "\n".join(report.all_errors))
 
-    def _do_autopart(self, storage, scheme, requests, encrypted=False,
-                     min_luks_entropy=MIN_CREATE_ENTROPY):
+    def _get_luks_format_args(self, storage):
+        """Get arguments for the LUKS format constructor.
+
+        :param storage: an instance of Blivet
+        :return: a dictionary of arguments
+        """
+        args = super()._get_luks_format_args(storage)
+        args.update(self._luks_format_args)
+        return args
+
+    def _do_autopart(self, storage, scheme, requests, encrypted=False):
         """Perform automatic partitioning.
 
         :param storage: an instance of Blivet
         :param scheme: a type of the partitioning scheme
         :param requests: list of partitioning requests
-        :param int min_luks_entropy: minimum entropy in bits required for luks format creation
         """
         log.debug("scheme: %s", scheme)
         log.debug("requests:\n%s", "".join([str(p) for p in requests]))
@@ -120,9 +104,6 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
 
         if not any(d.format.supported for d in storage.partitioned):
             raise NoDisksError(_("No usable disks selected"))
-
-        if min_luks_entropy is not None:
-            luks_data.min_entropy = min_luks_entropy
 
         disks = self._get_candidate_disks(storage)
         devs = self._schedule_implicit_partitions(storage, disks, scheme, encrypted)

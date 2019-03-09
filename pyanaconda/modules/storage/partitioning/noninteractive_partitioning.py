@@ -18,6 +18,7 @@
 from abc import ABCMeta, abstractmethod
 
 import parted
+from blivet.devicelibs.crypto import MIN_CREATE_ENTROPY
 from blivet.devices import PartitionDevice, LUKSDevice
 from blivet.devices.lvm import DEFAULT_THPOOL_RESERVE
 from blivet.devices.partition import FALLBACK_DEFAULT_PART_SIZE
@@ -148,6 +149,18 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return disks
 
+    def _get_luks_format_args(self, storage):
+        """Get arguments for the LUKS format constructor.
+
+        :param storage: an instance of Blivet
+        :return: a dictionary of arguments
+        """
+        return {
+            "passphrase": luks_data.encryption_passphrase,
+            "min_luks_entropy": MIN_CREATE_ENTROPY,
+            "luks_version": storage.default_luks_version,
+         }
+
     def _schedule_implicit_partitions(self, storage, disks, scheme, encrypted=False):
         """Schedule creation of a lvm/btrfs member partitions for autopart.
 
@@ -170,14 +183,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         for disk in disks:
             if encrypted:
                 fmt_type = "luks"
-                fmt_args = {"passphrase": luks_data.encryption_passphrase,
-                            "cipher": storage.encryption_cipher,
-                            "escrow_cert": storage.autopart_escrow_cert,
-                            "add_backup_passphrase": storage.autopart_add_backup_passphrase,
-                            "min_luks_entropy": luks_data.min_entropy,
-                            "luks_version": storage.autopart_luks_version,
-                            "pbkdf_args": storage.autopart_pbkdf_args
-                            }
+                fmt_args = self._get_luks_format_args(storage)
             else:
                 if scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
                     fmt_type = "lvmpv"
@@ -280,14 +286,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
             if request.encrypted and encrypted:
                 fmt_type = "luks"
-                fmt_args = {"passphrase": luks_data.encryption_passphrase,
-                            "cipher": storage.encryption_cipher,
-                            "escrow_cert": storage.autopart_escrow_cert,
-                            "add_backup_passphrase": storage.autopart_add_backup_passphrase,
-                            "min_luks_entropy": luks_data.min_entropy,
-                            "luks_version": storage.autopart_luks_version,
-                            "pbkdf_args": storage.autopart_pbkdf_args
-                            }
+                fmt_args = self._get_luks_format_args(storage)
             else:
                 fmt_type = request.fstype
                 fmt_args = {}

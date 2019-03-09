@@ -28,6 +28,7 @@ from pyanaconda.modules.storage.partitioning.automatic_interface import AutoPart
 from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
 from pyanaconda.modules.storage.partitioning.automatic_partitioning import \
     AutomaticPartitioningTask
+from pyanaconda.storage.utils import get_pbkdf_args
 
 log = get_module_logger(__name__)
 
@@ -381,12 +382,42 @@ class AutoPartitioningModule(PartitioningModule):
         self.backup_passphrase_enabled_changed.emit()
         log.debug("Backup passphrase enabled is set to '%s'.", enabled)
 
+    @property
+    def luks_format_args(self):
+        """Arguments for the LUKS format constructor.
+
+        :return: a dictionary of arguments
+        """
+        if not self.encrypted:
+            return {}
+
+        luks_version = self.luks_version or self.storage.default_luks_version
+        escrow_cert = self.storage.get_escrow_certificate(self.escrowcert)
+
+        pbkdf_args = get_pbkdf_args(
+            luks_version=luks_version,
+            pbkdf_type=self.pbkdf or None,
+            max_memory_kb=self.pbkdf_memory,
+            iterations=self.pbkdf_iterations,
+            time_ms=self.pbkdf_time
+        )
+
+        return {
+            "passphrase": self.passphrase,
+            "cipher": self.cipher,
+            "luks_version": luks_version,
+            "pbkdf_args": pbkdf_args,
+            "escrow_cert": escrow_cert,
+            "add_backup_passphrase": self.backup_passphrase_enabled,
+        }
+
     def configure_with_task(self):
         """Schedule the partitioning actions."""
         task = AutomaticPartitioningTask(
             storage=self.storage,
             scheme=self.type.value,
-            encrypted=self.encrypted
+            encrypted=self.encrypted,
+            luks_format_args=self.luks_format_args
         )
 
         path = self.publish_task(AUTO_PARTITIONING.namespace, task)
