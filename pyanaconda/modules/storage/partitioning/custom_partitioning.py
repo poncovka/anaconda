@@ -35,7 +35,7 @@ from pyanaconda.core.i18n import _
 from pyanaconda.modules.storage.partitioning.noninteractive_partitioning import \
     NonInteractivePartitioningTask
 from pyanaconda.platform import platform
-from pyanaconda.storage.utils import get_available_disk_space, suggest_swap_size, get_pbkdf_args, \
+from pyanaconda.storage.utils import suggest_swap_size, get_pbkdf_args, \
     lookup_alias
 
 log = get_module_logger(__name__)
@@ -53,6 +53,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         """
         super().__init__(storage)
         self._data = data
+        self._disk_free_space = Size(0)
 
     def _configure_partitioning(self, storage):
         """Configure the partitioning.
@@ -62,12 +63,17 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         log.debug("Executing the custom partitioning.")
         data = self._data
 
+        self._set_disk_free_space(storage)
         self._execute_reqpart(storage, data)
         self._execute_partition(storage, data)
         self._execute_raid(storage, data)
         self._execute_volgroup(storage, data)
         self._execute_logvol(storage, data)
         self._execute_btrfs(storage, data)
+
+    def _set_disk_free_space(self, storage):
+        """Set the disk free space."""
+        self._disk_free_space = storage.get_disk_free_space()
 
     def _execute_reqpart(self, storage, data):
         """Execute the reqpart command.
@@ -151,10 +157,9 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
             ty = "swap"
             partition_data.mountpoint = ""
             if partition_data.recommended or partition_data.hibernation:
-                disk_space = get_available_disk_space(storage)
                 size = suggest_swap_size(
                     hibernation=partition_data.hibernation,
-                    disk_space=disk_space
+                    disk_space=self._disk_free_space
                 )
                 partition_data.grow = False
         # if people want to specify no mountpoint for some reason, let them
@@ -874,10 +879,9 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
             ty = "swap"
             logvol_data.mountpoint = ""
             if logvol_data.recommended or logvol_data.hibernation:
-                disk_space = get_available_disk_space(storage)
                 size = suggest_swap_size(
                     hibernation=logvol_data.hibernation,
-                    disk_space=disk_space
+                    disk_space=self._disk_free_space
                 )
                 logvol_data.grow = False
         else:

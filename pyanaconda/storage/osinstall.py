@@ -77,7 +77,6 @@ class InstallerStorage(Blivet):
 
         self.__luks_devs = {}
         self.fsset = FSSet(self.devicetree)
-        self._free_space_snapshot = None
 
         self._short_product_name = shortProductName
         self._default_luks_version = DEFAULT_LUKS_VERSION
@@ -323,18 +322,6 @@ class InstallerStorage(Blivet):
 
         # Calculate the total free space.
         return sum((disk_free for disk_free, fs_free in snapshot.values()), Size(0))
-
-    @property
-    def free_space_snapshot(self):
-        # if no snapshot is available, do it now and return it
-        self._free_space_snapshot = self._free_space_snapshot or self.get_free_space()
-
-        return self._free_space_snapshot
-
-    def create_free_space_snapshot(self):
-        self._free_space_snapshot = self.get_free_space()
-
-        return self._free_space_snapshot
 
     def get_free_space(self, disks=None, clear_part_type=None):  # pylint: disable=arguments-differ
         """ Return a dict with free space info for each disk.

@@ -28,7 +28,7 @@ from pyanaconda.platform import platform
 from pyanaconda.storage.checker import storage_checker
 from pyanaconda.storage.partitioning import get_full_partitioning_requests, \
     get_default_partitioning
-from pyanaconda.storage.utils import get_available_disk_space, suggest_swap_size
+from pyanaconda.storage.utils import suggest_swap_size
 
 log = get_module_logger(__name__)
 
@@ -74,6 +74,23 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
 
         if report.failure:
             raise PartitioningError("autopart failed: \n" + "\n".join(report.all_errors))
+
+    def _get_autopart_requests(self, storage):
+        """Get the partitioning requests for autopart.
+
+        :param storage: blivet.Blivet instance
+        :return: a list of full partitioning specs
+        """
+        requests = get_full_partitioning_requests(storage, platform, get_default_partitioning())
+
+        # Update the size of swap.
+        for request in requests:
+            if request.fstype == "swap":
+                disk_space = storage.get_disk_free_space()
+                request.size = suggest_swap_size(disk_space=disk_space)
+                break
+
+        return requests
 
     def _get_luks_format_args(self, storage):
         """Get arguments for the LUKS format constructor.
@@ -129,20 +146,3 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         # only newly added swaps should appear in the fstab
         new_swaps = (dev for dev in storage.swaps if not dev.format.exists)
         storage.set_fstab_swaps(new_swaps)
-
-    def _get_autopart_requests(self, storage):
-        """Get the partitioning requests for autopart.
-
-        :param storage: blivet.Blivet instance
-        :return: a list of full partitioning specs
-        """
-        requests = get_full_partitioning_requests(storage, platform, get_default_partitioning())
-
-        # Update the size of swap.
-        for request in requests:
-            if request.fstype == "swap":
-                disk_space = get_available_disk_space(storage)
-                request.size = suggest_swap_size(disk_space=disk_space)
-                break
-
-        return requests
