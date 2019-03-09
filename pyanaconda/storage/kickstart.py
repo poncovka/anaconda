@@ -73,6 +73,7 @@ def _update_custom_storage(storage, ksdata):
 
     # Check if the custom partitioning was used.
     if auto_part_proxy.Enabled or manual_part_proxy.Enabled:
+        log.debug("Custom partitioning is disabled.")
         return
 
     # FIXME: This is an ugly temporary workaround for UI.
