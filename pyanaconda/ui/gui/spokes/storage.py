@@ -777,7 +777,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         else:
             description = disk.description
 
-        free = self.storage.estimate_free_space(disks=[disk])[disk.name][0]
+        free = self.storage.get_free_space(disks=[disk])[disk.name][0]
 
         overview = AnacondaWidgets.DiskOverview(description,
                                                 kind,
@@ -879,7 +879,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
     def on_summary_clicked(self, button):
         # show the selected disks dialog
         # pass in our disk list so hidden disks' free space is available
-        free_space = self.storage.estimate_free_space(disks=self._available_disks)
+        free_space = self.storage.get_free_space(disks=self._available_disks)
         dialog = SelectedDisksDialog(self.data,)
         dialog.refresh(filter_disks_by_names(self._available_disks, self._selected_disks), free_space)
         self.run_lightbox_dialog(dialog)
@@ -977,8 +977,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             log.debug("Need disklabel: %s have: %s", ", ".join(platform_labels),
                                                      ", ".join(disk_labels))
         else:
-            free_space = self.storage.estimate_free_space(disks=disks,
-                                                          clear_part_type=CLEAR_PARTITIONS_NONE)
+            free_space = self.storage.get_free_space(disks=disks)
             disk_free = sum(f[0] for f in free_space.values())
             fs_free = sum(f[1] for f in free_space.values())
 

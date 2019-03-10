@@ -134,7 +134,7 @@ class ResizeDialog(GUIObject):
 
         canShrinkSomething = False
 
-        free_space = self.storage.estimate_free_space(disks=disks)
+        free_space = self.storage.get_free_space(disks=disks)
 
         for disk in disks:
             # First add the disk itself.
