@@ -99,7 +99,8 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         """
         storage.set_up_bootloader()
 
-    def _get_candidate_disks(self, storage, config):
+    @staticmethod
+    def _get_candidate_disks(storage, config):
         """Return a list of disks to be used for autopart/reqpart.
 
         Disks must be partitioned and have a single free region large enough
@@ -138,7 +139,8 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return disks
 
-    def _get_luks_format_args(self, storage):
+    @staticmethod
+    def _get_luks_format_args(storage):
         """Get arguments for the LUKS format constructor.
 
         :param storage: an instance of Blivet
@@ -150,7 +152,8 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
             "luks_version": storage.default_luks_version,
          }
 
-    def _schedule_implicit_partitions(self, storage, disks, scheme, encrypted=False):
+    @staticmethod
+    def _schedule_implicit_partitions(storage, disks, scheme, encrypted=False, luks_fmt_args=None):
         """Schedule creation of a lvm/btrfs member partitions for autopart.
 
         We create one such partition on each disk. They are not allocated until
@@ -160,6 +163,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         :param disks: list of partitioned disks with free space
         :param scheme: a type of the partitioning scheme
         :param encrypted: encrypt the partitions
+        :param luks_fmt_args: arguments for the LUKS format constructor
         :return: list of newly created (unallocated) partitions
         """
         # create a separate pv or btrfs partition for each disk with free space
@@ -172,7 +176,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         for disk in disks:
             if encrypted:
                 fmt_type = "luks"
-                fmt_args = self._get_luks_format_args(storage)
+                fmt_args = luks_fmt_args or {}
             else:
                 if scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
                     fmt_type = "lvmpv"
@@ -188,8 +192,9 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return devs
 
-    def _schedule_partitions(self, storage, disks, implicit_devices, scheme, requests,
-                             encrypted=False):
+    @staticmethod
+    def _schedule_partitions(storage, disks, implicit_devices, scheme, requests,
+                             encrypted=False, luks_fmt_args=None):
         """Schedule creation of autopart/reqpart partitions.
 
         This only schedules the requests for actual partitions.
@@ -199,6 +204,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         :param scheme: a type of the partitioning scheme
         :param requests: list of partitioning requests
         :param encrypted: encrypt the partitions
+        :param luks_fmt_args: arguments for the LUKS format constructor
         """
         # basis for requests with required_space is the sum of the sizes of the
         # two largest free regions
@@ -275,7 +281,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
             if request.encrypted and encrypted:
                 fmt_type = "luks"
-                fmt_args = self._get_luks_format_args(storage)
+                fmt_args = luks_fmt_args or {}
             else:
                 fmt_type = request.fstype
                 fmt_args = {}
@@ -314,7 +320,8 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         return implicit_devices
 
-    def _schedule_volumes(self, storage, devs, scheme, requests, encrypted=False):
+    @staticmethod
+    def _schedule_volumes(storage, devs, scheme, requests, encrypted=False):
         """Schedule creation of autopart lvm/btrfs volumes.
 
         Schedules encryption of member devices if requested, schedules creation

@@ -123,7 +123,8 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
 
         config = get_initialization_config()
         disks = self._get_candidate_disks(storage, config)
-        devs = self._schedule_implicit_partitions(storage, disks, scheme, encrypted)
+        luks_fmt_args = self._get_luks_format_args(storage)
+        devs = self._schedule_implicit_partitions(storage, disks, scheme, encrypted, luks_fmt_args)
         log.debug("candidate disks: %s", disks)
         log.debug("devs: %s", devs)
 
@@ -131,7 +132,7 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
             raise NotEnoughFreeSpaceError(_("Not enough free space on disks for "
                                             "automatic partitioning"))
 
-        devs = self._schedule_partitions(storage, disks, devs, scheme, requests, encrypted)
+        devs = self._schedule_partitions(storage, disks, devs, scheme, requests, encrypted, luks_fmt_args)
 
         # run the autopart function to allocate and grow partitions
         do_partitioning(storage)
