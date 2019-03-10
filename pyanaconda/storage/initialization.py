@@ -196,7 +196,7 @@ def reset_storage(storage):
 def update_storage_config(config):
     """Update the storage configuration.
 
-    :param config: an instance of StorageDiscoveryConfig
+    :param config: an instance of DiskInitializationConfig
     """
     disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
     config.clear_part_type = disk_init_proxy.InitializationMode

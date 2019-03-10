@@ -106,7 +106,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
 
         Disks must be partitioned and have a single free region large enough
         for a default-sized (500MiB) partition. They must also be in
-        :attr:`StorageDiscoveryConfig.clear_part_disks` if it is non-empty.
+        :attr:`DiskInitializationConfig.clear_part_disks` if it is non-empty.
 
         :param storage: an InstallerStorage instance
         :returns: a list of partitioned disks with at least 500MiB of free space

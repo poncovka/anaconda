@@ -45,9 +45,8 @@ import logging
 log = logging.getLogger("anaconda.storage")
 
 
-class StorageDiscoveryConfig(object):
-
-    """ Class to encapsulate various detection/initialization parameters. """
+class DiskInitializationConfig(object):
+    """Class to encapsulate various disk initialization parameters."""
 
     def __init__(self):
 
@@ -74,7 +73,7 @@ class InstallerStorage(Blivet):
         self._default_boot_fstype = None
 
         self._bootloader = None
-        self.config = StorageDiscoveryConfig()
+        self.config = DiskInitializationConfig()
 
         self.__luks_devs = {}
         self.fsset = FSSet(self.devicetree)
