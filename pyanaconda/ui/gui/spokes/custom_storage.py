@@ -72,8 +72,9 @@ from pyanaconda.storage.checker import verify_luks_devices_have_key, storage_che
 from pyanaconda.storage.utils import DEVICE_TEXT_PARTITION, DEVICE_TEXT_MAP, DEVICE_TEXT_MD, \
     DEVICE_TEXT_UNSUPPORTED, PARTITION_ONLY_FORMAT_TYPES, MOUNTPOINT_DESCRIPTIONS, \
     NAMED_DEVICE_TYPES, CONTAINER_DEVICE_TYPES, device_type_from_autopart, bound_size, \
-    get_supported_filesystems, try_populate_devicetree, filter_unsupported_disklabel_devices, \
-    get_initialization_config
+    get_supported_filesystems, try_populate_devicetree, filter_unsupported_disklabel_devices
+from pyanaconda.modules.storage.disk_initialization.clear import get_initialization_config, \
+    should_clear_device
 from pyanaconda.storage.execution import configure_storage
 
 from pyanaconda.ui.communication import hubQ
@@ -1978,7 +1979,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if device.type == "partition" and device.exists and \
            device.disk.format.exists:
             config = get_initialization_config()
-            if self._storage_playground.should_clear(device.disk, config):
+            if should_clear_device(self._storage_playground, device.disk, config):
                 self._storage_playground.initialize_disk(device.disk)
 
         self._devices = self._storage_playground.devices

@@ -39,7 +39,8 @@ from pyanaconda.core.i18n import _
 from pyanaconda.modules.common.constants.objects import DISK_INITIALIZATION
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.storage.partitioning.base_partitioning import PartitioningTask
-from pyanaconda.storage.utils import get_initialization_config
+from pyanaconda.modules.storage.disk_initialization.clear import get_initialization_config, \
+    clear_partitions
 
 log = get_module_logger(__name__)
 
@@ -70,7 +71,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
                         DiskLabel.get_platform_label_types()[0])
 
         config = get_initialization_config()
-        storage.clear_partitions(config)
+        clear_partitions(storage, config)
 
         # Check the usable disks.
         if not any(d for d in storage.disks if not d.format.hidden and not d.protected):

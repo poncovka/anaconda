@@ -36,7 +36,9 @@ from pyanaconda.modules.storage.partitioning.noninteractive_partitioning import 
     NonInteractivePartitioningTask
 from pyanaconda.platform import platform
 from pyanaconda.storage.utils import suggest_swap_size, get_pbkdf_args, \
-    lookup_alias, get_initialization_config
+    lookup_alias
+from pyanaconda.modules.storage.disk_initialization.clear import get_initialization_config, \
+    should_clear_device
 
 log = get_module_logger(__name__)
 
@@ -325,7 +327,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 )
 
             config = get_initialization_config()
-            should_clear = storage.should_clear(disk, config)
+            should_clear = should_clear_device(storage, disk, config)
             if disk and (disk.partitioned or should_clear):
                 kwargs["parents"] = [disk]
             elif disk:

@@ -28,7 +28,8 @@ from pyanaconda.platform import platform
 from pyanaconda.storage.checker import storage_checker
 from pyanaconda.storage.partitioning import get_full_partitioning_requests, \
     get_default_partitioning
-from pyanaconda.storage.utils import suggest_swap_size, get_initialization_config
+from pyanaconda.storage.utils import suggest_swap_size
+from pyanaconda.modules.storage.disk_initialization.clear import get_initialization_config
 
 log = get_module_logger(__name__)
 

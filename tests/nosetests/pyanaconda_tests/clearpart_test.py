@@ -7,7 +7,8 @@ from pyanaconda.core.constants import CLEAR_PARTITIONS_ALL, CLEAR_PARTITIONS_LIN
 from parted import PARTITION_NORMAL
 from blivet.flags import flags
 
-from pyanaconda.storage.utils import DiskInitializationConfig
+from pyanaconda.modules.storage.disk_initialization.clear import DiskInitializationConfig, \
+    should_clear_device
 
 DEVICE_CLASSES = [
     blivet.devices.DiskDevice,
@@ -80,36 +81,36 @@ class ClearPartTestCase(unittest.TestCase):
         #
         config = DiskInitializationConfig()
         config.clear_part_type = CLEAR_PARTITIONS_NONE
-        self.assertFalse(b.should_clear(sda1, config),
+        self.assertFalse(should_clear_device(b, sda1, config),
                          msg="type none should not clear any partitions")
-        self.assertFalse(b.should_clear(sda2, config),
+        self.assertFalse(should_clear_device(b, sda2, config),
                          msg="type none should not clear any partitions")
 
         config.initialize_disks = False
-        self.assertFalse(b.should_clear(sda, config),
+        self.assertFalse(should_clear_device(b, sda, config),
                          msg="type none should not clear non-empty disks")
-        self.assertFalse(b.should_clear(sdb, config),
+        self.assertFalse(should_clear_device(b, sdb, config),
                          msg="type none should not clear formatting from "
                              "unpartitioned disks")
 
-        self.assertFalse(b.should_clear(sdc, config),
+        self.assertFalse(should_clear_device(b, sdc, config),
                          msg="type none should not clear empty disk without "
                              "initlabel")
-        self.assertFalse(b.should_clear(sdd, config),
+        self.assertFalse(should_clear_device(b, sdd, config),
                          msg="type none should not clear empty partition table "
                              "without initlabel")
 
         config.initialize_disks = True
-        self.assertFalse(b.should_clear(sda, config),
+        self.assertFalse(should_clear_device(b, sda, config),
                          msg="type none should not clear non-empty disks even "
                              "with initlabel")
-        self.assertFalse(b.should_clear(sdb, config),
+        self.assertFalse(should_clear_device(b, sdb, config),
                          msg="type non should not clear formatting from "
                              "unpartitioned disks even with initlabel")
-        self.assertTrue(b.should_clear(sdc, config),
+        self.assertTrue(should_clear_device(b, sdc, config),
                         msg="type none should clear empty disks when initlabel "
                             "is set")
-        self.assertTrue(b.should_clear(sdd, config),
+        self.assertTrue(should_clear_device(b, sdd, config),
                         msg="type none should clear empty partition table when "
                             "initlabel is set")
 
@@ -117,43 +118,43 @@ class ClearPartTestCase(unittest.TestCase):
         # clearpart type linux
         #
         config.clear_part_type = CLEAR_PARTITIONS_LINUX
-        self.assertTrue(b.should_clear(sda1, config),
+        self.assertTrue(should_clear_device(b, sda1, config),
                         msg="type linux should clear partitions containing "
                             "ext4 filesystems")
-        self.assertFalse(b.should_clear(sda2, config),
+        self.assertFalse(should_clear_device(b, sda2, config),
                          msg="type linux should not clear partitions "
                              "containing vfat filesystems")
 
         config.initialize_disks = False
-        self.assertFalse(b.should_clear(sda, config),
+        self.assertFalse(should_clear_device(b, sda, config),
                          msg="type linux should not clear non-empty disklabels")
-        self.assertTrue(b.should_clear(sdb, config),
+        self.assertTrue(should_clear_device(b, sdb, config),
                         msg="type linux should clear linux-native whole-disk "
                             "formatting regardless of initlabel setting")
-        self.assertFalse(b.should_clear(sdc, config),
+        self.assertFalse(should_clear_device(b, sdc, config),
                          msg="type linux should not clear unformatted disks "
                              "unless initlabel is set")
-        self.assertFalse(b.should_clear(sdd, config),
+        self.assertFalse(should_clear_device(b, sdd, config),
                          msg="type linux should not clear disks with empty "
                              "partition tables unless initlabel is set")
 
         config.initialize_disks = True
-        self.assertFalse(b.should_clear(sda, config),
+        self.assertFalse(should_clear_device(b, sda, config),
                          msg="type linux should not clear non-empty disklabels")
-        self.assertTrue(b.should_clear(sdb, config),
+        self.assertTrue(should_clear_device(b, sdb, config),
                         msg="type linux should clear linux-native whole-disk "
                             "formatting regardless of initlabel setting")
-        self.assertTrue(b.should_clear(sdc, config),
+        self.assertTrue(should_clear_device(b, sdc, config),
                         msg="type linux should clear unformatted disks when "
                         "initlabel is set")
-        self.assertTrue(b.should_clear(sdd, config),
+        self.assertTrue(should_clear_device(b, sdd, config),
                         msg="type linux should clear disks with empty "
                         "partition tables when initlabel is set")
 
         sda1.protected = True
-        self.assertFalse(b.should_clear(sda1, config),
+        self.assertFalse(should_clear_device(b, sda1, config),
                          msg="protected devices should never be cleared")
-        self.assertFalse(b.should_clear(sda, config),
+        self.assertFalse(should_clear_device(b, sda, config),
                          msg="disks containing protected devices should never "
                              "be cleared")
         sda1.protected = False
@@ -162,35 +163,35 @@ class ClearPartTestCase(unittest.TestCase):
         # clearpart type all
         #
         config.clear_part_type = CLEAR_PARTITIONS_ALL
-        self.assertTrue(b.should_clear(sda1, config),
+        self.assertTrue(should_clear_device(b, sda1, config),
                         msg="type all should clear all partitions")
-        self.assertTrue(b.should_clear(sda2, config),
+        self.assertTrue(should_clear_device(b, sda2, config),
                         msg="type all should clear all partitions")
 
         config.initialize_disks = False
-        self.assertTrue(b.should_clear(sda, config),
+        self.assertTrue(should_clear_device(b, sda, config),
                         msg="type all should initialize all disks")
-        self.assertTrue(b.should_clear(sdb, config),
+        self.assertTrue(should_clear_device(b, sdb, config),
                         msg="type all should initialize all disks")
-        self.assertTrue(b.should_clear(sdc, config),
+        self.assertTrue(should_clear_device(b, sdc, config),
                         msg="type all should initialize all disks")
-        self.assertTrue(b.should_clear(sdd, config),
+        self.assertTrue(should_clear_device(b, sdd, config),
                         msg="type all should initialize all disks")
 
         config.initialize_disks = True
-        self.assertTrue(b.should_clear(sda, config),
+        self.assertTrue(should_clear_device(b, sda, config),
                         msg="type all should initialize all disks")
-        self.assertTrue(b.should_clear(sdb, config),
+        self.assertTrue(should_clear_device(b, sdb, config),
                         msg="type all should initialize all disks")
-        self.assertTrue(b.should_clear(sdc, config),
+        self.assertTrue(should_clear_device(b, sdc, config),
                         msg="type all should initialize all disks")
-        self.assertTrue(b.should_clear(sdd, config),
+        self.assertTrue(should_clear_device(b, sdd, config),
                         msg="type all should initialize all disks")
 
         sda1.protected = True
-        self.assertFalse(b.should_clear(sda1, config),
+        self.assertFalse(should_clear_device(b, sda1, config),
                          msg="protected devices should never be cleared")
-        self.assertFalse(b.should_clear(sda, config),
+        self.assertFalse(should_clear_device(b, sda, config),
                          msg="disks containing protected devices should never "
                              "be cleared")
         sda1.protected = False
