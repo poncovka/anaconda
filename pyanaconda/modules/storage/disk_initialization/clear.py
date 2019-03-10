@@ -33,11 +33,11 @@ class DiskInitializationConfig(object):
     """Configuration for the disk initialization."""
 
     def __init__(self):
-        self.clear_part_type = CLEAR_PARTITIONS_DEFAULT
-        self.clear_part_disks = []
-        self.clear_part_devices = []
-        self.initialize_disks = False
-        self.zero_mbr = False
+        self.initialization_mode = CLEAR_PARTITIONS_DEFAULT
+        self.drives_to_clear = []
+        self.devices_to_clear = []
+        self.initialize_labels = False
+        self.format_unrecognized = False
         self.clear_non_existent = False
 
 
@@ -49,11 +49,11 @@ def get_initialization_config():
     disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
     config = DiskInitializationConfig()
 
-    config.clear_part_type = disk_init_proxy.InitializationMode
-    config.clear_part_disks = disk_init_proxy.DrivesToClear
-    config.clear_part_devices = disk_init_proxy.DevicesToClear
-    config.initialize_disks = disk_init_proxy.InitializeLabelsEnabled
-    config.zero_mbr = disk_init_proxy.FormatUnrecognizedEnabled
+    config.initialization_mode = disk_init_proxy.InitializationMode
+    config.drives_to_clear = disk_init_proxy.DrivesToClear
+    config.devices_to_clear = disk_init_proxy.DevicesToClear
+    config.initialize_labels = disk_init_proxy.InitializeLabelsEnabled
+    config.format_unrecognized = disk_init_proxy.FormatUnrecognizedEnabled
 
     # If autopart is selected we want to remove whatever has been
     # created/scheduled to make room for autopart. If custom is
@@ -73,14 +73,10 @@ def should_clear_device(storage, device, config):
     :param config: an instance of DiskInitializationConfig
     :return bool: whether or not clear_partitions should remove this device
     """
-    clear_part_type = config.clear_part_type
-    clear_part_disks = config.clear_part_disks
-    clear_part_devices = config.clear_part_devices
-
     for disk in device.disks:
         # this will not include disks with hidden formats like multipath
         # and firmware raid member disks
-        if clear_part_disks and disk.name not in clear_part_disks:
+        if config.drives_to_clears and disk.name not in config.drives_to_clears:
             return False
 
     if not config.clear_non_existent:
@@ -88,11 +84,11 @@ def should_clear_device(storage, device, config):
                 (not device.is_disk and not device.exists):
             return False
 
-    # the only devices we want to clear when clear_part_type is
+    # the only devices we want to clear when the initialization mode is
     # CLEAR_PARTITIONS_NONE are uninitialized disks, or disks with no
-    # partitions, in clear_part_disks, and then only when we have been asked
+    # partitions, in drives_to_clears, and then only when we have been asked
     # to initialize disks as needed
-    if clear_part_type in [CLEAR_PARTITIONS_NONE, CLEAR_PARTITIONS_DEFAULT]:
+    if config.initialization_mode in [CLEAR_PARTITIONS_NONE, CLEAR_PARTITIONS_DEFAULT]:
         if not config.initialize_disks or not device.is_disk:
             return False
 
@@ -110,15 +106,15 @@ def should_clear_device(storage, device, config):
         if not device.is_primary and not device.is_logical:
             return False
 
-        if clear_part_type == CLEAR_PARTITIONS_LINUX and \
+        if config.initialization_mode == CLEAR_PARTITIONS_LINUX and \
                 not device.format.linux_native and \
                 not device.get_flag(parted.PARTITION_LVM) and \
                 not device.get_flag(parted.PARTITION_RAID) and \
                 not device.get_flag(parted.PARTITION_SWAP):
             return False
     elif device.is_disk:
-        if device.partitioned and clear_part_type != CLEAR_PARTITIONS_ALL:
-            # if clear_part_type is not CLEAR_PARTITIONS_ALL but we'll still be
+        if device.partitioned and config.initialization_mode != CLEAR_PARTITIONS_ALL:
+            # if the mode is not CLEAR_PARTITIONS_ALL but we'll still be
             # removing every partition from the disk, return True since we
             # will want to be able to create a new disklabel on this disk
             if not storage.empty_device(device):
@@ -128,12 +124,12 @@ def should_clear_device(storage, device, config):
         if device.format.hidden:
             return False
 
-        # When clear_part_type is CLEAR_PARTITIONS_LINUX and a disk has non-
+        # When the mode is CLEAR_PARTITIONS_LINUX and a disk has non-
         # linux whole-disk formatting, do not clear it. The exception is
         # the case of an uninitialized disk when we've been asked to
         # initialize disks as needed
-        if (clear_part_type == CLEAR_PARTITIONS_LINUX and
-                not ((config.initialize_disks and
+        if (config.initialization_mode == CLEAR_PARTITIONS_LINUX and
+                not ((config.initialize_labels and
                       storage.empty_device(device)) or
                      (not device.partitioned and device.format.linux_native))):
             return False
@@ -143,8 +139,8 @@ def should_clear_device(storage, device, config):
     if device.protected or any(d.protected for d in descendants):
         return False
 
-    if clear_part_type == CLEAR_PARTITIONS_LIST and \
-            device.name not in clear_part_devices:
+    if config.initialization_mode == CLEAR_PARTITIONS_LIST and \
+            device.name not in config.devices_to_clear:
         return False
 
     return True
@@ -178,7 +174,7 @@ def clear_partitions(storage, config):
 
     # ensure all disks have appropriate disklabels
     for disk in storage.disks:
-        zerombr = (config.zero_mbr and disk.format.type is None)
+        zerombr = (config.format_unrecognized and disk.format.type is None)
         should_clear = should_clear_device(storage, disk, config)
         if should_clear:
             storage.recursive_remove(disk)
