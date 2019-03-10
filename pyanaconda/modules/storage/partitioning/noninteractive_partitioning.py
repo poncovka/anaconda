@@ -39,6 +39,7 @@ from pyanaconda.core.i18n import _
 from pyanaconda.modules.common.constants.objects import DISK_INITIALIZATION
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.storage.partitioning.base_partitioning import PartitioningTask
+from pyanaconda.storage.utils import get_initialization_config
 
 log = get_module_logger(__name__)
 
@@ -61,11 +62,6 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         :param storage: an instance of Blivet
         """
         disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
-        storage.config.clear_part_type = disk_init_proxy.InitializationMode
-        storage.config.clear_part_disks = disk_init_proxy.DrivesToClear
-        storage.config.clear_part_devices = disk_init_proxy.DevicesToClear
-        storage.config.initialize_disks = disk_init_proxy.InitializeLabelsEnabled
-
         disk_label = disk_init_proxy.DefaultDiskLabel
 
         if disk_label and not DiskLabel.set_default_label_type(disk_label):
@@ -73,7 +69,8 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
                         "Using default disklabel %s instead.", disk_label,
                         DiskLabel.get_platform_label_types()[0])
 
-        storage.clear_partitions()
+        config = get_initialization_config()
+        storage.clear_partitions(config)
 
         # Check the usable disks.
         if not any(d for d in storage.disks if not d.format.hidden and not d.protected):
@@ -101,7 +98,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         """
         storage.set_up_bootloader()
 
-    def _get_candidate_disks(self, storage):
+    def _get_candidate_disks(self, storage, config):
         """Return a list of disks to be used for autopart/reqpart.
 
         Disks must be partitioned and have a single free region large enough
@@ -109,6 +106,7 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
         :attr:`DiskInitializationConfig.clear_part_disks` if it is non-empty.
 
         :param storage: an InstallerStorage instance
+        :param config: an instance of DiskInitializationConfig
         :returns: a list of partitioned disks with at least 500MiB of free space
         """
         disks = []
@@ -116,8 +114,8 @@ class NonInteractivePartitioningTask(PartitioningTask, metaclass=ABCMeta):
             if not disk.format.supported or disk.protected:
                 continue
 
-            if storage.config.clear_part_disks and \
-               (disk.name not in storage.config.clear_part_disks):
+            if config.clear_part_disks and \
+               (disk.name not in config.clear_part_disks):
                 continue
 
             if get_next_partition_type(disk.format.parted_disk) is None:

@@ -36,7 +36,7 @@ from pyanaconda.modules.storage.partitioning.noninteractive_partitioning import 
     NonInteractivePartitioningTask
 from pyanaconda.platform import platform
 from pyanaconda.storage.utils import suggest_swap_size, get_pbkdf_args, \
-    lookup_alias
+    lookup_alias, get_initialization_config
 
 log = get_module_logger(__name__)
 
@@ -105,7 +105,8 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         if not any(d.format.supported for d in storage.partitioned):
             raise NoDisksError(_("No usable disks selected"))
 
-        disks = self._get_candidate_disks(storage)
+        config = get_initialization_config()
+        disks = self._get_candidate_disks(storage, config)
 
         if not disks:
             raise NotEnoughFreeSpaceError(_("Not enough free space on disks for "
@@ -323,7 +324,8 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                     lineno=partition_data.lineno
                 )
 
-            should_clear = storage.should_clear(disk)
+            config = get_initialization_config()
+            should_clear = storage.should_clear(disk, config)
             if disk and (disk.partitioned or should_clear):
                 kwargs["parents"] = [disk]
             elif disk:

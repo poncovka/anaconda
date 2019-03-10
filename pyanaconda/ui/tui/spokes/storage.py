@@ -51,8 +51,8 @@ from pyanaconda.core.constants import THREAD_STORAGE, THREAD_STORAGE_WATCHER, \
     MOUNT_POINT_REFORMAT, MOUNT_POINT_PATH, MOUNT_POINT_DEVICE, MOUNT_POINT_FORMAT, \
     WARNING_NO_DISKS_DETECTED, WARNING_NO_DISKS_SELECTED
 from pyanaconda.core.i18n import _, N_, C_
-from pyanaconda.storage.initialization import initialize_storage, update_storage_config, \
-    reset_storage, select_all_disks_by_default
+from pyanaconda.storage.initialization import initialize_storage, reset_storage, \
+    select_all_disks_by_default
 
 from pykickstart.base import BaseData
 
@@ -417,13 +417,6 @@ class StorageSpoke(NormalTUISpoke):
             self.storage.bootloader.reset()
 
         apply_disk_selection(self.storage, self._selected_disks)
-        update_storage_config(self.storage.config)
-
-        # If autopart is selected we want to remove whatever has been
-        # created/scheduled to make room for autopart.
-        # If custom is selected, we want to leave alone any storage layout the
-        # user may have set up before now.
-        self.storage.config.clear_non_existent = self._auto_part_observer.proxy.Enabled
 
     def execute(self):
         print(_("Generating updated storage configuration"))
@@ -438,7 +431,6 @@ class StorageSpoke(NormalTUISpoke):
             self._disk_init_observer.proxy.SetInitializationMode(CLEAR_PARTITIONS_ALL)
             self._disk_init_observer.proxy.SetInitializeLabelsEnabled(False)
 
-            # The reset also calls self.storage.config.update().
             reset_storage(self.storage)
 
             # Now set data back to the user's specified config.

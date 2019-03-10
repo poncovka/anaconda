@@ -76,8 +76,7 @@ from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import CLEAR_PARTITIONS_NONE, BOOTLOADER_DRIVE_UNSET, \
     BOOTLOADER_ENABLED, STORAGE_METADATA_RATIO, DEFAULT_AUTOPART_TYPE, WARNING_NO_DISKS_SELECTED, \
     WARNING_NO_DISKS_DETECTED
-from pyanaconda.storage.initialization import update_storage_config, reset_storage, \
-    select_all_disks_by_default
+from pyanaconda.storage.initialization import reset_storage, select_all_disks_by_default
 from pyanaconda.storage.snapshot import on_disk_storage
 from pyanaconda.storage.format_dasd import DasdFormatting
 from pyanaconda.screen_access import sam
@@ -419,14 +418,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             self._clear_part_type = CLEAR_PARTITIONS_NONE
             self._disk_init_observer.proxy.SetInitializationMode(CLEAR_PARTITIONS_NONE)
 
-        update_storage_config(self.storage.config)
         self.storage.encryption_passphrase = self._auto_part_observer.proxy.Passphrase
-
-        # If autopart is selected we want to remove whatever has been
-        # created/scheduled to make room for autopart.
-        # If custom is selected, we want to leave alone any storage layout the
-        # user may have set up before now.
-        self.storage.config.clear_non_existent = self._auto_part_observer.proxy.Enabled
 
     @async_action_nowait
     def execute(self):
@@ -512,7 +504,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
             self._bootloader_observer.proxy.SetDrive(BOOTLOADER_DRIVE_UNSET)
             self._disk_select_observer.proxy.SetSelectedDisks([])
 
-            # The reset also calls self.storage.config.update().
             reset_storage(self.storage)
 
             # Now set data back to the user's specified config.

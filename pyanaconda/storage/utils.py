@@ -40,6 +40,7 @@ from blivet.devicefactory import DEVICE_TYPE_DISK
 from blivet.devicefactory import is_supported_device_type
 from blivet.util import total_memory
 from bytesize.bytesize import ROUND_HALF_UP
+from pyanaconda.core.constants import CLEAR_PARTITIONS_DEFAULT
 
 from pykickstart.errors import KickstartError
 
@@ -49,7 +50,7 @@ from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler, ERROR_RAISE
 from pyanaconda.modules.common.constants.services import NETWORK, STORAGE
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, NVDIMM, \
-    DISK_INITIALIZATION
+    DISK_INITIALIZATION, AUTO_PARTITIONING
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP
@@ -728,3 +729,39 @@ def suggest_swap_size(quiet=False, hibernation=False, disk_space=None):
         log.info("Swap attempt of %s", swap)
 
     return swap
+
+
+class DiskInitializationConfig(object):
+    """Class to encapsulate various disk initialization parameters."""
+
+    def __init__(self):
+        self.clear_part_type = CLEAR_PARTITIONS_DEFAULT
+        self.clear_part_disks = []
+        self.clear_part_devices = []
+        self.initialize_disks = False
+        self.zero_mbr = False
+        self.clear_non_existent = False
+
+
+def get_initialization_config():
+    """Get the config for clearing partitions.
+
+    :return: an instance of DiskInitializationConfig
+    """
+    disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
+    config = DiskInitializationConfig()
+
+    config.clear_part_type = disk_init_proxy.InitializationMode
+    config.clear_part_disks = disk_init_proxy.DrivesToClear
+    config.clear_part_devices = disk_init_proxy.DevicesToClear
+    config.initialize_disks = disk_init_proxy.InitializeLabelsEnabled
+    config.zero_mbr = disk_init_proxy.FormatUnrecognizedEnabled
+
+    # If autopart is selected we want to remove whatever has been
+    # created/scheduled to make room for autopart. If custom is
+    # selected, we want to leave alone any storage layout the
+    # user may have set up before now.
+    auto_part_proxy = STORAGE.get_proxy(AUTO_PARTITIONING)
+    config.clear_non_existent = auto_part_proxy.Enabled
+
+    return config

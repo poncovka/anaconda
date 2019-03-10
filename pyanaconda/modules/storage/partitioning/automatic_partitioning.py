@@ -28,7 +28,7 @@ from pyanaconda.platform import platform
 from pyanaconda.storage.checker import storage_checker
 from pyanaconda.storage.partitioning import get_full_partitioning_requests, \
     get_default_partitioning
-from pyanaconda.storage.utils import suggest_swap_size
+from pyanaconda.storage.utils import suggest_swap_size, get_initialization_config
 
 log = get_module_logger(__name__)
 
@@ -112,8 +112,6 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         log.debug("scheme: %s", scheme)
         log.debug("requests:\n%s", "".join([str(p) for p in requests]))
         log.debug("encrypted: %s", encrypted)
-        log.debug("clear_part_type: %s", storage.config.clear_part_type)
-        log.debug("clear_part_disks: %s", storage.config.clear_part_disks)
         log.debug("storage.disks: %s", [d.name for d in storage.disks])
         log.debug("storage.partitioned: %s", [d.name for d in storage.partitioned if d.format.supported])
         log.debug("all names: %s", [d.name for d in storage.devices])
@@ -122,7 +120,8 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         if not any(d.format.supported for d in storage.partitioned):
             raise NoDisksError(_("No usable disks selected"))
 
-        disks = self._get_candidate_disks(storage)
+        config = get_initialization_config()
+        disks = self._get_candidate_disks(storage, config)
         devs = self._schedule_implicit_partitions(storage, disks, scheme, encrypted)
         log.debug("candidate disks: %s", disks)
         log.debug("devs: %s", devs)

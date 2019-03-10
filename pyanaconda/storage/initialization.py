@@ -28,7 +28,7 @@ from pyanaconda.anaconda_logging import program_log_lock
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, AUTO_PARTITIONING, \
-    DISK_INITIALIZATION, FCOE, ZFCP
+    FCOE, ZFCP
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.storage.osinstall import InstallerStorage
 from pyanaconda.platform import platform
@@ -169,9 +169,6 @@ def reset_storage(storage):
 
     :param storage: an instance of the Blivet's storage object
     """
-    # Update the config.
-    update_storage_config(storage.config)
-
     # Set the ignored and exclusive disks.
     disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
     storage.ignored_disks = disk_select_proxy.IgnoredDisks
@@ -191,16 +188,3 @@ def reset_storage(storage):
 
     # Do the reset.
     storage.reset()
-
-
-def update_storage_config(config):
-    """Update the storage configuration.
-
-    :param config: an instance of DiskInitializationConfig
-    """
-    disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
-    config.clear_part_type = disk_init_proxy.InitializationMode
-    config.clear_part_disks = disk_init_proxy.DrivesToClear
-    config.clear_part_devices = disk_init_proxy.DevicesToClear
-    config.initialize_disks = disk_init_proxy.InitializeLabelsEnabled
-    config.zero_mbr = disk_init_proxy.FormatUnrecognizedEnabled
