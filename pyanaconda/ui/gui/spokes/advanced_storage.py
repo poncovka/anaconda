@@ -33,7 +33,7 @@ from blivet.iscsi import iscsi
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import CN_, CP_
 from pyanaconda.storage.utils import try_populate_devicetree, get_available_disks, \
-    apply_disk_selection, filter_disks_by_names
+    apply_disk_selection
 from pyanaconda.storage.snapshot import on_disk_storage
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION
 from pyanaconda.modules.common.constants.services import STORAGE
@@ -711,15 +711,10 @@ class FilterSpoke(NormalSpoke):
         super().on_back_clicked(button)
 
     def on_summary_clicked(self, button):
-        dialog = SelectedDisksDialog(self.data)
-
-        # Include any disks selected in the initial storage spoke, plus any
-        # selected in this filter UI.
-        disks = filter_disks_by_names(self.disks, self.selected_disks)
-        free_space = self.storage.get_free_space(disks=disks)
+        dialog = SelectedDisksDialog(self.data, self.storage)
+        dialog.refresh(self.disks, self.selected_disks, show_remove=False, set_boot=False)
 
         with self.main_window.enlightbox(dialog.window):
-            dialog.refresh(disks, free_space, showRemove=False, setBoot=False)
             dialog.run()
 
     @timed_action(delay=1200, busy_cursor=False)

@@ -21,6 +21,7 @@ from pyanaconda.core.constants import BOOTLOADER_ENABLED, BOOTLOADER_LOCATION_MB
 from pyanaconda.core.i18n import C_, P_
 from pyanaconda.modules.common.constants.objects import BOOTLOADER
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.storage.utils import filter_disks_by_names
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.utils import escape_markup
 from blivet.size import Size
@@ -39,22 +40,30 @@ class SelectedDisksDialog(GUIObject):
     mainWidgetName = "selected_disks_dialog"
     uiFile = "spokes/lib/cart.glade"
 
-    def __init__(self, data):
+    def __init__(self, data, storage):
         super().__init__(data)
+        self._storage = storage
+        self._bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
+
+        self.disks = []
+        self._previousID = None
 
         self._view = self.builder.get_object("disk_tree_view")
         self._store = self.builder.get_object("disk_store")
         self._selection = self.builder.get_object("disk_selection")
         self._summary_label = self.builder.get_object("summary_label")
-
         self._set_button = self.builder.get_object("set_as_boot_button")
         self._remove_button = self.builder.get_object("remove_button")
 
-        self._bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
+    def refresh(self, available_disks=(), selected_disks=(), show_remove=True, set_boot=True):
+        super().refresh()
 
-    # pylint: disable=arguments-differ
-    def initialize(self, disks, free, showRemove=True, setBoot=True):
+        # clear out the store and repopulate it from the devicetree
+        self._store.clear()
         self._previousID = None
+
+        free = self._storage.get_free_space(disks=available_disks)
+        disks = filter_disks_by_names(available_disks, selected_disks)
 
         for disk in disks:
             self._store.append([False,
@@ -63,13 +72,14 @@ class SelectedDisksDialog(GUIObject):
                                 str(free[disk.name][0]),
                                 disk.name,
                                 disk.id])
+
         self.disks = disks[:]
         self._update_summary()
 
-        if not showRemove:
+        if not show_remove:
             self.builder.get_object("remove_button").hide()
 
-        if not setBoot:
+        if not set_boot:
             self._set_button.hide()
 
         if not disks:
@@ -98,14 +108,6 @@ class SelectedDisksDialog(GUIObject):
                 self._previousID = row[ID_COL]
                 row[IS_BOOT_COL] = True
                 break
-
-    # pylint: disable=arguments-differ
-    def refresh(self, disks, free, showRemove=True, setBoot=True):
-        super().refresh()
-
-        # clear out the store and repopulate it from the devicetree
-        self._store.clear()
-        self.initialize(disks, free, showRemove=showRemove, setBoot=setBoot)
 
     def run(self):
         rc = self.window.run()

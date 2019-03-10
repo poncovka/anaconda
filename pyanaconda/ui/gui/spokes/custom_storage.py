@@ -2153,9 +2153,15 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._do_refresh()
 
     def on_summary_clicked(self, button):
-        dialog = SelectedDisksDialog(self.data)
-        dialog.refresh(self._clearpartDevices, self._currentFreeInfo,
-                       showRemove=False, setBoot=False)
+        dialog = SelectedDisksDialog(self.data, self.storage)
+
+        dialog.refresh(
+            self._storage_playground.disks,
+            [d.name for d in self._clearpartDevices],
+            show_remove=False,
+            set_boot=False
+        )
+
         with self.main_window.enlightbox(dialog.window):
             dialog.run()
 
