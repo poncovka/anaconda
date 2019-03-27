@@ -188,6 +188,7 @@ AC_CONFIG_FILES([Makefile
                  pyanaconda/modules/storage/nvdimm/Makefile
                  pyanaconda/modules/storage/partitioning/Makefile
                  pyanaconda/modules/storage/snapshot/Makefile
+                 pyanaconda/modules/storage/utils/Makefile
                  pyanaconda/modules/storage/zfcp/Makefile
                  pyanaconda/modules/services/Makefile
                  data/post-scripts/Makefile

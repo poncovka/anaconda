@@ -42,6 +42,7 @@ from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
 from pyanaconda.modules.storage.reset import StorageResetTask
 from pyanaconda.modules.storage.snapshot import SnapshotModule
 from pyanaconda.modules.storage.storage_interface import StorageInterface
+from pyanaconda.modules.storage.utils import StorageUtilsModule
 from pyanaconda.modules.storage.zfcp import ZFCPModule
 from pyanaconda.storage.initialization import enable_installer_mode, create_storage
 from pyanaconda.storage.utils import get_required_device_size
@@ -93,6 +94,9 @@ class StorageModule(KickstartModule, DeviceTreeHandler):
             self._zfcp_module = ZFCPModule()
             self._add_module(self._zfcp_module)
 
+        self._utils_module = StorageUtilsModule()
+        self._add_module(self._utils_module)
+
         # Initialize the partitioning modules.
         self._partitioning_modules = {}
 
@@ -110,6 +114,7 @@ class StorageModule(KickstartModule, DeviceTreeHandler):
 
         # Connect modules to signals.
         self.storage_changed.connect(self._snapshot_module.on_storage_reset)
+        self.storage_changed.connect(self._utils_module.on_storage_reset)
 
     def _add_module(self, storage_module):
         """Add a base kickstart module."""

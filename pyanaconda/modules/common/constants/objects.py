@@ -83,6 +83,11 @@ ZFCP = DBusObjectIdentifier(
     basename="zFCP"
 )
 
+STORAGE_UTILS = DBusObjectIdentifier(
+    namespace=STORAGE_NAMESPACE,
+    basename="Utils"
+)
+
 FIREWALL = DBusObjectIdentifier(
     namespace=NETWORK_NAMESPACE,
     basename="Firewall"
