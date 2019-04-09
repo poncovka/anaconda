@@ -224,7 +224,7 @@ class TaskInterfaceTestCase(unittest.TestCase):
 
     def thread_name_test(self):
         """Test the thread name of the task."""
-        self.SimpleTask._thread_counter = 0
+        self.SimpleTask._task_counter = 0
 
         task = self.SimpleTask()
         self.assertEqual(task._thread_name, "AnaTaskThread-SimpleTask-1")

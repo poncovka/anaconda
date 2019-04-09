@@ -39,6 +39,20 @@ __all__ = ['AbstractTask', 'Task']
 class AbstractTask(Runnable, Cancellable, ProgressReporter, ResultProvider):
     """Abstract class for running a long-term task."""
 
+    _task_counter = 0
+
+    def __init__(self):
+        super().__init__()
+        self._task_id = self._generate_task_id()
+
+    @property
+    def id(self):
+        """Unique identifier of this task.
+
+        :returns: string with the task id
+        """
+        return self._task_id
+
     @property
     @abstractmethod
     def name(self):
@@ -50,15 +64,23 @@ class AbstractTask(Runnable, Cancellable, ProgressReporter, ResultProvider):
         """
         return ""
 
+    @classmethod
+    def _generate_task_id(cls):
+        """Generate the id of the task."""
+        cls._task_counter += 1
+
+        return "{}-{}".format(
+            cls.__name__,
+            cls._task_counter
+        )
+
 
 class Task(AbstractTask):
     """Abstract class for running a long-term task in a thread."""
 
-    _thread_counter = 0
-
     def __init__(self):
         super().__init__()
-        self._thread_name = self._generate_thread_name()
+        self._thread_name = self._generate_thread_name(self._task_id)
 
     @property
     def steps(self):
@@ -127,12 +149,9 @@ class Task(AbstractTask):
         threadMgr.raise_if_error(self._thread_name)
 
     @classmethod
-    def _generate_thread_name(cls):
+    def _generate_thread_name(cls, task_id):
         """Generate the name of the thread."""
-        cls._thread_counter += 1
-
-        return "{}-{}-{}".format(
+        return "{}-{}".format(
             THREAD_DBUS_TASK,
-            cls.__name__,
-            cls._thread_counter
+            task_id
         )
