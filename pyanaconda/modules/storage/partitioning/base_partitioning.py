@@ -48,6 +48,8 @@ class PartitioningTask(Task, metaclass=ABCMeta):
 
     def run(self):
         """Do the partitioning and handle the errors."""
+        log.info("%s (%s)", self.name, self.id)
+
         try:
             self._run(self._storage)
         except (StorageError, KickstartParseError, ValueError) as e:

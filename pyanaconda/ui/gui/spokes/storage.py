@@ -1044,6 +1044,12 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
                 self.skipTo = "CustomPartitioningSpoke"
             if self._get_selected_partitioning_method() == PartitioningMethod.BLIVET_GUI:
                 self.skipTo = "BlivetGuiSpoke"
+
+            # Don't run the execute method.
+            self.applyOnSkip = False
+
+            # Apply the disk selection.
+            self.apply()
         elif self._reclaim_checkbox.get_active():
             # HINT: change the logic of this 'if' statement if we are asked to
             # support "reclaim before custom partitioning"
@@ -1072,6 +1078,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
                 # The "Fedora software selection" link was clicked on one of the
                 # dialogs.  Send the user to the software spoke.
                 self.skipTo = "SoftwareSelectionSpoke"
+                self.applyOnSkip = True
             elif rc == RESPONSE_QUIT:
                 # Not enough space, and the user can't do anything about it so
                 # they chose to quit.
@@ -1082,7 +1089,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
                 self._back_clicked = False
                 return
 
-        self.applyOnSkip = True
         NormalSpoke.on_back_clicked(self, button)
 
     def on_custom_toggled(self, button):
