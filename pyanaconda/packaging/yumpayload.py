@@ -1574,7 +1574,8 @@ reposdir=%s
                 "--rpmlog", script_log,
                 "--installroot", iutil.getSysroot(),
                 "--release", release,
-                "--arch", blivet.arch.getArch()]
+                "--arch", blivet.arch.getArch(),
+                "--debug"]
 
         for macro in self.rpmMacros:
             args.extend(["--macro", macro[0], macro[1]])
