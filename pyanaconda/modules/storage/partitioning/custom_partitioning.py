@@ -55,6 +55,20 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         super().__init__(storage)
         self._data = data
         self._disk_free_space = Size(0)
+        self._default_passphrase = storage.encryption_passphrase
+
+    def _get_passphrase(self, data):
+        """Get a passphrase for the given data object.
+
+        Try to use the default passphrase if available.
+
+        :param data: a kickstart data object
+        :return: a string with the passphrase
+        """
+        if data.passphrase and not self._default_passphrase:
+            self._default_passphrase = data.passphrase
+
+        return data.passphrase or self._default_passphrase
 
     def _configure_partitioning(self, storage):
         """Configure the partitioning.
@@ -411,14 +425,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 add_fstab_swap = request
 
         if partition_data.encrypted:
-            if partition_data.passphrase and not storage.encryption_passphrase:
-                storage.encryption_passphrase = partition_data.passphrase
-
-            # try to use the global passphrase if available
-            # XXX: we require the LV/part with --passphrase to be processed
-            # before this one to setup the storage.encryption_passphrase
-            partition_data.passphrase = partition_data.passphrase or storage.encryption_passphrase
-
+            passphrase = self._get_passphrase(partition_data)
             cert = storage.get_escrow_certificate(partition_data.escrowcert)
 
             # Get the version of LUKS and PBKDF arguments.
@@ -440,7 +447,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 luksformat = kwargs["fmt"]
                 device.format = get_format(
                     "luks",
-                    passphrase=partition_data.passphrase,
+                    passphrase=passphrase,
                     device=device.path,
                     cipher=partition_data.cipher,
                     escrow_cert=cert,
@@ -458,7 +465,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 luksformat = request.format
                 request.format = get_format(
                     "luks",
-                    passphrase=partition_data.passphrase,
+                    passphrase=passphrase,
                     cipher=partition_data.cipher,
                     escrow_cert=cert,
                     add_backup_passphrase=partition_data.backuppassphrase,
@@ -667,9 +674,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 add_fstab_swap = request
 
         if raid_data.encrypted:
-            if raid_data.passphrase and not storage.encryption_passphrase:
-                storage.encryption_passphrase = raid_data.passphrase
-
+            passphrase = self._get_passphrase(raid_data)
             cert = storage.get_escrow_certificate(raid_data.escrowcert)
 
             # Get the version of LUKS and PBKDF arguments.
@@ -690,7 +695,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 luksformat = kwargs["fmt"]
                 device.format = get_format(
                     "luks",
-                    passphrase=raid_data.passphrase,
+                    passphrase=passphrase,
                     device=device.path,
                     cipher=raid_data.cipher,
                     escrow_cert=cert,
@@ -707,7 +712,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 luksformat = request.format
                 request.format = get_format(
                     "luks",
-                    passphrase=raid_data.passphrase,
+                    passphrase=passphrase,
                     cipher=raid_data.cipher,
                     escrow_cert=cert,
                     add_backup_passphrase=raid_data.backuppassphrase,
@@ -1124,14 +1129,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 add_fstab_swap = request
 
         if logvol_data.encrypted:
-            if logvol_data.passphrase and not storage.encryption_passphrase:
-                storage.encryption_passphrase = logvol_data.passphrase
-
-            # try to use the global passphrase if available
-            # XXX: we require the LV/part with --passphrase to be processed
-            # before this one to setup the storage.encryption_passphrase
-            logvol_data.passphrase = logvol_data.passphrase or storage.encryption_passphrase
-
+            passphrase = self._get_passphrase(logvol_data)
             cert = storage.get_escrow_certificate(logvol_data.escrowcert)
 
             # Get the version of LUKS and PBKDF arguments.
@@ -1152,7 +1150,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 luksformat = fmt
                 device.format = get_format(
                     "luks",
-                    passphrase=logvol_data.passphrase,
+                    passphrase=passphrase,
                     device=device.path,
                     cipher=logvol_data.cipher,
                     escrow_cert=cert,
@@ -1169,7 +1167,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 luksformat = request.format
                 request.format = get_format(
                     "luks",
-                    passphrase=logvol_data.passphrase,
+                    passphrase=passphrase,
                     cipher=logvol_data.cipher,
                     escrow_cert=cert,
                     add_backup_passphrase=logvol_data.backuppassphrase,
