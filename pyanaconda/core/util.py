@@ -100,17 +100,14 @@ def getTargetPhysicalRoot():
     return conf.target.physical_root
 
 
-_sysroot = None
-
-
 def getSysroot():
     """Returns the path to the target OS installation.
 
     For ordinary package-based installations, this is the same as the
     target root.
     """
-    if _sysroot:
-        return _sysroot
+    if os.path.exists(conf.target.system_root):
+        return conf.target.system_root
 
     return getTargetPhysicalRoot()
 
@@ -122,8 +119,18 @@ def setSysroot(path):
     This should only be used by Payload subclasses which install operating
     systems to non-default roots.
     """
-    global _sysroot
-    _sysroot = path
+    sysroot = getSysroot()
+
+    if path == sysroot:
+        return
+
+    if not os.path.isdir(sysroot):
+        mkdirChain(sysroot)
+
+    rc = execWithRedirect("mount", ["--rbind", path, sysroot])
+
+    if rc != 0:
+        raise OSError("Failed to change sysroot to {}.".format(path))
 
 
 def startProgram(argv, root='/', stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
