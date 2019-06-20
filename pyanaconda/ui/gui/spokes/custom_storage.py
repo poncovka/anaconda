@@ -1012,7 +1012,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         # NAME
         old_name = getattr(use_dev, "lvname", use_dev.name)
-        name = old_name
         changed_name = False
         if self._nameEntry.get_sensitive():
             name = self._nameEntry.get_text()
@@ -1170,7 +1169,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         container = factory.get_container()
         old_container_encrypted = False
         old_container_raid_level = None
-        old_container = None
         old_container_size = SIZE_POLICY_AUTO
         if not changed_device_type:
             old_container = factory.get_container(device=use_dev)
