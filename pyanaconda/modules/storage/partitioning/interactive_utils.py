@@ -18,7 +18,8 @@
 # Red Hat, Inc.
 #
 from blivet import devicefactory
-from blivet.devicelibs import crypto
+from blivet.devicefactory import SIZE_POLICY_MAX, SIZE_POLICY_AUTO
+from blivet.devicelibs import crypto, raid
 from blivet.devices import LUKSDevice
 from blivet.errors import StorageError
 from blivet.formats import get_format
@@ -28,6 +29,7 @@ from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import UNSUPPORTED_FILESYSTEMS
 from pyanaconda.core.i18n import _
 from pyanaconda.core.util import lowerASCII
+from pyanaconda.modules.common.structures.partitioning import DeviceFactoryRequest
 from pyanaconda.modules.storage.disk_initialization import DiskInitializationConfig
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
@@ -646,6 +648,79 @@ def _add_device(storage, dev_info, use_existing_container=False):
     except OverflowError as e:
         log.error("Invalid partition size set: %s", str(e))
         raise StorageError("Invalid partition size set. Use a valid integer.") from None
+
+
+def configure_device(storage, request):
+    """Configure a device in the storage model.
+
+    :param storage: an instance of Blivet
+    :param request: a device factory request
+    :return: a new device
+    """
+    # Get the device factory args.
+    arguments = _get_device_factory_arguments(storage, request)
+
+    # Run the device factory.
+    return storage.factory_device(**arguments)
+
+
+def _get_device_factory_arguments(storage, request: DeviceFactoryRequest):
+    """Get the device factory arguments for the given request.
+
+    :param storage: an instance of Blivet
+    :param request: a device factory request
+    :return: a dictionary of device factory arguments
+    """
+    args = {
+        "device_type": request.device_type,
+        "min_luks_entropy": crypto.MIN_CREATE_ENTROPY
+    }
+
+    if request.device_spec:
+        args["device"] = storage.devicetree.get_device_by_name(request.device_spec)
+
+    if request.disks:
+        args["disks"] = [storage.devicetree.get_device_by_name(d) for d in request.disks]
+
+    if request.mount_point:
+        args["mountpoint"] = request.mount_point
+
+    if request.format_type:
+        args["fstype"] = request.format_type
+
+    if request.label:
+        args["label"] = request.label
+
+    if request.luks_version:
+        args["luks_version"] = request.luks_version
+
+    if request.device_name:
+        args["device_name"] = request.device_name
+
+    if request.device_size:
+        args["size"] = Size(request.device_size)
+
+    if request.device_raid_level:
+        args["raid_level"] = raid.get_raid_level(request.device_raid_level)
+
+    if request.device_encrypted:
+        args["encrypted"] = request.device_encrypted
+
+    if request.container_name:
+        args["container_name"] = request.container_name
+
+    if request.container_size_policy == SIZE_POLICY_MAX:
+        args["container_size"] = SIZE_POLICY_MAX
+    elif request.container_size_policy != SIZE_POLICY_AUTO:
+        args["container_size"] = Size(request.container_size)
+
+    if request.container_raid_level:
+        args["container_raid_level"] = raid.get_raid_level(request.container_raid_level)
+
+    if request.container_encrypted:
+        args["container_encrypted"] = request.container_encrypted
+
+    return args
 
 
 def destroy_device(storage, device):
