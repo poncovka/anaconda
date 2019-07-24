@@ -111,6 +111,9 @@ SUPPORTED_DEVICE_TYPES = (DEVICE_TYPE_PARTITION, DEVICE_TYPE_LVM, DEVICE_TYPE_LV
 # maximum ratio of swap size to disk size (10 %)
 MAX_SWAP_DISK_RATIO = Decimal('0.1')
 
+# Fixed container size policy. See SIZE_POLICY_MAX and SIZE_POLICY_AUTO.
+SIZE_POLICY_FIXED = 1
+
 udev_device_dict_cache = None
 
 def size_from_input(input_str, units=None):
