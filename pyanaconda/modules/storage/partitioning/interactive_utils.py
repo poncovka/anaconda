@@ -530,16 +530,17 @@ def collect_device_types(device, disks):
     return sorted(filter(devicefactory.is_supported_device_type, supported_types))
 
 
-def add_device(storage, dev_info):
+def add_device(storage, request):
     """Add a device to the storage model.
 
     :param storage: an instance of Blivet
-    :param dev_info: a device info
+    :param request: a device factory request
     :raise: StorageError if the device cannot be created
     """
-    log.debug("Add device: %s", dev_info)
+    log.debug("Add device: %s", request)
 
     # Complete the device info.
+    dev_info = _get_device_factory_arguments(storage, request)
     _update_device_info(storage, dev_info)
 
     try:
@@ -569,6 +570,7 @@ def _update_device_info(storage, dev_info):
     """
     # Set the defaults.
     dev_info.setdefault("mountpoint", None)
+    dev_info.setdefault("size", None)
     dev_info.setdefault("device_type", devicefactory.DEVICE_TYPE_LVM)
     dev_info.setdefault("encrypted", False)
     dev_info.setdefault("min_luks_entropy", crypto.MIN_CREATE_ENTROPY)
