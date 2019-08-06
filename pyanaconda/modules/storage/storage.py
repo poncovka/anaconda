@@ -23,7 +23,7 @@ from pyanaconda.core.signal import Signal
 from pyanaconda.dbus import DBus
 from pyanaconda.modules.common.base import KickstartModule
 from pyanaconda.modules.common.constants.objects import AUTO_PARTITIONING, MANUAL_PARTITIONING, \
-    CUSTOM_PARTITIONING, BLIVET_PARTITIONING, INTERACTIVE_PARTITIONING
+    CUSTOM_PARTITIONING, BLIVET_PARTITIONING, INTERACTIVE_PARTITIONING, SHRUNKEN_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.structures.requirement import Requirement
 from pyanaconda.modules.storage.bootloader import BootloaderModule
@@ -39,8 +39,8 @@ from pyanaconda.modules.storage.iscsi import ISCSIModule
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
 from pyanaconda.modules.storage.nvdimm import NVDIMMModule
 from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, \
-    ManualPartitioningModule, CustomPartitioningModule, BlivetPartitioningModule
-from pyanaconda.modules.storage.partitioning.interactive import InteractivePartitioningModule
+    ManualPartitioningModule, CustomPartitioningModule, BlivetPartitioningModule, \
+    InteractivePartitioningModule, ShrunkenPartitioningModule
 from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
 from pyanaconda.modules.storage.reset import StorageResetTask
 from pyanaconda.modules.storage.snapshot import SnapshotModule
@@ -116,6 +116,9 @@ class StorageModule(KickstartModule):
 
         self._custom_part_module = CustomPartitioningModule()
         self._add_partitioning_module(CUSTOM_PARTITIONING.object_path, self._custom_part_module)
+
+        self._shrunken_part_module = ShrunkenPartitioningModule()
+        self._add_partitioning_module(SHRUNKEN_PARTITIONING.object_path, self._shrunken_part_module)
 
         self._interactive_part_module = InteractivePartitioningModule()
         self._add_partitioning_module(INTERACTIVE_PARTITIONING.object_path,self._interactive_part_module)
