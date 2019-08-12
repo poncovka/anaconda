@@ -38,9 +38,6 @@ from pyanaconda.modules.storage.installation import MountFilesystemsTask, Activa
 from pyanaconda.modules.storage.iscsi import ISCSIModule
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
 from pyanaconda.modules.storage.nvdimm import NVDIMMModule
-from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, \
-    ManualPartitioningModule, CustomPartitioningModule, BlivetPartitioningModule
-from pyanaconda.modules.storage.partitioning.interactive import InteractivePartitioningModule
 from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
 from pyanaconda.modules.storage.reset import StorageResetTask
 from pyanaconda.modules.storage.snapshot import SnapshotModule
@@ -107,21 +104,6 @@ class StorageModule(KickstartModule):
 
         # Initialize the partitioning modules.
         self._partitioning_modules = {}
-
-        self._auto_part_module = AutoPartitioningModule()
-        self._add_partitioning_module(AUTO_PARTITIONING.object_path, self._auto_part_module)
-
-        self._manual_part_module = ManualPartitioningModule()
-        self._add_partitioning_module(MANUAL_PARTITIONING.object_path, self._manual_part_module)
-
-        self._custom_part_module = CustomPartitioningModule()
-        self._add_partitioning_module(CUSTOM_PARTITIONING.object_path, self._custom_part_module)
-
-        self._interactive_part_module = InteractivePartitioningModule()
-        self._add_partitioning_module(INTERACTIVE_PARTITIONING.object_path,self._interactive_part_module)
-
-        self._blivet_part_module = BlivetPartitioningModule()
-        self._add_partitioning_module(BLIVET_PARTITIONING.object_path, self._blivet_part_module)
 
         # Connect modules to signals.
         self.storage_changed.connect(
