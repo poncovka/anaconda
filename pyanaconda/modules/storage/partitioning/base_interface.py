@@ -17,6 +17,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pyanaconda.dbus.namespace import get_dbus_path
 from pyanaconda.modules.common.base.base_template import ModuleInterfaceTemplate
 from pyanaconda.dbus.interface import dbus_interface
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
@@ -28,6 +29,21 @@ __all__ = ["PartitioningInterface"]
 @dbus_interface(PARTITIONING.interface_name)
 class PartitioningInterface(ModuleInterfaceTemplate):
     """DBus interface for a partitioning module."""
+
+    _partitioning_counter = 1
+
+    @staticmethod
+    def get_object_path(namespace):
+        """Get the unique object path in the given namespace.
+
+        This method is not thread safe for now.
+
+        :param namespace: a sequence of names
+        :return: a DBus path of a partitioning
+        """
+        partitioning_number = PartitioningInterface._partitioning_counter
+        PartitioningInterface._partitioning_counter += 1
+        return get_dbus_path(*namespace, "Partitioning", str(partitioning_number))
 
     def GetDeviceTree(self) -> ObjPath:
         """Get the device tree.

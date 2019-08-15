@@ -1,5 +1,7 @@
 #
-# Copyright (C) 2018 Red Hat, Inc.
+# The constants for partitioning.
+#
+# Copyright (C) 2019 Red Hat, Inc.
 #
 # This copyrighted material is made available to anyone wishing to use,
 # modify, copy, or redistribute it subject to the terms and conditions of
@@ -15,7 +17,16 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from pyanaconda.modules.storage.partitioning.constants import PartitioningMethod
-from pyanaconda.modules.storage.partitioning.factory import PartitioningFactory
+from enum import Enum
 
-__all__ = ["PartitioningMethod", "PartitioningFactory"]
+from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, PARTITIONING_METHOD_CUSTOM, \
+    PARTITIONING_METHOD_MANUAL, PARTITIONING_METHOD_INTERACTIVE, PARTITIONING_METHOD_BLIVET
+
+
+class PartitioningMethod(Enum):
+    """The partitioning method."""
+    AUTOMATIC = PARTITIONING_METHOD_AUTOMATIC
+    CUSTOM = PARTITIONING_METHOD_CUSTOM
+    MANUAL = PARTITIONING_METHOD_MANUAL
+    INTERACTIVE = PARTITIONING_METHOD_INTERACTIVE
+    BLIVET = PARTITIONING_METHOD_BLIVET

@@ -17,30 +17,40 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pyanaconda.modules.storage.partitioning.constants import PartitioningMethod
 
-from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, \
-    ManualPartitioningModule, CustomPartitioningModule, BlivetPartitioningModule, \
-    InteractivePartitioningModule
+__all__ = ["PartitioningFactory"]
 
 
 class PartitioningFactory(object):
     """The partitioning factory."""
 
-    def create_partitioning(self, method):
-        """
+    @staticmethod
+    def create_partitioning(method: PartitioningMethod):
+        """Create a partitioning module.
 
         :param method: a partitioning method
         :return: a partitioning module
         """
+        if method is PartitioningMethod.AUTOMATIC:
+            from pyanaconda.modules.storage.partitioning.automatic import AutoPartitioningModule
+            return AutoPartitioningModule()
 
+        if method is PartitioningMethod.MANUAL:
+            from pyanaconda.modules.storage.partitioning.manual import ManualPartitioningModule
+            return ManualPartitioningModule()
 
-        auto_part_module = AutoPartitioningModule()
+        if method is PartitioningMethod.CUSTOM:
+            from pyanaconda.modules.storage.partitioning.custom import CustomPartitioningModule
+            return CustomPartitioningModule()
 
+        if method is PartitioningMethod.INTERACTIVE:
+            from pyanaconda.modules.storage.partitioning.interactive import \
+                InteractivePartitioningModule
+            return InteractivePartitioningModule()
 
-        self._manual_part_module = ManualPartitioningModule()
+        if method is PartitioningMethod.BLIVET:
+            from pyanaconda.modules.storage.partitioning.blivet import BlivetPartitioningModule
+            return BlivetPartitioningModule()
 
-        self._custom_part_module = CustomPartitioningModule()
-
-        self._interactive_part_module = InteractivePartitioningModule()
-
-        self._blivet_part_module = BlivetPartitioningModule()
+        raise ValueError("Unknown partitioning method: %s", method)

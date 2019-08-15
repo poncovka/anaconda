@@ -38,6 +38,7 @@ from pyanaconda.modules.storage.installation import MountFilesystemsTask, Activa
 from pyanaconda.modules.storage.iscsi import ISCSIModule
 from pyanaconda.modules.storage.kickstart import StorageKickstartSpecification
 from pyanaconda.modules.storage.nvdimm import NVDIMMModule
+from pyanaconda.modules.storage.partitioning import PartitioningFactory, PartitioningMethod
 from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
 from pyanaconda.modules.storage.reset import StorageResetTask
 from pyanaconda.modules.storage.snapshot import SnapshotModule
@@ -104,6 +105,21 @@ class StorageModule(KickstartModule):
 
         # Initialize the partitioning modules.
         self._partitioning_modules = {}
+
+        module = PartitioningFactory.create_partitioning(PartitioningMethod.AUTOMATIC)
+        self._add_partitioning_module(AUTO_PARTITIONING.object_path, module)
+
+        module = PartitioningFactory.create_partitioning(PartitioningMethod.MANUAL)
+        self._add_partitioning_module(MANUAL_PARTITIONING.object_path, module)
+
+        module = PartitioningFactory.create_partitioning(PartitioningMethod.CUSTOM)
+        self._add_partitioning_module(CUSTOM_PARTITIONING.object_path, module)
+
+        module = PartitioningFactory.create_partitioning(PartitioningMethod.INTERACTIVE)
+        self._add_partitioning_module(INTERACTIVE_PARTITIONING.object_path, module)
+
+        module = PartitioningFactory.create_partitioning(PartitioningMethod.BLIVET)
+        self._add_partitioning_module(BLIVET_PARTITIONING.object_path, module)
 
         # Connect modules to signals.
         self.storage_changed.connect(
@@ -234,6 +250,25 @@ class StorageModule(KickstartModule):
         # Publish the task.
         path = self.publish_task(STORAGE.namespace, task)
         return path
+
+    def create_partitioning(self, method):
+        """Create a new partitioning.
+
+        Allowed values:
+            AUTOMATIC
+            CUSTOM
+            MANUAL
+            INTERACTIVE
+            BLIVET
+
+        :param method: a partitioning method
+        :return: a path to a partitioning
+        """
+        module = PartitioningFactory.create_partitioning(method)
+        object_path = module.publish()
+
+        self._add_partitioning_module(object_path, module)
+        return object_path
 
     def apply_partitioning(self, object_path):
         """Apply a partitioning.
