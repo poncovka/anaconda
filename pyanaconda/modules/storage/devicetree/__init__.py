@@ -30,7 +30,7 @@ def publish_device_tree(message_bus, namespace, device_tree, interface=DeviceTre
     :param interface: an interface class
     :return: a DBus path of the published task
     """
-    publishable = interface(device_tree)
+    publishable = device_tree.get_publishable()
     object_path = interface.get_object_path(namespace)
     message_bus.publish_object(object_path, publishable)
     return object_path
