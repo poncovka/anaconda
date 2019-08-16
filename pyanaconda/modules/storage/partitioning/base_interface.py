@@ -36,7 +36,7 @@ class PartitioningInterface(ModuleInterfaceTemplate):
         :return: a DBus path to a device tree
         """
         return DeviceTreeContainer.to_object_path(
-            self.implementation.device_tree
+            self.implementation.get_device_tree()
         )
 
     def ConfigureWithTask(self) -> ObjPath:
