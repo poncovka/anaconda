@@ -105,7 +105,7 @@ class DBusContainer(object):
             if found_obj is obj:
                 return object_path
 
-        raise DBusContainerError("Unknown object: %s", obj)
+        raise DBusContainerError("Unknown object: {}".format(obj))
 
     def _find_object(self, object_path):
         """Find an object by its DBus path.
@@ -117,7 +117,7 @@ class DBusContainer(object):
         found_path = self._container.get(object_path)
 
         if not found_path:
-            raise DBusContainerError("Unknown DBus path: %s", object_path)
+            raise DBusContainerError("Unknown DBus path: {}".format(object_path))
 
         return found_path
 
