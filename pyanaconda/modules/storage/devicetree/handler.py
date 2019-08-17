@@ -57,18 +57,6 @@ class DeviceTreeHandler(ABC):
         """
         raise UnknownDeviceError(name)
 
-    @abstractmethod
-    def publish_task(self, namespace, task, interface=TaskInterface, message_bus=DBus):
-        """Publish a task.
-
-        :param namespace: a DBus namespace
-        :param task: an instance of task
-        :param interface: an interface class
-        :param message_bus: a message bus
-        :return: a DBus path of the published task
-        """
-        raise NotImplementedError()
-
     def setup_device(self, device_name):
         """Open, or set up, a device.
 
@@ -139,11 +127,9 @@ class DeviceTreeHandler(ABC):
 
         The task will populate the device tree with new devices.
 
-        :return: a path to the task
+        :return: a task
         """
-        task = FindDevicesTask(self.storage.devicetree)
-        path = self.publish_task(DEVICE_TREE_HANDLER.namespace, task)
-        return path
+        return FindDevicesTask(self.storage.devicetree)
 
     def find_optical_media(self):
         """Find all devices with mountable optical media.
@@ -166,14 +152,13 @@ class DeviceTreeHandler(ABC):
 
         The task will update data about existing installations.
 
-        :return: a path to the task
+        :return: a task
         """
         task = FindExistingSystemsTask(self.storage.devicetree)
         task.succeeded_signal.connect(
             lambda: self._update_existing_systems(task.get_result())
         )
-        path = self.publish_task(DEVICE_TREE_HANDLER.namespace, task)
-        return path
+        return task
 
     def _update_existing_systems(self, roots):
         """Update existing GNU/Linux installations.
@@ -187,13 +172,10 @@ class DeviceTreeHandler(ABC):
 
         :param device_name: a name of the root device
         :param read_only: mount the system in read-only mode
-        :return: a path to the task
+        :return: a task
         """
-        task = MountExistingSystemTask(
+        return MountExistingSystemTask(
             storage=self.storage,
             device=self._get_device(device_name),
             read_only=read_only
         )
-
-        path = self.publish_task(DEVICE_TREE_HANDLER.namespace, task)
-        return path

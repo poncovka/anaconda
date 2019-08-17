@@ -25,6 +25,7 @@ from pyanaconda.modules.common.base import KickstartModule
 from pyanaconda.modules.common.constants.objects import AUTO_PARTITIONING, MANUAL_PARTITIONING, \
     CUSTOM_PARTITIONING, BLIVET_PARTITIONING, INTERACTIVE_PARTITIONING
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.containers import TaskContainer
 from pyanaconda.modules.common.structures.requirement import Requirement
 from pyanaconda.modules.storage.bootloader import BootloaderModule
 from pyanaconda.modules.storage.checker import StorageCheckerModule
@@ -171,6 +172,8 @@ class StorageModule(KickstartModule):
 
     def publish(self):
         """Publish the module."""
+        TaskContainer.set_namespace(STORAGE.namespace)
+
         for kickstart_module in self._modules:
             kickstart_module.publish()
 
@@ -248,10 +251,7 @@ class StorageModule(KickstartModule):
         # Create the task.
         task = StorageResetTask(storage)
         task.succeeded_signal.connect(lambda: self.set_storage(storage))
-
-        # Publish the task.
-        path = self.publish_task(STORAGE.namespace, task)
-        return path
+        return task
 
     def apply_partitioning(self, object_path):
         """Apply a partitioning.
@@ -298,21 +298,15 @@ class StorageModule(KickstartModule):
 
         FIXME: This is a simplified version of the storage installation.
 
-        :returns: list of object paths of installation tasks
+        :returns: a list of installation tasks
         """
         storage = self.storage
 
-        tasks = [
+        return [
             ActivateFilesystemsTask(storage),
             MountFilesystemsTask(storage),
             WriteConfigurationTask(storage)
         ]
-
-        paths = [
-            self.publish_task(STORAGE.namespace, task) for task in tasks
-        ]
-
-        return paths
 
     def teardown_with_tasks(self):
         """Returns teardown tasks for this module.
@@ -321,13 +315,7 @@ class StorageModule(KickstartModule):
         """
         storage = self.storage
 
-        tasks = [
+        return [
             UnmountFilesystemsTask(storage),
             TeardownDiskImagesTask(storage)
         ]
-
-        paths = [
-            self.publish_task(STORAGE.namespace, task) for task in tasks
-        ]
-
-        return paths

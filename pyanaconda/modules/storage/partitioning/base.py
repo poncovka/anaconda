@@ -87,7 +87,7 @@ class PartitioningModule(KickstartBaseModule):
     def configure_with_task(self):
         """Schedule the partitioning actions.
 
-        :return: a DBus path to a task
+        :return: a task
         """
         pass
 
@@ -98,7 +98,7 @@ class PartitioningModule(KickstartBaseModule):
         Run sanity checks on the current storage model to
         verify if the partitioning is valid.
 
-        :return: a DBus path to a task
+        :return: a task
         """
         pass
 
