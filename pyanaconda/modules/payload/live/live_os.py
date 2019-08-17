@@ -91,12 +91,8 @@ class LiveOSHandlerModule(PayloadHandlerBase):
 
     def setup_installation_source_with_task(self):
         """Setup installation source device."""
-        task = SetupInstallationSourceTask(self.image_path, INSTALL_TREE)
-
-        return self.publish_task(LIVE_OS_HANDLER.namespace, task)
+        return SetupInstallationSourceTask(self.image_path, INSTALL_TREE)
 
     def teardown_installation_source_with_task(self):
         """Teardown installation source device."""
-        task = TeardownInstallationSourceTask(INSTALL_TREE)
-
-        return self.publish_task(LIVE_OS_HANDLER.namespace, task)
+        return TeardownInstallationSourceTask(INSTALL_TREE)

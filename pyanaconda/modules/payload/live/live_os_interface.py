@@ -23,6 +23,7 @@ from pyanaconda.dbus.property import emits_properties_changed
 
 from pyanaconda.modules.common.constants.objects import LIVE_OS_HANDLER
 from pyanaconda.modules.common.base import KickstartModuleInterfaceTemplate
+from pyanaconda.modules.common.containers import TaskContainer
 
 
 @dbus_interface(LIVE_OS_HANDLER.interface_name)
@@ -58,8 +59,12 @@ class LiveOSHandlerInterface(KickstartModuleInterfaceTemplate):
 
     def SetupInstallationSourceWithTask(self) -> ObjPath:
         """Setup installation source resources."""
-        return self.implementation.setup_installation_source_with_task()
+        return TaskContainer.to_object_path(
+            self.implementation.setup_installation_source_with_task()
+        )
 
     def TeardownInstallationSourceWithTask(self) -> ObjPath:
         """Teardown installation source resources."""
-        return self.implementation.teardown_installation_source_with_task()
+        return TaskContainer.to_object_path(
+            self.implementation.teardown_installation_source_with_task()
+        )

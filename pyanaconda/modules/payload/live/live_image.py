@@ -209,7 +209,7 @@ class LiveImageHandlerModule(PayloadHandlerBase):
             self.requests_session
         )
         task.succeeded_signal.connect(lambda: self.set_required_space(task.get_result()))
-        return self.publish_task(LIVE_IMAGE_HANDLER.namespace, task)
+        return task
 
     def pre_install_with_task(self):
         """Set up installation source image
@@ -228,15 +228,14 @@ class LiveImageHandlerModule(PayloadHandlerBase):
             self.requests_session
         )
         task.succeeded_signal.connect(lambda: self.set_image_path(task.get_result()))
-        return self.publish_task(LIVE_IMAGE_HANDLER.namespace, task)
+        return task
 
     def post_install_with_task(self):
         """Do post installation tasks."""
-        task = UpdateBLSConfigurationTask(
+        return UpdateBLSConfigurationTask(
             conf.target.system_root,
             self.kernel_version_list
         )
-        return self.publish_task(LIVE_IMAGE_HANDLER.namespace, task)
 
     def install_with_task(self):
         """Install the payload."""
@@ -251,7 +250,7 @@ class LiveImageHandlerModule(PayloadHandlerBase):
                 conf.target.system_root,
                 self.kernel_version_list
             )
-        return self.publish_task(LIVE_IMAGE_HANDLER.namespace, task)
+        return task
 
     def teardown_with_task(self):
         """Tear down installation source image.
@@ -260,9 +259,8 @@ class LiveImageHandlerModule(PayloadHandlerBase):
         * Clean up mount point directories
         * Remove downloaded image
         """
-        task = TeardownInstallationSourceImageTask(
+        return TeardownInstallationSourceImageTask(
             self.image_path,
             self.url,
             INSTALL_TREE
         )
-        return self.publish_task(LIVE_IMAGE_HANDLER.namespace, task)
