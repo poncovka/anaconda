@@ -47,6 +47,17 @@ class DBusContainer(object):
         self._published = set()
         self._path_counter = 0
 
+    def set_namespace(self, namespace):
+        """Set the namespace.
+
+        All DBus objects from the container should use the same
+        namespace, so the namespace should be set up before any
+        of the DBus objects are published.
+
+        :param namespace: a sequence of names
+        """
+        self._namespace = namespace
+
     def to_object_path(self, obj: Publishable) -> ObjPath:
         """Return a DBus path of the object.
 
