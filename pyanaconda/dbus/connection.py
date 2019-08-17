@@ -25,7 +25,6 @@ import pydbus
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import ANACONDA_BUS_ADDR_FILE
 from pyanaconda.dbus.constants import DBUS_ANACONDA_SESSION_ADDRESS, DBUS_STARTER_ADDRESS
-from pyanaconda.dbus.publishable import Publishable
 
 log = get_module_logger(__name__)
 
@@ -96,13 +95,9 @@ class Connection(ABC):
         """Publish an object on DBus.
 
         :param object_path: a DBus path of an object
-        :param obj: an instance of @dbus_interface or @dbus_class or Publishable
+        :param obj: an instance of @dbus_interface or @dbus_class
         """
         log.debug("Publishing an object at %s.", object_path)
-
-        if isinstance(obj, Publishable):
-            obj = obj.for_publication()
-
         reg = self.connection.register_object(object_path, obj, None)
         self._object_registrations.append((object_path, reg))
 

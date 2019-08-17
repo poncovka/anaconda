@@ -36,7 +36,7 @@ class Publishable(ABC):
     my_object = MyObject()
 
     # Publish the object on DBus.
-    DBus.publish_object("/org/project/x", my_object)
+    DBus.publish_object("/org/project/x", my_object.for_publication())
 
    """
 

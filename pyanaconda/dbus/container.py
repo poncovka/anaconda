@@ -120,7 +120,11 @@ class DBusContainer(object):
         :return: an object path
         """
         object_path = self._generate_object_path()
-        self._message_bus.publish_object(object_path, obj)
+
+        self._message_bus.publish_object(
+            object_path,
+            obj.for_publication()
+        )
 
         self._container[object_path] = obj
         self._published.add(id(obj))
