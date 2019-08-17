@@ -30,6 +30,7 @@ from pyanaconda.modules.network.firewall.installation import ConfigureFirewallTa
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
 
+
 class FirewallModule(KickstartBaseModule):
     """The firewall module."""
 
@@ -218,11 +219,11 @@ class FirewallModule(KickstartBaseModule):
         return requirements
 
     def install_with_task(self):
-        """Return the installation tasks of this module.
+        """Return the installation task of this module.
 
-        :returns: list of object paths of installation tasks
+        :returns: a task
         """
-        firewall_configuration_task = ConfigureFirewallTask(
+        return ConfigureFirewallTask(
                 sysroot=conf.target.system_root,
                 firewall_mode=self.firewall_mode,
                 enabled_services=self.enabled_services,
@@ -230,5 +231,3 @@ class FirewallModule(KickstartBaseModule):
                 enabled_ports=self.enabled_ports,
                 trusts=self.trusts
         )
-
-        return self.publish_task(FIREWALL.namespace, firewall_configuration_task)
