@@ -113,18 +113,14 @@ class DBusContainer(object):
         """
         return id(obj) in self._published
 
-    def _publish_object(self, obj):
+    def _publish_object(self, obj: Publishable):
         """Publish the given object.
 
         :param obj: an object to publish
         :return: an object path
         """
         object_path = self._generate_object_path()
-
-        self._message_bus.publish_object(
-            object_path,
-            obj.get_publishable()
-        )
+        self._message_bus.publish_object(object_path, obj)
 
         self._container[object_path] = obj
         self._published.add(id(obj))
