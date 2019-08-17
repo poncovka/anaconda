@@ -52,8 +52,8 @@ class AbstractTask(Runnable, Cancellable, Publishable, ProgressReporter, ResultP
         """
         return ""
 
-    def get_publishable(self):
-        """Return a publishable implementation.
+    def for_publication(self):
+        """Return a DBus representation.
 
         :return: an instance of TaskInterface
         """
