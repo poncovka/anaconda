@@ -25,7 +25,7 @@ from abc import abstractmethod
 
 from pyanaconda.core.constants import THREAD_DBUS_TASK
 from pyanaconda.dbus.publishable import Publishable
-from pyanaconda.modules.common.task import TaskInterface
+from pyanaconda.modules.common.task.task_interface import TaskInterface
 from pyanaconda.modules.common.task.cancellable import Cancellable
 from pyanaconda.modules.common.task.progress import ProgressReporter
 from pyanaconda.modules.common.task.result import ResultProvider
