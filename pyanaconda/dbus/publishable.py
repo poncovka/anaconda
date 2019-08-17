@@ -1,5 +1,5 @@
 #
-# Support for objects publishable on DBus
+# Support for publishable Python objects
 #
 # Copyright (C) 2019  Red Hat, Inc.  All rights reserved.
 #
@@ -22,15 +22,27 @@ __all__ = ["Publishable"]
 
 
 class Publishable(ABC):
-    """Abstract class that allows to publish the object on DBus."""
+    """Abstract class that allows to publish the object on DBus.
+
+    Example:
+
+    # Define a publishable class.
+    class MyObject(Publishable):
+
+        def for_publication(self):
+            return MyDBusInterface(self)
+
+    # Create a publishable object.
+    my_object = MyObject()
+
+    # Publish the object on DBus.
+    DBus.publish_object("/org/project/x", my_object)
+
+   """
 
     @abstractmethod
-    def get_publishable(self):
-        """Return a publishable implementation.
-
-        For example:
-
-            return MyDBusInterface(self)
+    def for_publication(self):
+        """Return a DBus representation of this object.
 
         :return: an instance of @dbus_interface or @dbus_class
         """
