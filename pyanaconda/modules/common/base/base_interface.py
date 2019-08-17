@@ -20,6 +20,7 @@
 from pykickstart.errors import KickstartError
 
 from pyanaconda.modules.common.base.base_template import KickstartModuleInterfaceTemplate
+from pyanaconda.modules.common.containers import TaskContainer
 from pyanaconda.modules.common.constants.interfaces import KICKSTART_MODULE
 from pyanaconda.dbus.property import emits_properties_changed
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
@@ -144,14 +145,14 @@ class KickstartModuleInterface(KickstartModuleInterfaceTemplate):
 
         :returns: list of object paths of installation tasks
         """
-        return self.implementation.install_with_tasks()
+        return TaskContainer.to_object_path_list(self.implementation.install_with_tasks())
 
     def TeardownWithTasks(self) -> List[ObjPath]:
         """Returns teardown tasks for this module.
 
         :returns: list of object paths of installation tasks
         """
-        return self.implementation.teardown_with_tasks()
+        return TaskContainer.to_object_path_list(self.implementation.teardown_with_tasks())
 
     def Quit(self):
         """Shut the module down."""

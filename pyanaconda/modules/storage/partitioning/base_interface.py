@@ -20,7 +20,7 @@
 from pyanaconda.modules.common.base.base_template import ModuleInterfaceTemplate
 from pyanaconda.dbus.interface import dbus_interface
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
-from pyanaconda.modules.common.constants.containers import DeviceTreeContainer
+from pyanaconda.modules.common.containers import DeviceTreeContainer
 from pyanaconda.modules.common.constants.interfaces import PARTITIONING
 
 __all__ = ["PartitioningInterface"]

@@ -22,7 +22,7 @@ from unittest.mock import Mock
 
 from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation
 
-from pyanaconda.modules.common.constants.containers import DeviceTreeContainer
+from pyanaconda.modules.common.containers import DeviceTreeContainer
 from pyanaconda.modules.storage.devicetree.devicetree_interface import DeviceTreeInterface
 from pyanaconda.modules.storage.partitioning.interactive import InteractivePartitioningModule
 from pyanaconda.modules.storage.partitioning.interactive_interface import \

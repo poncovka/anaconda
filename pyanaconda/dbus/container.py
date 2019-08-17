@@ -19,7 +19,7 @@
 from pyanaconda.dbus import DBus
 from pyanaconda.dbus.namespace import get_dbus_path
 from pyanaconda.dbus.publishable import Publishable
-from pyanaconda.dbus.typing import ObjPath
+from pyanaconda.dbus.typing import ObjPath, List
 
 __all__ = ["DBusContainerError", "DBusContainer"]
 
@@ -58,11 +58,26 @@ class DBusContainer(object):
         """
         self._namespace = namespace
 
-    def to_object_path(self, obj: Publishable) -> ObjPath:
-        """Return a DBus path of the object.
+    def from_object_path(self, object_path: ObjPath):
+        """Convert a DBus path to a published object.
 
-        :param obj: an object to be published
-        :return: a DBus path of the published object
+        If no published object is found for the given DBus path,
+        raise DBusContainerError.
+
+        :param object_path: a DBus path
+        :return: a published object
+        """
+        return self._find_object(object_path)
+
+    def to_object_path(self, obj) -> ObjPath:
+        """Convert a publishable object to a DBus path.
+
+        If no DBus path if found for the given object, publish
+        the object on the container message bus with a unique
+        DBus path generated from the container namespace.
+
+        :param obj: an publishable object
+        :return: a DBus path
         """
         if not isinstance(obj, Publishable):
             raise TypeError("The object is not publishable.")
@@ -72,13 +87,23 @@ class DBusContainer(object):
 
         return self._find_object_path(obj)
 
-    def from_object_path(self, object_path: ObjPath) -> Publishable:
-        """Return a published object.
+    @classmethod
+    def from_object_path_list(cls, object_paths: List[ObjPath]):
+        """Convert DBus paths to published objects.
 
-        :param object_path: a DBus path of a published object
-        :return: a published object
+        :param object_paths: a list of DBus paths
+        :return: a list of published objects
         """
-        return self._find_object(object_path)
+        return list(map(cls.from_object_path, object_paths))
+
+    @classmethod
+    def to_object_path_list(cls, objects) -> List[ObjPath]:
+        """Convert publishable objects to DBus paths.
+
+        :param objects: a list of publishable objects
+        :return: a list of DBus paths
+        """
+        return list(map(cls.to_object_path, objects))
 
     def _is_object_published(self, obj):
         """Is the given object published?

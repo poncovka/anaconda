@@ -1,5 +1,5 @@
 #
-# Known object containers.
+# DBus containers
 #
 # Copyright (C) 2019  Red Hat, Inc.  All rights reserved.
 #
