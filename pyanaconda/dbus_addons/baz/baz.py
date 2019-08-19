@@ -77,7 +77,7 @@ class BazCalculationTask(Task):
     def name(self):
         return "Calculate something"
 
-    def get_publishable(self):
+    def for_publication(self):
         return BazCalculationTaskInterface(self)
 
     def run(self):

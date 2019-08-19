@@ -46,7 +46,7 @@ class DeviceTreeInterfaceTestCase(unittest.TestCase):
 
     def setUp(self):
         self.module = DeviceTreeModule()
-        self.interface = self.module.get_publishable()
+        self.interface = self.module.for_publication()
 
         # Set the storage.
         self.module.on_storage_reset(create_storage())

@@ -94,7 +94,9 @@ class DeviceTreeHandlerInterface(InterfaceTemplate):
 
         :return: a path to the task
         """
-        return self.implementation.find_devices_with_task()
+        return TaskContainer.to_object_path(
+            self.implementation.find_devices_with_task()
+        )
 
     def FindOpticalMedia(self) -> List[Str]:
         """Find all devices with mountable optical media.

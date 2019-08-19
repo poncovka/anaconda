@@ -55,10 +55,10 @@ class DeviceTreeModule(KickstartBaseModule, DeviceTreeViewer, DeviceTreeHandler,
         """Keep the instance of the current storage."""
         self._storage = storage
 
-    def get_publishable(self):
-        """The publishable implementation."""
+    def for_publication(self):
+        """Return a DBus representation."""
         return DeviceTreeInterface(self)
 
     def publish(self):
         """Publish the module."""
-        DBus.publish_object(DEVICE_TREE.object_path, self.get_publishable())
+        DBus.publish_object(DEVICE_TREE.object_path, self.for_publication())
