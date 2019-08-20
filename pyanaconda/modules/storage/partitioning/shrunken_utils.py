@@ -23,7 +23,7 @@ from pyanaconda.core.constants import RESIZE_ACTION_PRESERVE, RESIZE_ACTION_SHRI
     RESIZE_ACTION_DELETE
 
 
-def schedule_actions(storage, request):
+def schedule_resize_actions(storage, request):
     """Schedule resize actions for the given request.
 
     :param storage: an instance of Blivet

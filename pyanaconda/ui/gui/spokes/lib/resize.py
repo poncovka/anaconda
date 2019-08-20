@@ -29,7 +29,7 @@ from pyanaconda.core.constants import RESIZE_ACTION_SHRINK, RESIZE_ACTION_DELETE
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.structures.partitioning import ResizeRequest
-from pyanaconda.modules.storage.partitioning.shrunken_utils import schedule_actions
+from pyanaconda.modules.storage.partitioning.shrunken_utils import schedule_resize_actions
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.utils import blockedHandler, escape_markup, timed_action
 from blivet.size import Size
@@ -458,7 +458,7 @@ class ResizeDialog(GUIObject):
         elif obj.action == _(DELETE):
             request.action = RESIZE_ACTION_DELETE
 
-        schedule_actions(self.storage, request)
+        schedule_resize_actions(self.storage, request)
         return False
 
     def on_resize_clicked(self, *args):
