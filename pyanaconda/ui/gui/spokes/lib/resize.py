@@ -16,19 +16,18 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
-
-from collections import namedtuple
-
 import gi
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gdk, Gtk
 
+from collections import namedtuple
+
 from pyanaconda.core.i18n import _, C_, N_, P_
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.storage.partitioning.shrunken_utils import recursive_remove
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.utils import blockedHandler, escape_markup, timed_action
 from blivet.size import Size
@@ -443,21 +442,6 @@ class ResizeDialog(GUIObject):
         self._update_reclaim_button(self._selected_reclaimable_space)
         self._update_action_buttons(selected_row)
 
-    def _recursive_remove(self, device):
-        """ Remove a device, or if it has protected children, just remove the
-            unprotected children.
-        """
-        if device.protected:
-            return
-
-        if not any(d.protected for d in device.children):
-            # No protected children, remove the device
-            self.storage.recursive_remove(device)
-        else:
-            # Only remove unprotected children
-            for child in (d for d in device.children if not d.protected):
-                self.storage.recursive_remove(child)
-
     def _schedule_actions(self, model, path, itr, *args):
         obj = PartStoreRow(*model[itr])
         device = self.storage.devicetree.get_device_by_id(obj.id)
@@ -472,9 +456,9 @@ class ResizeDialog(GUIObject):
                 aligned = device.align_target_size(Size(obj.target))
                 self.storage.resize_device(device, aligned)
             else:
-                self._recursive_remove(device)
+                recursive_remove(self.storage, device)
         elif obj.action == _(DELETE):
-            self._recursive_remove(device)
+            recursive_remove(self.storage, device)
 
         return False
 
