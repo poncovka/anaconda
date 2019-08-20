@@ -36,7 +36,7 @@ from blivet.size import Size
 
 __all__ = ["ResizeDialog"]
 
-DEVICE_ID_COL = 0
+DEVICE_NAME_COL = 0
 DESCRIPTION_COL = 1
 FILESYSTEM_COL = 2
 RECLAIMABLE_COL = 3
@@ -45,15 +45,14 @@ EDITABLE_COL = 5
 TYPE_COL = 6
 TOOLTIP_COL = 7
 RESIZE_TARGET_COL = 8
-NAME_COL = 9
 
 TY_NORMAL = 0
 TY_FREE_SPACE = 1
 TY_PROTECTED = 2
 
-PartStoreRow = namedtuple("PartStoreRow", ["id", "desc", "fs", "reclaimable",
+PartStoreRow = namedtuple("PartStoreRow", ["name", "desc", "fs", "reclaimable",
                                            "action", "editable", "ty",
-                                           "tooltip", "target", "name"])
+                                           "tooltip", "target"])
 
 PRESERVE = N_("Preserve")
 SHRINK = N_("Shrink")
@@ -146,7 +145,7 @@ class ResizeDialog(GUIObject):
                 disk_reclaimable_space = disk.size
 
             itr = self._disk_store.append(None, [
-                disk.id,
+                disk.name,
                 "%s %s" % (disk.size.human_readable(max_places=1), disk.description),
                 fstype,
                 "<span foreground='grey' style='italic'>%s total</span>",
@@ -155,7 +154,6 @@ class ResizeDialog(GUIObject):
                 TY_NORMAL,
                 self._get_tooltip(disk),
                 int(disk.size),
-                disk.name
             ])
 
             if disk.partitioned and disk.format.supported:
@@ -184,7 +182,7 @@ class ResizeDialog(GUIObject):
                         ty = TY_NORMAL
 
                     self._disk_store.append(itr, [
-                        dev.id,
+                        dev.name,
                         self._get_description(dev),
                         dev.format.name,
                         resize_string,
@@ -193,7 +191,6 @@ class ResizeDialog(GUIObject):
                         ty,
                         self._get_tooltip(dev),
                         int(dev.size),
-                        dev.name
                     ])
                     disk_reclaimable_space += free_size
 
@@ -209,7 +206,7 @@ class ResizeDialog(GUIObject):
                                    % escape_markup(disk_free.human_readable(max_places=1))
 
                 self._disk_store.append(itr, [
-                    disk.id,
+                    "",
                     free_space_string,
                     "",
                     disk_free_string,
@@ -218,7 +215,6 @@ class ResizeDialog(GUIObject):
                     TY_FREE_SPACE,
                     self._get_tooltip(disk),
                     disk_free,
-                    ""
                 ])
                 self._initial_free_space += disk_free
 
@@ -314,7 +310,7 @@ class ResizeDialog(GUIObject):
 
     def _update_action_buttons(self, row):
         obj = PartStoreRow(*row)
-        device = self.storage.devicetree.get_device_by_id(obj.id)
+        device = self.storage.devicetree.get_device_by_name(obj.name)
 
         # Disks themselves may be editable in certain ways, but they are never
         # shrinkable.
@@ -374,7 +370,10 @@ class ResizeDialog(GUIObject):
     def _sum_reclaimable_space(self, model, path, itr, *args):
         obj = PartStoreRow(*model[itr])
 
-        device = self.storage.devicetree.get_device_by_id(obj.id)
+        if not obj.name:
+            return False
+
+        device = self.storage.devicetree.get_device_by_name(obj.name)
         if device.is_disk and device.partitioned and device.format.supported:
             return False
 
@@ -409,7 +408,7 @@ class ResizeDialog(GUIObject):
 
         # If that row is a disk header, we need to process all the partitions
         # it contains.
-        device = self.storage.devicetree.get_device_by_id(selected_row[DEVICE_ID_COL])
+        device = self.storage.devicetree.get_device_by_name(selected_row[DEVICE_NAME_COL])
         if device.is_disk and device.partitioned and device.format.supported:
             part_itr = self._disk_store.iter_children(itr)
 
@@ -429,8 +428,8 @@ class ResizeDialog(GUIObject):
                 if new_action == DELETE:
                     self._disk_store[part_itr][EDITABLE_COL] = False
                 elif new_action == PRESERVE:
-                    part = self.storage.devicetree.get_device_by_id(
-                        self._disk_store[part_itr][DEVICE_ID_COL]
+                    part = self.storage.devicetree.get_device_by_name(
+                        self._disk_store[part_itr][DEVICE_NAME_COL]
                     )
                     self._disk_store[part_itr][EDITABLE_COL] = not part.protected
 
@@ -446,13 +445,12 @@ class ResizeDialog(GUIObject):
 
     def _schedule_actions(self, model, path, itr, *args):
         obj = PartStoreRow(*model[itr])
-        device = self.storage.devicetree.get_device_by_id(obj.id)
 
         if not obj.editable:
             return False
 
         request = ResizeRequest()
-        request.device_spec = device.name
+        request.device_spec = obj.name
         request.size = obj.target
 
         if obj.action == _(SHRINK):
@@ -481,7 +479,7 @@ class ResizeDialog(GUIObject):
                 itr = self._disk_store.iter_next(itr)
                 continue
 
-            device = self.storage.devicetree.get_device_by_id(obj.id)
+            device = self.storage.devicetree.get_device_by_name(obj.name)
             if device.is_disk:
                 self._on_action_changed(itr, action)
 
