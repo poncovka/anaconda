@@ -25,9 +25,11 @@ from gi.repository import Gdk, Gtk
 from collections import namedtuple
 
 from pyanaconda.core.i18n import _, C_, N_, P_
+from pyanaconda.core.constants import RESIZE_ACTION_SHRINK, RESIZE_ACTION_DELETE
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.constants.services import STORAGE
-from pyanaconda.modules.storage.partitioning.shrunken_utils import recursive_remove
+from pyanaconda.modules.common.structures.partitioning import ResizeRequest
+from pyanaconda.modules.storage.partitioning.shrunken_utils import schedule_actions
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.utils import blockedHandler, escape_markup, timed_action
 from blivet.size import Size
@@ -449,17 +451,16 @@ class ResizeDialog(GUIObject):
         if not obj.editable:
             return False
 
-        if obj.action == _(PRESERVE):
-            return False
-        elif obj.action == _(SHRINK) and int(device.size) != int(obj.target):
-            if device.resizable:
-                aligned = device.align_target_size(Size(obj.target))
-                self.storage.resize_device(device, aligned)
-            else:
-                recursive_remove(self.storage, device)
-        elif obj.action == _(DELETE):
-            recursive_remove(self.storage, device)
+        request = ResizeRequest()
+        request.device_spec = device.name
+        request.size = obj.target
 
+        if obj.action == _(SHRINK):
+            request.action = RESIZE_ACTION_SHRINK
+        elif obj.action == _(DELETE):
+            request.action = RESIZE_ACTION_DELETE
+
+        schedule_actions(self.storage, request)
         return False
 
     def on_resize_clicked(self, *args):

@@ -17,6 +17,44 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from blivet.size import Size
+
+from pyanaconda.core.constants import RESIZE_ACTION_PRESERVE, RESIZE_ACTION_SHRINK, \
+    RESIZE_ACTION_DELETE
+
+
+def schedule_actions(storage, request):
+    """Schedule resize actions for the given request.
+
+    :param storage: an instance of Blivet
+    :param ResizeRequest request: a resize request
+    """
+    # Resolve the device.
+    device = storage.devicetree.resolve_device(request.device_spec)
+
+    if not device:
+        raise ValueError("Unknown device '{}'.".format(request.device_spec))
+
+    # Nothing to to.
+    if request.action == RESIZE_ACTION_PRESERVE:
+        return
+
+    # Remove the device.
+    if request.action == RESIZE_ACTION_DELETE:
+        recursive_remove(storage, device)
+        return
+
+    # Shrink the device.
+    if request.action == RESIZE_ACTION_SHRINK:
+        # Nothing to change.
+        if int(device.size) == int(request.size):
+            return
+
+        if device.resizable:
+            aligned = device.align_target_size(Size(request.size))
+            storage.resize_device(device, aligned)
+        else:
+            recursive_remove(storage, device)
 
 
 def recursive_remove(storage, device):

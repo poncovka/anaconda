@@ -18,11 +18,11 @@
 # Red Hat, Inc.
 #
 
-from pyanaconda.core.constants import DEFAULT_AUTOPART_TYPE
+from pyanaconda.core.constants import DEFAULT_AUTOPART_TYPE, RESIZE_ACTION_PRESERVE
 from pyanaconda.dbus.structure import DBusData, generate_string_from_data
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 
-__all__ = ["PartitioningRequest", "MountPointRequest"]
+__all__ = ["PartitioningRequest", "MountPointRequest", "ResizeRequest"]
 
 
 class PartitioningRequest(DBusData):
@@ -343,3 +343,54 @@ class MountPointRequest(DBusData):
     @format_options.setter
     def format_options(self, options: Str):
         self._format_options = options
+
+
+class ResizeRequest(DBusData):
+    """The resize request data."""
+
+    def __init__(self):
+        self._device_spec = ""
+        self._action = RESIZE_ACTION_PRESERVE
+        self._size = 0
+
+    @property
+    def device_spec(self) -> Str:
+        """The block device to resize.
+
+        :return: a device specification
+        """
+        return self._device_spec
+
+    @device_spec.setter
+    def device_spec(self, spec: Str):
+        """Set the block device to resize."""
+        self._device_spec = spec
+
+    @property
+    def action(self) -> Str:
+        """The resize action.
+
+        Allowed values:
+            PRESERVE  Do nothing.
+            SHRINK    Shrink to the requested size.
+            DELETE    Remove a device.
+
+        :return: a name of the action
+        """
+        return self._action
+
+    @action.setter
+    def action(self, value: Str):
+        self._action = value
+
+    @property
+    def size(self) -> UInt64:
+        """The requested size.
+
+        :return: a size in bytes
+        """
+        return UInt64(self._size)
+
+    @size.setter
+    def size(self, size: UInt64):
+        self._size = size
