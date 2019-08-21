@@ -21,6 +21,52 @@ from blivet.size import Size
 
 from pyanaconda.core.constants import RESIZE_ACTION_PRESERVE, RESIZE_ACTION_SHRINK, \
     RESIZE_ACTION_DELETE
+from pyanaconda.modules.common.structures.partitioning import ResizeRequest
+
+
+def generate_resize_requests(disks):
+    """Generate the resize requests.
+
+    :return: a list of resize requests
+    """
+    requests = []
+
+    for disk in disks:
+        if disk.protected:
+            continue
+
+        # Add the disk.
+        request = _generate_resize_request(disk)
+        requests.append(request)
+
+        if not (disk.partitioned and disk.format.supported):
+            continue
+
+        # Add the partitions.
+        for device in disk.children:
+            if device.protected:
+                continue
+
+            if device.is_extended and disk.format.logical_partitions:
+                continue
+
+            request = _generate_resize_request(device)
+            requests.append(request)
+
+    return requests
+
+
+def _generate_resize_request(device):
+    """Generate a resize request for the given device.
+
+    :param device: a device
+    :return: a request
+    """
+    request = ResizeRequest()
+    request.device_spec = device.name
+    request.action = RESIZE_ACTION_PRESERVE
+    request.size = device.size.get_bytes()
+    return request
 
 
 def schedule_resize_actions(storage, request):
