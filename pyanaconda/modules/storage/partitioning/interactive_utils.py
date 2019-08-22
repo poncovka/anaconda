@@ -842,6 +842,8 @@ def destroy_device(storage, device):
     :param storage: an instance of Blivet
     :param device: an instance of a device
     """
+    log.debug("Destroying device '%s'.", device.name)
+
     # Remove the device.
     if device.is_disk and device.partitioned and not device.format.supported:
         storage.recursive_remove(device)
@@ -897,12 +899,15 @@ def destroy_device(storage, device):
         )
 
         # Configure the factory's devices.
+        log.debug("Adjusting container: %s", container.name)
         factory.configure()
 
     # Finally, remove empty parents of the device.
     for parent in device.parents:
         if not parent.children and not parent.is_disk:
             destroy_device(storage, parent)
+
+    log.debug("Destroyed device '%s'.", device.name)
 
 
 def rename_container(storage, container, name):
