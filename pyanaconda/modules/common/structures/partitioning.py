@@ -22,7 +22,7 @@ from pyanaconda.core.constants import DEFAULT_AUTOPART_TYPE
 from pyanaconda.dbus.structure import DBusData, generate_string_from_data
 from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
 
-__all__ = ["PartitioningRequest", "MountPointRequest"]
+__all__ = ["PartitioningRequest", "MountPointRequest", "DeviceFactoryRequest"]
 
 
 class PartitioningRequest(DBusData):
