@@ -1589,7 +1589,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                         if not self._get_unused_devices() or dev.format.type not in protected_types:
                             self._destroy_device(dev)
                         else:
-                            log.debug("Device %s cannot be removed %s.", dev.name)
+                            log.debug("Device %s cannot be removed.", dev.name)
                 else:
                     self._destroy_device(device)
 
