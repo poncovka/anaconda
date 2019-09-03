@@ -749,7 +749,7 @@ def generate_device_factory_request(storage, device) -> DeviceFactoryRequest:
     request.device_name = getattr(device.raw_device, "lvname", device.raw_device.name)
     request.device_size = device.size.get_bytes()
     request.device_type = device_type
-    request.format_type = device.format.type
+    request.format_type = device.format.type or ""
     request.device_encrypted = isinstance(device, LUKSDevice)
     request.luks_version = get_device_luks_version(device) or ""
     request.label = getattr(device.format, "label", "") or ""
