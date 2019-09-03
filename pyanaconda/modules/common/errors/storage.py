@@ -49,3 +49,9 @@ class UnsupportedPartitioningError(AnacondaError):
 class UnknownDeviceError(AnacondaError):
     """The device is not recognized."""
     pass
+
+
+@dbus_error("UnsupportedDeviceError", namespace=STORAGE_NAMESPACE)
+class UnsupportedDeviceError(AnacondaError):
+    """The device is not supported."""
+    pass
