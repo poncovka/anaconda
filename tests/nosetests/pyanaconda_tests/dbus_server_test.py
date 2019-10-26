@@ -22,10 +22,10 @@ from textwrap import dedent
 from unittest.mock import Mock, patch
 
 from pyanaconda.core.signal import Signal
-from pyanaconda.dbus.error import ErrorRegister
-from pyanaconda.dbus.server import ServerObjectHandler, GLibServer
-from pyanaconda.dbus.specification import DBusSpecificationError
-from pyanaconda.dbus.typing import get_variant
+from dasbus.error import ErrorRegister
+from dasbus.server import ServerObjectHandler, GLibServer
+from dasbus.specification import DBusSpecificationError
+from dasbus.typing import get_variant
 
 
 class DBusServerTestCase(unittest.TestCase):

@@ -20,7 +20,7 @@
 
 import unittest
 
-from pyanaconda.dbus.specification import DBusSpecificationParser, DBusSpecification, \
+from dasbus.specification import DBusSpecificationParser, DBusSpecification, \
     DBusSpecificationError
 
 

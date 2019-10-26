@@ -23,9 +23,9 @@ from unittest import mock
 from unittest.mock import Mock
 
 from pyanaconda.dbus import AddressedMessageBus
-from pyanaconda.dbus.error import map_error
-from pyanaconda.dbus.interface import dbus_interface, dbus_signal
-from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
+from dasbus.error import map_error
+from dasbus.interface import dbus_interface, dbus_signal
+from dasbus.typing import *  # pylint: disable=wildcard-import
 
 from tests.nosetests.pyanaconda_tests import run_in_glib
 

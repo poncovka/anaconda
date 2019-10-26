@@ -20,8 +20,8 @@
 
 import unittest
 
-from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
-from pyanaconda.dbus.interface import DBusSpecificationGenerator, DBusSpecificationError, \
+from dasbus.typing import *  # pylint: disable=wildcard-import
+from dasbus.interface import DBusSpecificationGenerator, DBusSpecificationError, \
     dbus_interface, dbus_class, dbus_signal, get_xml
 
 from tests.nosetests.pyanaconda_tests import compare_xml

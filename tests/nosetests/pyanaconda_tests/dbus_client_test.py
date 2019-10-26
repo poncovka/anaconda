@@ -22,11 +22,11 @@ from textwrap import dedent
 from unittest.mock import Mock, patch
 
 from pyanaconda.core.signal import Signal
-from pyanaconda.dbus.client import ClientObjectHandler, ObjectProxy, GLibClient
-from pyanaconda.dbus.constants import DBUS_FLAG_NONE
-from pyanaconda.dbus.error import ErrorRegister
-from pyanaconda.dbus.specification import DBusSpecification
-from pyanaconda.dbus.typing import get_variant, get_variant_type, VariantType
+from dasbus.client import ClientObjectHandler, ObjectProxy, GLibClient
+from dasbus.constants import DBUS_FLAG_NONE
+from dasbus.error import ErrorRegister
+from dasbus.specification import DBusSpecification
+from dasbus.typing import get_variant, get_variant_type, VariantType
 
 import gi
 gi.require_version("Gio", "2.0")

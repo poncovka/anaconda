@@ -20,11 +20,11 @@
 import unittest
 from mock import Mock
 
-from pyanaconda.dbus.container import DBusContainer, DBusContainerError
-from pyanaconda.dbus.interface import dbus_interface
-from pyanaconda.dbus.publishable import Publishable
-from pyanaconda.dbus.template import InterfaceTemplate
-from pyanaconda.dbus.typing import Str, ObjPath
+from dasbus.container import DBusContainer, DBusContainerError
+from dasbus.interface import dbus_interface
+from dasbus.publishable import Publishable
+from pyanaconda.modules.common.base.base_template import InterfaceTemplate
+from dasbus.typing import Str, ObjPath
 
 
 @dbus_interface("org.Project.Object")

@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import Mock
 
 from pyanaconda.core.signal import Signal
-from pyanaconda.dbus.interface import dbus_signal
+from dasbus.interface import dbus_signal
 
 
 class DBusSignalTestCase(unittest.TestCase):

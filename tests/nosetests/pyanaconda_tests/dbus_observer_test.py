@@ -20,8 +20,8 @@
 import unittest
 from unittest.mock import patch, Mock
 
-from pyanaconda.dbus.constants import DBUS_FLAG_NONE
-from pyanaconda.dbus.observer import DBusObserverError, DBusObserver
+from dasbus.constants import DBUS_FLAG_NONE
+from dasbus.observer import DBusObserverError, DBusObserver
 from pyanaconda.modules.boss.module_manager.module_observer import ModuleObserver
 
 

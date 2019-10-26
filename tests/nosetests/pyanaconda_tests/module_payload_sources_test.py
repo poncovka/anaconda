@@ -22,7 +22,7 @@ import unittest
 from mock import Mock, patch
 
 from pyanaconda.core.constants import INSTALL_TREE
-from pyanaconda.dbus.typing import get_native
+from dasbus.typing import get_native
 from pyanaconda.modules.common.constants.interfaces import PAYLOAD_SOURCE_LIVE_OS
 from pyanaconda.modules.common.errors.payload import SourceSetupError
 from pyanaconda.modules.common.structures.storage import DeviceData

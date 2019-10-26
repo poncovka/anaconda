@@ -22,11 +22,13 @@ import unittest
 from collections import defaultdict
 from unittest.mock import Mock, patch
 
-from pyanaconda.dbus.connection import MessageBus, SystemMessageBus, SessionMessageBus, \
-    AddressedMessageBus, AnacondaMessageBus, DefaultMessageBus
-from pyanaconda.dbus.constants import DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, \
+from dasbus.connection import MessageBus, SystemMessageBus, SessionMessageBus, \
+    AddressedMessageBus
+from pyanaconda.core.dbus import AnacondaMessageBus, DefaultMessageBus
+from dasbus.constants import DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, \
     DBUS_NAME_FLAG_ALLOW_REPLACEMENT, DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER, \
-    DBUS_ANACONDA_SESSION_ADDRESS, DBUS_STARTER_ADDRESS
+    DBUS_STARTER_ADDRESS
+from pyanaconda.core.constants import DBUS_ANACONDA_SESSION_ADDRESS
 
 import gi
 gi.require_version("Gio", "2.0")

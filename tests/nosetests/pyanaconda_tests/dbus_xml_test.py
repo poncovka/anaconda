@@ -19,7 +19,7 @@
 #
 
 import unittest
-from pyanaconda.dbus.xml import XMLParser, XMLGenerator
+from dasbus.xml import XMLParser, XMLGenerator
 from tests.nosetests.pyanaconda_tests import compare_xml
 
 

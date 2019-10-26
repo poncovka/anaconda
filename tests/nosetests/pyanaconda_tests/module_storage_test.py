@@ -23,7 +23,7 @@ from unittest.mock import patch, Mock
 
 from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, PARTITIONING_METHOD_MANUAL, \
     PARTITIONING_METHOD_INTERACTIVE, PARTITIONING_METHOD_CUSTOM
-from pyanaconda.dbus.container import DBusContainerError
+from dasbus.container import DBusContainerError
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.containers import PartitioningContainer
 from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, \
@@ -37,7 +37,7 @@ from tests.nosetests.pyanaconda_tests import check_kickstart_interface, check_ta
 
 from pyanaconda.bootloader.grub2 import IPSeriesGRUB2, GRUB2
 from pyanaconda.bootloader.zipl import ZIPL
-from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
+from dasbus.typing import *  # pylint: disable=wildcard-import
 from pyanaconda.modules.common.errors.storage import InvalidStorageError
 from pyanaconda.modules.common.task import TaskInterface
 from pyanaconda.modules.storage.installation import ActivateFilesystemsTask, \

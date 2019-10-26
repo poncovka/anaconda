@@ -22,12 +22,12 @@ import unittest
 from mock import Mock, call
 
 from pyanaconda.core.signal import Signal
-from pyanaconda.dbus.interface import dbus_interface
-from pyanaconda.dbus.property import PropertiesInterface, emits_properties_changed, \
+from dasbus.interface import dbus_interface
+from dasbus.property import PropertiesInterface, emits_properties_changed, \
     PropertiesException, PropertiesChanges
-from pyanaconda.dbus.specification import DBusSpecificationError
-from pyanaconda.dbus.template import AdvancedInterfaceTemplate
-from pyanaconda.dbus.typing import *  # pylint: disable=wildcard-import
+from dasbus.specification import DBusSpecificationError
+from pyanaconda.modules.common.base.base_template import AdvancedInterfaceTemplate
+from dasbus.typing import *  # pylint: disable=wildcard-import
 
 
 class DBusPropertySpecificationTestCase(unittest.TestCase):

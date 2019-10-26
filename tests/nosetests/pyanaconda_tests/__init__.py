@@ -26,12 +26,12 @@ from unittest.mock import Mock, patch
 from xml.etree import ElementTree
 
 from pyanaconda.core.constants import DEFAULT_LANG
-from pyanaconda.dbus.template import InterfaceTemplate
+from pyanaconda.modules.common.base.base_template import InterfaceTemplate
 from pyanaconda.modules.common.constants.interfaces import KICKSTART_MODULE
 from pyanaconda.modules.common.structures.kickstart import KickstartReport
 from pyanaconda.modules.common.task import TaskInterface
-from pyanaconda.dbus.xml import XMLGenerator
-from pyanaconda.dbus.typing import get_native
+from dasbus.xml import XMLGenerator
+from dasbus.typing import get_native
 
 
 # Set the default locale.

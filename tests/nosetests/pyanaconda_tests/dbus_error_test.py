@@ -20,9 +20,9 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from pyanaconda.dbus.client import GLibClient
-from pyanaconda.dbus.error import ErrorRegister, GLibErrorHandler
-from pyanaconda.dbus.server import GLibServer
+from dasbus.client import GLibClient
+from dasbus.error import ErrorRegister, GLibErrorHandler
+from dasbus.server import GLibServer
 
 import gi
 gi.require_version("Gio", "2.0")

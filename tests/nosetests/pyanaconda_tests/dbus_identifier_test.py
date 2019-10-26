@@ -20,7 +20,7 @@
 import unittest
 from mock import Mock
 
-from pyanaconda.dbus.identifier import DBusInterfaceIdentifier, DBusObjectIdentifier, \
+from dasbus.identifier import DBusInterfaceIdentifier, DBusObjectIdentifier, \
     DBusServiceIdentifier, DBusBaseIdentifier
 
 
