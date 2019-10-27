@@ -79,12 +79,12 @@ class DBusSignalTestCase(unittest.TestCase):
         callback.assert_called_once_with()
         callback.reset_mock()
 
-        interface.Signal.disconnect(callback)
+        interface.Signal.disconnect(callback)  # pylint: disable=no-member
         interface.Signal()
         callback.assert_not_called()
 
         interface.Signal.connect(callback)  # pylint: disable=no-member
-        interface.Signal.disconnect()
+        interface.Signal.disconnect()  # pylint: disable=no-member
         interface.Signal()
         callback.assert_not_called()
 
