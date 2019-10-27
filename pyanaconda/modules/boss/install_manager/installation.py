@@ -17,6 +17,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from dasbus.client import disconnect_proxy
 from pyanaconda.modules.common.task import AbstractTask
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -31,7 +32,6 @@ class SystemInstallationTask(AbstractTask):
         super().__init__()
         self._subtasks = installation_tasks
         self._current_subtask = None
-        self._subscriptions = []
         self._total_steps = self._count_steps()
         self._finished_steps = 0
 
@@ -80,23 +80,17 @@ class SystemInstallationTask(AbstractTask):
 
     def _connect(self, subtask):
         """Connect to signals of the current task."""
-        s = subtask.Started.connect(self._subtask_started_callback)
-        self._subscriptions.append(s)
-
-        s = subtask.Failed.connect(self._subtask_failed_callback)
-        self._subscriptions.append(s)
-
-        s = subtask.Stopped.connect(self._subtask_stopped_callback)
-        self._subscriptions.append(s)
-
-        s = subtask.ProgressChanged.connect(self._subtask_progress_changed)
-        self._subscriptions.append(s)
+        subtask.Started.connect(self._subtask_started_callback)
+        subtask.Failed.connect(self._subtask_failed_callback)
+        subtask.Stopped.connect(self._subtask_stopped_callback)
+        subtask.ProgressChanged.connect(self._subtask_progress_changed)
 
     def _disconnect_all(self):
         """Disconnect from all signals of the previous task."""
-        while self._subscriptions:
-            s = self._subscriptions.pop(0)
-            s.disconnect()
+        if self._current_subtask:
+            disconnect_proxy(self._current_subtask)
+
+        self._current_subtask = None
 
     def _subtask_started_callback(self):
         log.info("'%s' has started.", self._current_subtask.Name)
