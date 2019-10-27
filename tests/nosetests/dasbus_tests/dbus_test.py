@@ -22,6 +22,7 @@ from threading import Thread, Event
 from unittest import mock
 from unittest.mock import Mock
 
+from dasbus.client.proxy import disconnect_proxy
 from dasbus.connection import AddressedMessageBus
 from dasbus.error import map_error
 from dasbus.server.interface import dbus_interface, dbus_signal
@@ -365,7 +366,7 @@ class DBusTestCase(unittest.TestCase):
         def test_1():
             proxy = self._get_proxy()
             proxy.Knocked.connect(callback)
-            del proxy.Knocked
+            disconnect_proxy(proxy)
             event.set()
 
         def test_2():
