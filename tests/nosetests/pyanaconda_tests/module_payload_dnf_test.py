@@ -19,9 +19,7 @@
 #
 import unittest
 
-from mock import Mock
-
-from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, ModuleHandlerMixin
 
 from pyanaconda.modules.common.constants.objects import DNF_PACKAGES
 from pyanaconda.modules.common.errors import InvalidValueError
@@ -246,20 +244,19 @@ class PackagesHandlerKSTestCase(unittest.TestCase, PayloadHandlerMixin):
         self._check_properties(nocore=True, ignore_missing=True, langs=LANGUAGES_NONE)
 
 
-class PackagesHandlerInterfaceTestCase(unittest.TestCase):
+class PackagesHandlerInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
 
     def setUp(self):
         self.packages_module = PackagesHandlerModule()
         self.packages_interface = PackagesHandlerInterface(self.packages_module)
-
-        self.callback = PropertiesChangedCallback()
-        self.packages_interface.PropertiesChanged.connect(self.callback)
+        self.set_identifier(DNF_PACKAGES)
+        self.set_interface(self.packages_interface)
 
     def core_group_enabled_properties_test(self):
-        self.packages_interface.SetCoreGroupEnabled(True)
-        self.assertEqual(self.packages_interface.CoreGroupEnabled, True)
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"CoreGroupEnabled": True}, [])
+        self._check_dbus_property(
+            "CoreGroupEnabled",
+            True
+        )
 
     def core_group_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.CoreGroupEnabled, True)
@@ -268,82 +265,82 @@ class PackagesHandlerInterfaceTestCase(unittest.TestCase):
         self.assertEqual(self.packages_interface.DefaultEnvironment, False)
 
     def environment_properties_test(self):
-        self.packages_interface.SetEnvironment("TestEnv")
-        self.assertEqual(self.packages_interface.Environment, "TestEnv")
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"Environment": "TestEnv"}, [])
+        self._check_dbus_property(
+            "Environment",
+            "TestEnv"
+        )
 
     def environment_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.Environment, "")
 
     def groups_properties_test(self):
-        self.packages_interface.SetGroups(["group1", "group2"])
-        self.assertEqual(self.packages_interface.Groups, ["group1", "group2"])
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"Groups": ["group1", "group2"]}, [])
+        self._check_dbus_property(
+            "Groups",
+            ["group1", "group2"]
+        )
 
     def groups_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.Groups, [])
 
     def packages_properties_test(self):
-        self.packages_interface.SetPackages(["package1", "package2"])
-        self.assertEqual(self.packages_interface.Packages, ["package1", "package2"])
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"Packages": ["package1", "package2"]}, [])
+        self._check_dbus_property(
+            "Packages",
+            ["package1", "package2"]
+        )
 
     def packages_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.Packages, [])
 
     def excluded_groups_properties_test(self):
-        self.packages_interface.SetExcludedGroups(["group1", "group2"])
-        self.assertEqual(self.packages_interface.ExcludedGroups, ["group1", "group2"])
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"ExcludedGroups": ["group1", "group2"]}, [])
+        self._check_dbus_property(
+            "ExcludedGroups",
+            ["group1", "group2"]
+        )
 
     def excluded_groups_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.ExcludedGroups, [])
 
     def excluded_packages_properties_test(self):
-        self.packages_interface.SetExcludedPackages(["package1", "package2"])
-        self.assertEqual(self.packages_interface.ExcludedPackages, ["package1", "package2"])
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"ExcludedPackages": ["package1", "package2"]}, [])
+        self._check_dbus_property(
+            "ExcludedPackages",
+            ["package1", "package2"]
+        )
 
     def excluded_packages_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.ExcludedPackages, [])
 
     def docs_excluded_properties_test(self):
-        self.packages_interface.SetDocsExcluded(True)
-        self.assertEqual(self.packages_interface.DocsExcluded, True)
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"DocsExcluded": True}, [])
+        self._check_dbus_property(
+            "DocsExcluded",
+            True
+        )
 
     def docs_excluded_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.DocsExcluded, False)
 
     def weakdeps_excluded_properties_test(self):
-        self.packages_interface.SetWeakdepsExcluded(True)
-        self.assertEqual(self.packages_interface.WeakdepsExcluded, True)
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"WeakdepsExcluded": True}, [])
+        self._check_dbus_property(
+            "WeakdepsExcluded",
+            True
+        )
 
     def weakdeps_excluded_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.WeakdepsExcluded, False)
 
     def missing_ignored_properties_test(self):
-        self.packages_interface.SetMissingIgnored(True)
-        self.assertEqual(self.packages_interface.MissingIgnored, True)
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"MissingIgnored": True}, [])
+        self._check_dbus_property(
+            "MissingIgnored",
+            True
+        )
 
     def missing_ignored_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.MissingIgnored, False)
 
     def languages_properties_test(self):
-        self.packages_interface.SetLanguages("en, es")
-        self.assertEqual(self.packages_interface.Languages, "en, es")
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"Languages": "en, es"}, [])
+        self._check_dbus_property(
+            "Languages",
+            "en, es"
+        )
 
     def languages_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.Languages, LANGUAGES_DEFAULT)
@@ -353,28 +350,28 @@ class PackagesHandlerInterfaceTestCase(unittest.TestCase):
             self.packages_interface.SetLanguages("")
 
     def multilib_policy_properties_test(self):
-        self.packages_interface.SetMultilibPolicy('all')
-        self.assertEqual(self.packages_interface.MultilibPolicy, 'all')
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"MultilibPolicy": 'all'}, [])
+        self._check_dbus_property(
+            "MultilibPolicy",
+            'all'
+        )
 
     def multilib_policy_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.MultilibPolicy, 'best')
 
     def timeout_properties_test(self):
-        self.packages_interface.SetTimeout(60)
-        self.assertEqual(self.packages_interface.Timeout, 60)
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"Timeout": 60}, [])
+        self._check_dbus_property(
+            "Timeout",
+            60
+        )
 
     def timeout_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.Timeout, TIMEOUT_UNSET)
 
     def retries_properties_test(self):
-        self.packages_interface.SetRetries(30)
-        self.assertEqual(self.packages_interface.Retries, 30)
-        self.callback.assert_called_once_with(
-            DNF_PACKAGES.interface_name, {"Retries": 30}, [])
+        self._check_dbus_property(
+            "Retries",
+            30
+        )
 
     def retries_not_set_properties_test(self):
         self.assertEqual(self.packages_interface.Retries, RETRIES_UNSET)

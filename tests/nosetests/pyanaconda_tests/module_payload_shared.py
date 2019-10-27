@@ -20,12 +20,13 @@
 from abc import abstractmethod
 from unittest.mock import patch
 
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface
+from pyanaconda.modules.common.constants.services import PAYLOAD
+from tests.nosetests.pyanaconda_tests import ModuleHandlerMixin
 from pyanaconda.modules.payload.payload_interface import PayloadInterface
 from pyanaconda.modules.payload.payload import PayloadService
 
 
-class PayloadHandlerMixin(object):
+class PayloadHandlerMixin(ModuleHandlerMixin):
 
     @abstractmethod
     def assertEqual(self, first, second, msg=None):
@@ -49,6 +50,8 @@ class PayloadHandlerMixin(object):
         """Create main payload module and its interface."""
         self.payload_module = PayloadService()
         self.payload_interface = PayloadInterface(self.payload_module)
+        self.set_identifier(PAYLOAD)
+        self.set_interface(self.payload_interface)
 
     def check_kickstart(self, ks_in, ks_out, expected_publish_calls=1):
         """Test kickstart processing.
@@ -60,7 +63,7 @@ class PayloadHandlerMixin(object):
         :type expected_publish_calls: int
         """
         with patch('pyanaconda.core.dbus.DBus.publish_object') as publisher:
-            check_kickstart_interface(self, self.payload_interface, ks_in, "", ks_tmp=ks_out)
+            self._check_kickstart(ks_in, "", ks_tmp=ks_out)
 
             publisher.assert_called()
             self.assertEqual(publisher.call_count, expected_publish_calls)

@@ -29,16 +29,19 @@ from pyanaconda.modules.storage.iscsi.discover import ISCSIDiscoverTask, ISCSILo
 from pyanaconda.modules.storage.iscsi.iscsi_interface import ISCSIInterface, \
     ISCSIDiscoverTaskInterface
 from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation, \
-    PropertiesChangedCallback
+    ModuleHandlerMixin
 
 
-class ISCSIInterfaceTestCase(unittest.TestCase):
+class ISCSIInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface of the iSCSI module."""
 
     def setUp(self):
         """Set up the module."""
         self.iscsi_module = ISCSIModule()
         self.iscsi_interface = ISCSIInterface(self.iscsi_module)
+
+        self.set_identifier(ISCSI)
+        self.set_interface(self.iscsi_interface)
 
         self._portal = Portal()
         self._portal.ip_address = "10.43.136.67"
@@ -57,24 +60,22 @@ class ISCSIInterfaceTestCase(unittest.TestCase):
         self._node.iface = "iface0"
         self._node.net_ifacename = "ens3"
 
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.iscsi_interface.PropertiesChanged.connect(self.callback)
-
     @patch('pyanaconda.modules.storage.iscsi.iscsi.iscsi')
     def initator_property_test(self, iscsi):
         """Test Initiator property."""
-        initiator_name = "iqn.1994-05.com.redhat:blabla"
+        initiator_name1 = "iqn.1994-05.com.redhat:blabla"
         iscsi.initiator_set = False
-        self.iscsi_interface.SetInitiator(initiator_name)
-        iscsi.initiator = initiator_name
-        self.assertEqual(self.iscsi_interface.Initiator, initiator_name)
+        iscsi.initiator = initiator_name1
+
+        self._check_dbus_property(
+            "Initiator",
+            initiator_name1
+        )
+
         iscsi.initiator_set = True
         initiator_name2 = "iqn.1994-05.com.redhat:blablabla"
         self.iscsi_interface.SetInitiator(initiator_name2)
-        self.callback.assert_called_once_with(
-            ISCSI.interface_name, {'Initiator': initiator_name}, []
-        )
+        self.assertEqual(self.iscsi_interface.Initiator, initiator_name1)
 
     @patch('pyanaconda.modules.storage.iscsi.iscsi.iscsi')
     def can_set_initiator_test(self, iscsi):

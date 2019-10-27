@@ -30,28 +30,22 @@ from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.modules.storage.disk_selection import DiskSelectionModule
 from pyanaconda.modules.storage.disk_selection.selection_interface import DiskSelectionInterface
 from pyanaconda.storage.initialization import create_storage
-from tests.nosetests.pyanaconda_tests import check_dbus_property
+from tests.nosetests.pyanaconda_tests import ModuleHandlerMixin
 
 
-class DiskSelectionInterfaceTestCase(unittest.TestCase):
+class DiskSelectionInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface of the disk selection module."""
 
     def setUp(self):
         """Set up the module."""
         self.disk_selection_module = DiskSelectionModule()
         self.disk_selection_interface = DiskSelectionInterface(self.disk_selection_module)
-
-    def _test_dbus_property(self, *args, **kwargs):
-        check_dbus_property(
-            self,
-            DISK_SELECTION,
-            self.disk_selection_interface,
-            *args, **kwargs
-        )
+        self.set_identifier(DISK_SELECTION)
+        self.set_interface(self.disk_selection_interface)
 
     def selected_disks_property_test(self):
         """Test the selected disks property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "SelectedDisks",
             ["sda", "sdb"]
         )
@@ -126,28 +120,28 @@ class DiskSelectionInterfaceTestCase(unittest.TestCase):
 
     def exclusive_disks_property_test(self):
         """Test the exclusive disks property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "ExclusiveDisks",
             ["sda", "sdb"]
         )
 
     def ignored_disks_property_test(self):
         """Test the ignored disks property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "IgnoredDisks",
             ["sda", "sdb"]
         )
 
     def protected_disks_property_test(self):
         """Test the protected disks property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "ProtectedDevices",
             ["sda", "sdb"]
         )
 
     def disk_images_property_test(self):
         """Test the protected disks property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "DiskImages",
             {
                 "image_1": "/path/1",

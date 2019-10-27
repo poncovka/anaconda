@@ -20,7 +20,7 @@
 import unittest
 import tempfile
 import os
-from mock import Mock, patch
+from mock import patch
 
 from pykickstart.constants import SELINUX_ENFORCING, SELINUX_PERMISSIVE
 
@@ -33,48 +33,46 @@ from pyanaconda.modules.security.security_interface import SecurityInterface
 from pyanaconda.modules.security.constants import SELinuxMode
 from pyanaconda.modules.security.installation import ConfigureSELinuxTask, \
         RealmDiscoverTask, RealmJoinTask
-from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_kickstart_interface, \
-    check_task_creation, PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation, \
+    ModuleHandlerMixin
 
 
-class SecurityInterfaceTestCase(unittest.TestCase):
+class SecurityInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface for the Security module."""
 
     def setUp(self):
         """Set up the security module."""
-        # Set up the security module.
         self.security_module = SecurityService()
         self.security_interface = SecurityInterface(self.security_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.security_interface.PropertiesChanged.connect(self.callback)
+        self.set_identifier(SECURITY)
+        self.set_interface(self.security_interface)
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(self.security_interface.KickstartCommands,
-                         ["auth", "authconfig", "authselect", "selinux", "realm"])
-        self.assertEqual(self.security_interface.KickstartSections, [])
-        self.assertEqual(self.security_interface.KickstartAddons, [])
-        self.callback.assert_not_called()
+        self._check_kickstart_properties(commands=[
+            "auth", "authconfig", "authselect", "selinux", "realm"
+        ])
 
     def selinux_property_test(self):
         """Test the selinux property."""
-        self.security_interface.SetSELinux(SELINUX_ENFORCING)
-        self.assertEqual(self.security_interface.SELinux, SELINUX_ENFORCING)
-        self.callback.assert_called_once_with(SECURITY.interface_name, {'SELinux': SELINUX_ENFORCING}, [])
+        self._check_dbus_property(
+            "SELinux",
+            SELINUX_ENFORCING
+        )
 
     def authselect_property_test(self):
         """Test the authselect property."""
-        self.security_interface.SetAuthselect(["sssd", "with-mkhomedir"])
-        self.assertEqual(self.security_interface.Authselect, ["sssd", "with-mkhomedir"])
-        self.callback.assert_called_once_with(SECURITY.interface_name, {'Authselect': ["sssd", "with-mkhomedir"]}, [])
+        self._check_dbus_property(
+            "Authselect",
+            ["sssd", "with-mkhomedir"]
+        )
 
     def authconfig_property_test(self):
         """Test the authconfig property."""
-        self.security_interface.SetAuthconfig(["--passalgo=sha512", "--useshadow"])
-        self.assertEqual(self.security_interface.Authconfig, ["--passalgo=sha512", "--useshadow"])
-        self.callback.assert_called_once_with(SECURITY.interface_name, {'Authconfig': ["--passalgo=sha512", "--useshadow"]}, [])
+        self._check_dbus_property(
+            "Authconfig",
+            ["--passalgo=sha512", "--useshadow"]
+        )
 
     def realm_property_test(self):
         """Test the realm property."""
@@ -93,26 +91,23 @@ class SecurityInterfaceTestCase(unittest.TestCase):
             "required-packages": get_variant(List[Str], [])
         }
 
-        self.security_interface.SetRealm(realm_in)
-        self.assertEqual(realm_out, self.security_interface.Realm)
-        self.callback.assert_called_once_with(SECURITY.interface_name, {
-            'Realm': get_native(realm_out)
-        }, [])
-
-    def _test_kickstart(self, ks_in, ks_out):
-        check_kickstart_interface(self, self.security_interface, ks_in, ks_out)
+        self._check_dbus_property(
+            "Realm",
+            in_value=realm_in,
+            out_value=realm_out
+        )
 
     def no_kickstart_test(self):
         """Test with no kickstart."""
         ks_in = None
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_empty_test(self):
         """Test with empty string."""
         ks_in = ""
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def selinux_kickstart_test(self):
         """Test the selinux command."""
@@ -123,7 +118,7 @@ class SecurityInterfaceTestCase(unittest.TestCase):
         # SELinux configuration
         selinux --permissive
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def auth_kickstart_test(self):
         """Test the auth command."""
@@ -134,7 +129,7 @@ class SecurityInterfaceTestCase(unittest.TestCase):
         # System authorization information
         auth --passalgo=sha512 --useshadow
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def authconfig_kickstart_test(self):
         """Test the authconfig command."""
@@ -145,7 +140,7 @@ class SecurityInterfaceTestCase(unittest.TestCase):
         # System authorization information
         auth --passalgo=sha512 --useshadow
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def authselect_kickstart_test(self):
         """Test the authselect command."""
@@ -156,7 +151,7 @@ class SecurityInterfaceTestCase(unittest.TestCase):
         # System authorization information
         authselect select sssd with-mkhomedir
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def realm_kickstart_test(self):
         """Test the realm command."""
@@ -167,7 +162,7 @@ class SecurityInterfaceTestCase(unittest.TestCase):
         # Realm or domain membership
         realm join --one-time-password=password --client-software=sssd domain.example.com
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     @patch_dbus_publish_object
     def realm_discover_default_test(self, publisher):
@@ -366,10 +361,6 @@ class SecurityTasksTestCase(unittest.TestCase):
         """Set up the security module."""
         self.security_module = SecurityService()
         self.security_interface = SecurityInterface(self.security_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.security_interface.PropertiesChanged.connect(self.callback)
 
     def configure_selinux_task_disable_test(self):
         """Test SELinux configuration task - SELinux disabled."""

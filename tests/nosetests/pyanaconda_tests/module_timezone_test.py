@@ -18,60 +18,54 @@
 # Red Hat Author(s): Vendula Poncova <vponcova@redhat.com>
 #
 import unittest
-from mock import Mock
 
 from pyanaconda.modules.common.constants.services import TIMEZONE
 from pyanaconda.modules.timezone.timezone import TimezoneService
 from pyanaconda.modules.timezone.timezone_interface import TimezoneInterface
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface, PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import ModuleHandlerMixin
 
 
-class TimezoneInterfaceTestCase(unittest.TestCase):
+class TimezoneInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface for the timezone module."""
 
     def setUp(self):
         """Set up the timezone module."""
-        # Set up the timezone module.
         self.timezone_module = TimezoneService()
         self.timezone_interface = TimezoneInterface(self.timezone_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.timezone_interface.PropertiesChanged.connect(self.callback)
+        self.set_identifier(TIMEZONE)
+        self.set_interface(self.timezone_interface)
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(self.timezone_interface.KickstartCommands, ["timezone"])
-        self.assertEqual(self.timezone_interface.KickstartSections, [])
-        self.assertEqual(self.timezone_interface.KickstartAddons, [])
-        self.callback.assert_not_called()
+        self._check_kickstart_properties(commands=["timezone"])
 
     def timezone_property_test(self):
         """Test the Timezone property."""
-        self.timezone_interface.SetTimezone("Europe/Prague")
-        self.assertEqual(self.timezone_interface.Timezone, "Europe/Prague")
-        self.callback.assert_called_once_with(TIMEZONE.interface_name, {'Timezone': 'Europe/Prague'}, [])
+        self._check_dbus_property(
+            "Timezone",
+            "Europe/Prague"
+        )
 
     def utc_property_test(self):
         """Test the IsUtc property."""
-        self.timezone_interface.SetIsUTC(True)
-        self.assertEqual(self.timezone_interface.IsUTC, True)
-        self.callback.assert_called_once_with(TIMEZONE.interface_name, {'IsUTC': True}, [])
+        self._check_dbus_property(
+            "IsUTC",
+            True
+        )
 
     def ntp_property_test(self):
         """Test the NTPEnabled property."""
-        self.timezone_interface.SetNTPEnabled(False)
-        self.assertEqual(self.timezone_interface.NTPEnabled, False)
-        self.callback.assert_called_once_with(TIMEZONE.interface_name, {'NTPEnabled': False}, [])
+        self._check_dbus_property(
+            "NTPEnabled",
+            False
+        )
 
     def ntp_servers_property_test(self):
         """Test the NTPServers property."""
-        self.timezone_interface.SetNTPServers(["ntp.cesnet.cz"])
-        self.assertEqual(self.timezone_interface.NTPServers, ["ntp.cesnet.cz"])
-        self.callback.assert_called_once_with(TIMEZONE.interface_name, {'NTPServers': ["ntp.cesnet.cz"]}, [])
-
-    def _test_kickstart(self, ks_in, ks_out):
-        check_kickstart_interface(self, self.timezone_interface, ks_in, ks_out)
+        self._check_dbus_property(
+            "NTPServers",
+            ["ntp.cesnet.cz"]
+        )
 
     def no_kickstart_test(self):
         """Test with no kickstart."""
@@ -80,13 +74,13 @@ class TimezoneInterfaceTestCase(unittest.TestCase):
         # System timezone
         timezone America/New_York
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_empty_test(self):
         """Test with empty string."""
         ks_in = ""
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_test(self):
         """Test the timezone command."""
@@ -97,7 +91,7 @@ class TimezoneInterfaceTestCase(unittest.TestCase):
         # System timezone
         timezone Europe/Prague
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart2_test(self):
         """Test the timezone command with flags."""
@@ -108,7 +102,7 @@ class TimezoneInterfaceTestCase(unittest.TestCase):
         # System timezone
         timezone Europe/Prague --isUtc --nontp
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart3_test(self):
         """Test the timezone command with ntp servers.."""
@@ -119,4 +113,4 @@ class TimezoneInterfaceTestCase(unittest.TestCase):
         # System timezone
         timezone Europe/Prague --ntpservers=ntp.cesnet.cz
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)

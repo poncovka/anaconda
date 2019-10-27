@@ -32,8 +32,8 @@ from pyanaconda.modules.storage.partitioning.base import PartitioningModule
 from pyanaconda.modules.storage.partitioning.constants import PartitioningMethod
 from pyanaconda.modules.storage.partitioning.interactive import InteractivePartitioningModule
 from pyanaconda.storage.initialization import create_storage
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface, check_task_creation, \
-    patch_dbus_publish_object, check_dbus_property, patch_dbus_get_proxy
+from tests.nosetests.pyanaconda_tests import check_task_creation, patch_dbus_publish_object, \
+    patch_dbus_get_proxy, ModuleHandlerMixin
 
 from pyanaconda.bootloader.grub2 import IPSeriesGRUB2, GRUB2
 from pyanaconda.bootloader.zipl import ZIPL
@@ -50,21 +50,15 @@ from pyanaconda.modules.storage.teardown import UnmountFilesystemsTask, Teardown
 from pyanaconda.storage.checker import StorageCheckerReport
 
 
-class StorageInterfaceTestCase(unittest.TestCase):
+class StorageInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface of the storage module."""
 
     def setUp(self):
         """Set up the module."""
         self.storage_module = StorageService()
         self.storage_interface = StorageInterface(self.storage_module)
-
-    def _check_dbus_property(self, *args, **kwargs):
-        check_dbus_property(
-            self,
-            STORAGE,
-            self.storage_interface,
-            *args, **kwargs
-        )
+        self.set_identifier(STORAGE)
+        self.set_interface(self.storage_interface)
 
     def _check_dbus_partitioning(self, publisher, expected_method):
         publisher.assert_called_once()
@@ -85,7 +79,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         """Apply each partitioning emitted by created_partitioning_changed.
 
         This helps with testing of parsing and generating kickstart with
-        check_kickstart_interface, because the partitioning created from
+        self._check_kickstart, because the partitioning created from
         the kickstart data will be used to generate a new kickstart data.
         """
         def _apply_partitioning(module):
@@ -309,9 +303,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(
-            self.storage_interface.KickstartCommands,
-            [
+        self._check_kickstart_properties(commands=[
                 'autopart',
                 'bootloader',
                 'btrfs',
@@ -333,23 +325,18 @@ class StorageInterfaceTestCase(unittest.TestCase):
                 'zfcp'
             ]
         )
-        self.assertEqual(self.storage_interface.KickstartSections, [])
-        self.assertEqual(self.storage_interface.KickstartAddons, [])
-
-    def _test_kickstart(self, ks_in, ks_out, **kwargs):
-        check_kickstart_interface(self, self.storage_interface, ks_in, ks_out, **kwargs)
 
     def no_kickstart_test(self):
         """Test with no kickstart."""
         ks_in = None
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_empty_test(self):
         """Test with empty string."""
         ks_in = ""
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def zerombr_kickstart_test(self):
         """Test the zerombr command."""
@@ -360,7 +347,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # Clear the Master Boot Record
         zerombr
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def clearpart_none_kickstart_test(self):
         """Test the clearpart command with the none option."""
@@ -371,7 +358,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # Partition clearing information
         clearpart --none
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def clearpart_all_kickstart_test(self):
         """Test the clearpart command with the all option."""
@@ -382,7 +369,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # Partition clearing information
         clearpart --all
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def clearpart_linux_kickstart_test(self):
         """Test the clearpart command with the linux option."""
@@ -393,7 +380,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # Partition clearing information
         clearpart --linux
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def clearpart_cdl_kickstart_test(self):
         """Test the clearpart command with the cdl option."""
@@ -404,7 +391,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # Partition clearing information
         clearpart --all --cdl
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def clearpart_initlabel_kickstart_test(self):
         """Test the clearpart command with the initlabel option."""
@@ -415,7 +402,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # Partition clearing information
         clearpart --all --initlabel
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     @patch("pyanaconda.modules.storage.kickstart.DiskLabel")
     def clearpart_disklabel_kickstart_test(self, disk_label):
@@ -428,10 +415,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         clearpart --all --disklabel=msdos
         """
         disk_label.get_platform_label_types.return_value = ["msdos", "gpt"]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         disk_label.get_platform_label_types.return_value = ["gpt"]
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch("pyanaconda.modules.storage.kickstart.device_matches")
     def clearpart_list_kickstart_test(self, device_matches):
@@ -444,10 +431,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         clearpart --list=sdb1
         """
         device_matches.return_value = ["sdb1"]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         device_matches.return_value = []
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch("pyanaconda.modules.storage.kickstart.device_matches")
     def clearpart_drives_kickstart_test(self, device_matches):
@@ -460,10 +447,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         clearpart --all --drives=sda
         """
         device_matches.return_value = ["sda"]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         device_matches.return_value = []
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch("pyanaconda.modules.storage.kickstart.device_matches")
     def ignoredisk_drives_kickstart_test(self, device_matches):
@@ -475,10 +462,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         ignoredisk --only-use=sda
         """
         device_matches.return_value = ["sda"]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         device_matches.return_value = []
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch("pyanaconda.modules.storage.kickstart.device_matches")
     def ignoredisk_onlyuse_kickstart_test(self, device_matches):
@@ -490,10 +477,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         ignoredisk --drives=sdb
         """
         device_matches.return_value = ["sdb"]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         device_matches.return_value = []
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     def bootloader_disabled_kickstart_test(self):
         """Test the bootloader command with the disabled option."""
@@ -504,7 +491,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --disabled
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_none_kickstart_test(self):
         """Test the bootloader command with the none option."""
@@ -515,7 +502,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=none
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_mbr_kickstart_test(self):
         """Test the bootloader command with the MBR option."""
@@ -526,7 +513,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     @patch("pyanaconda.modules.storage.bootloader.bootloader.get_bootloader_class")
     def bootloader_partition_kickstart_test(self, getter):
@@ -539,10 +526,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         bootloader --location=partition
         """
         getter.return_value = ZIPL
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         getter.return_value = IPSeriesGRUB2
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     def bootloader_append_kickstart_test(self):
         """Test the bootloader command with the append option."""
@@ -553,7 +540,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --append="hdd=ide-scsi ide=nodma" --location=mbr
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_password_kickstart_test(self):
         """Test the bootloader command with the password option."""
@@ -564,7 +551,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --password="12345"
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     @patch("pyanaconda.modules.storage.bootloader.bootloader.get_bootloader_class")
     def bootloader_encrypted_password_kickstart_test(self, getter):
@@ -577,10 +564,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         bootloader --location=mbr --password="12345" --iscrypted
         """
         getter.return_value = ZIPL
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         getter.return_value = GRUB2
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch("pyanaconda.modules.storage.bootloader.bootloader.get_bootloader_class")
     def bootloader_encrypted_grub2_kickstart_test(self, getter):
@@ -593,7 +580,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         bootloader --location=mbr --password="grub.pbkdf2.12345" --iscrypted
         """
         getter.return_value = GRUB2
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_driveorder_kickstart_test(self):
         """Test the bootloader command with the driveorder option."""
@@ -604,7 +591,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --driveorder="sda,sdb"
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_timeout_kickstart_test(self):
         """Test the bootloader command with the timeout option."""
@@ -615,7 +602,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --timeout=10
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_md5pass_kickstart_test(self):
         """Test the bootloader command with the md5pass option."""
@@ -626,7 +613,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --password="12345" --iscrypted --extlinux
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_bootdrive_kickstart_test(self):
         """Test the bootloader command with the boot drive option."""
@@ -637,7 +624,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --boot-drive=sda
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_leavebootorder_kickstart_test(self):
         """Test the bootloader command with the leavebootorder option."""
@@ -648,7 +635,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --leavebootorder
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_extlinux_kickstart_test(self):
         """Test the bootloader command with the extlinux option."""
@@ -659,7 +646,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --extlinux
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def bootloader_nombr_kickstart_test(self):
         """Test the bootloader command with the nombr option."""
@@ -670,7 +657,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         # System bootloader configuration
         bootloader --location=mbr --nombr
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     @patch_dbus_publish_object
     def autopart_kickstart_test(self, publisher):
@@ -682,7 +669,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -695,7 +682,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --type=thinp
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -708,14 +695,14 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --fstype=ext4
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
         ks_in = """
         autopart --fstype=invalid
         """
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch_dbus_publish_object
     def autopart_nopart_kickstart_test(self, publisher):
@@ -727,7 +714,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --nohome --noboot --noswap
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -740,7 +727,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -753,7 +740,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted --cipher="aes-xts-plain64"
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -766,7 +753,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -779,7 +766,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted --escrowcert="file:///tmp/escrow.crt"
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -792,7 +779,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted --escrowcert="file:///tmp/escrow.crt" --backuppassphrase
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -806,7 +793,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         mount /dev/sda1 /boot
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.MANUAL)
 
     @patch_dbus_publish_object
@@ -820,7 +807,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         mount /dev/sda1 none
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.MANUAL)
 
     @patch_dbus_publish_object
@@ -834,7 +821,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         mount /dev/sda1 /boot --mountoptions="user"
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.MANUAL)
 
     @patch_dbus_publish_object
@@ -848,7 +835,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         mount /dev/sda1 /boot --reformat
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.MANUAL)
 
     @patch_dbus_publish_object
@@ -862,7 +849,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         mount /dev/sda1 /boot --reformat=xfs --mkfsoptions="-L BOOT"
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.MANUAL)
 
     @patch_dbus_publish_object
@@ -882,7 +869,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         mount /dev/sdb2 none
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.MANUAL)
 
     @patch_dbus_publish_object
@@ -895,7 +882,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted --luks-version=luks1
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -908,7 +895,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted --pbkdf=pbkdf2
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -921,7 +908,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted --pbkdf-memory=256
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -933,7 +920,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         ks_out = """
         autopart --encrypted --pbkdf-time=100
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch_dbus_publish_object
@@ -946,7 +933,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         autopart --encrypted --pbkdf-iterations=1000
         """
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.AUTOMATIC)
 
     @patch("pyanaconda.modules.storage.kickstart.fcoe")
@@ -962,10 +949,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         dev_info = Mock()
         dev_info.device_name = "eth0"
         get_supported_devices.return_value = [dev_info]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         dev_info.device_name = "eth1"
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch("pyanaconda.modules.storage.iscsi.iscsi.iscsi")
     @patch("pyanaconda.modules.storage.kickstart.iscsi")
@@ -984,7 +971,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         module_iscsi.initiator = "iqn.1994-05.com.redhat:blabla"
         iscsi.mode = "none"
         wait_for_network_devices.return_value = True
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     @patch("pyanaconda.modules.storage.iscsi.iscsi.iscsi")
     @patch("pyanaconda.modules.storage.kickstart.iscsi")
@@ -1039,7 +1026,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
                 "iface1": "ens7"
             }
         )
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         # Node added from ibft
         kickstart_iscsi.mode = "bind"
@@ -1071,7 +1058,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
                 "iface1": "ens7"
             }
         )
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         # One node from kickstart one node from GUI.
         # Nodes actually attached from a portal don't override generic
@@ -1117,7 +1104,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
             ],
             ifaces={}
         )
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         # Node attached in GUI
         # Credentials are put into generated kickstart.
@@ -1148,7 +1135,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
             ],
             ifaces={}
         )
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def _mock_active_nodes(self, iscsi_mock, ibft_nodes, nodes, ifaces):
         iscsi_mock.ifaces = ifaces
@@ -1174,7 +1161,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         ks_out = """
         zfcp --devnum=0.0.fc00 --wwpn=0x401040a000000000 --fcplun=0x5105074308c212e9
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     @patch("pyanaconda.modules.storage.kickstart.nvdimm")
     def nvdimm_kickstart_test(self, nvdimm):
@@ -1189,13 +1176,13 @@ class StorageInterfaceTestCase(unittest.TestCase):
         nvdimm reconfigure --namespace=namespace1.0 --mode=sector --sectorsize=512
         """
         nvdimm.namespaces = ["namespace0.0", "namespace1.0"]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         nvdimm.namespaces = ["namespace0.0"]
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
         nvdimm.namespaces = ["namespace1.0"]
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     @patch("pyanaconda.modules.storage.kickstart.device_matches")
     def nvdimm_blockdevs_kickstart_test(self, device_matches):
@@ -1208,10 +1195,10 @@ class StorageInterfaceTestCase(unittest.TestCase):
         nvdimm use --blockdevs=pmem0
         """
         device_matches.return_value = ["pmem0"]
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         device_matches.return_value = []
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     def snapshot_kickstart_test(self):
         """Test the snapshot command."""
@@ -1223,7 +1210,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         snapshot fedora/root --name=pre-snapshot --when=pre-install
         snapshot fedora/root --name=post-snapshot --when=post-install
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def snapshot_invalid_kickstart_test(self):
         """Test the snapshot command with invalid origin."""
@@ -1233,7 +1220,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         ks_out = """
         snapshot invalid --name=pre-snapshot --when=pre-install
         """
-        self._test_kickstart(ks_in, ks_out, ks_valid=False)
+        self._check_kickstart(ks_in, ks_out, ks_valid=False)
 
     def snapshot_warning_kickstart_test(self):
         """Test the snapshot command with warnings."""
@@ -1250,7 +1237,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         snapshot fedora/root --name=pre-snapshot --when=pre-install
         """
         with self.assertLogs(level=logging.WARN):
-            self._test_kickstart(ks_in, ks_out)
+            self._check_kickstart(ks_in, ks_out)
 
     @patch_dbus_publish_object
     def reqpart_kickstart_test(self, publisher):
@@ -1260,7 +1247,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         """
         ks_out = ""
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
 
     @patch_dbus_publish_object
@@ -1271,7 +1258,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         """
         ks_out = ""
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
 
     @patch_dbus_publish_object
@@ -1282,7 +1269,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         """
         ks_out = ""
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
 
     @patch_dbus_publish_object
@@ -1293,7 +1280,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         """
         ks_out = ""
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
 
     @patch_dbus_publish_object
@@ -1304,7 +1291,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         """
         ks_out = ""
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
 
     @patch_dbus_publish_object
@@ -1315,7 +1302,7 @@ class StorageInterfaceTestCase(unittest.TestCase):
         """
         ks_out = ""
         self._apply_partitioning_when_created()
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
 
 

@@ -31,17 +31,16 @@ from pyanaconda.modules.payload.sources.live_os.live_os import LiveOSSourceModul
 from pyanaconda.modules.payload.sources.live_os.live_os_interface import LiveOSSourceInterface
 from pyanaconda.modules.payload.sources.live_os.initialization import SetUpLiveOSSourceTask, \
     TearDownLiveOSSourceTask
-from tests.nosetests.pyanaconda_tests import patch_dbus_get_proxy, PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import patch_dbus_get_proxy, ModuleHandlerMixin
 
 
-class LiveOSSourceInterfaceTestCase(unittest.TestCase):
+class LiveOSSourceInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
 
     def setUp(self):
         self.live_os_source_module = LiveOSSourceModule()
         self.live_os_source_interface = LiveOSSourceInterface(self.live_os_source_module)
-
-        self.callback = PropertiesChangedCallback()
-        self.live_os_source_interface.PropertiesChanged.connect(self.callback)
+        self.set_identifier(PAYLOAD_SOURCE_LIVE_OS)
+        self.set_interface(self.live_os_source_interface)
 
     def type_test(self):
         """Test Live OS source has a correct type specified."""
@@ -53,10 +52,10 @@ class LiveOSSourceInterfaceTestCase(unittest.TestCase):
 
     def image_path_properties_test(self):
         """Test Live OS handler image path property is correctly set."""
-        self.live_os_source_interface.SetImagePath("/my/supper/image/path")
-        self.assertEqual(self.live_os_source_interface.ImagePath, "/my/supper/image/path")
-        self.callback.assert_called_once_with(
-            PAYLOAD_SOURCE_LIVE_OS.interface_name, {"ImagePath": "/my/supper/image/path"}, [])
+        self._check_dbus_property(
+            "ImagePath",
+            "/my/supper/image/path"
+        )
 
     # TODO: Make detection method coverage better
     @patch("pyanaconda.modules.payload.sources.live_os.live_os.stat")

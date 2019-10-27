@@ -26,8 +26,8 @@ from blivet.formats import get_format
 from blivet.size import Size
 
 from pyanaconda.storage.initialization import create_storage
-from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_dbus_property, \
-    check_task_creation
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation, \
+    ModuleHandlerMixin
 
 from pyanaconda import platform
 from pyanaconda.bootloader import get_bootloader_class
@@ -49,88 +49,82 @@ from pyanaconda.modules.storage.bootloader.installation import ConfigureBootload
     InstallBootloaderTask, FixZIPLBootloaderTask, FixBTRFSBootloaderTask
 
 
-class BootloaderInterfaceTestCase(unittest.TestCase):
+class BootloaderInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface of the bootloader module."""
 
     def setUp(self):
         """Set up the module."""
         self.bootloader_module = BootloaderModule()
         self.bootloader_interface = BootloaderInterface(self.bootloader_module)
-
-    def _test_dbus_property(self, *args, **kwargs):
-        check_dbus_property(
-            self,
-            BOOTLOADER,
-            self.bootloader_interface,
-            *args, **kwargs
-        )
+        self.set_interface(self.bootloader_interface)
+        self.set_identifier(BOOTLOADER)
 
     def bootloader_mode_property_test(self):
         """Test the bootloader mode property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "BootloaderMode",
             BOOTLOADER_SKIPPED
         )
 
     def bootloader_type_property_test(self):
         """Test the bootloader type property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "BootloaderType",
             BOOTLOADER_TYPE_EXTLINUX
         )
 
     def preferred_location_property_test(self):
         """Test the preferred location property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "PreferredLocation",
             BOOTLOADER_LOCATION_PARTITION
         )
 
     def drive_property_test(self):
         """Test the drive property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Drive",
             "sda"
         )
 
     def drive_order_property_test(self):
         """Test the drive order property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "DriveOrder",
             ["sda", "sdb"]
         )
 
     def keep_mbr_property_test(self):
         """Test the keep MBR property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "KeepMBR",
             True
         )
 
     def keep_boot_order_test(self):
         """Test the keep boot order property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "KeepBootOrder",
             True
         )
 
     def extra_arguments_property_test(self):
         """Test the extra arguments property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "ExtraArguments",
             ["hdd=ide-scsi", "ide=nodma"]
         )
 
     def timeout_property_test(self):
         """Test the timeout property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Timeout",
             25
         )
 
     def password_property_test(self):
         """Test the password property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Password",
             "12345",
             setter=self.bootloader_interface.SetEncryptedPassword,

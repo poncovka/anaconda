@@ -21,8 +21,7 @@ import unittest
 
 from unittest.mock import Mock, patch, create_autospec
 
-from tests.nosetests.pyanaconda_tests import check_task_creation, patch_dbus_publish_object, \
-    PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import check_task_creation, patch_dbus_publish_object
 
 from pyanaconda.core.constants import INSTALL_TREE
 from pyanaconda.modules.common.errors.payload import SourceSetupError
@@ -42,9 +41,6 @@ class LiveOSHandlerInterfaceTestCase(unittest.TestCase):
     def setUp(self):
         self.live_os_module = LiveOSHandlerModule()
         self.live_os_interface = LiveOSHandlerInterface(self.live_os_module)
-
-        self.callback = PropertiesChangedCallback()
-        self.live_os_interface.PropertiesChanged.connect(self.callback)
 
     def _prepare_and_use_source(self):
         source = create_autospec(LiveOSSourceModule())

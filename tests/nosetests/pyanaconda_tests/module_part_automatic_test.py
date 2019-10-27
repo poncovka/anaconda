@@ -28,8 +28,8 @@ from blivet.size import Size
 from pyanaconda.core.configuration.storage import PartitioningType
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.storage.partspec import PartSpec
-from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_dbus_property, \
-    check_task_creation
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation, \
+    ModuleHandlerMixin
 
 from pykickstart.constants import AUTOPART_TYPE_LVM_THINP
 
@@ -45,21 +45,15 @@ from pyanaconda.modules.storage.partitioning.validate import StorageValidateTask
 from pyanaconda.storage.initialization import create_storage
 
 
-class AutopartitioningInterfaceTestCase(unittest.TestCase):
+class AutopartitioningInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface of the auto partitioning module."""
 
     def setUp(self):
         """Set up the module."""
         self.module = AutoPartitioningModule()
         self.interface = AutoPartitioningInterface(self.module)
-
-    def _test_dbus_property(self, *args, **kwargs):
-        check_dbus_property(
-            self,
-            AUTO_PARTITIONING,
-            self.interface,
-            *args, **kwargs
-        )
+        self.set_identifier(AUTO_PARTITIONING)
+        self.set_interface(self.interface)
 
     def publication_test(self):
         """Test the DBus representation."""
@@ -67,7 +61,7 @@ class AutopartitioningInterfaceTestCase(unittest.TestCase):
 
     def enabled_property_test(self):
         """Test the property enabled."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Enabled",
             True
         )
@@ -106,7 +100,7 @@ class AutopartitioningInterfaceTestCase(unittest.TestCase):
             'backup-passphrase-enabled': get_variant(Bool, True),
         }
 
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Request",
             in_value,
             out_value

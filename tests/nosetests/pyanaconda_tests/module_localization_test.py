@@ -22,10 +22,9 @@ import tempfile
 import unittest
 
 from textwrap import dedent
-from mock import Mock
 
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface, check_task_creation, \
-    patch_dbus_publish_object, PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import check_task_creation, patch_dbus_publish_object, \
+    ModuleHandlerMixin
 
 from pyanaconda.modules.common.constants.services import LOCALIZATION
 from pyanaconda.modules.localization.installation import LanguageInstallationTask
@@ -33,61 +32,61 @@ from pyanaconda.modules.localization.localization import LocalizationService
 from pyanaconda.modules.localization.localization_interface import LocalizationInterface
 
 
-class LocalizationInterfaceTestCase(unittest.TestCase):
+class LocalizationInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface for the localization module."""
 
     def setUp(self):
         """Set up the localization module."""
-        # Set up the localization module.
         self.localization_module = LocalizationService()
         self.localization_interface = LocalizationInterface(self.localization_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.localization_interface.PropertiesChanged.connect(self.callback)
+        self.set_identifier(LOCALIZATION)
+        self.set_interface(self.localization_interface)
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(self.localization_interface.KickstartCommands, ["keyboard", "lang"])
-        self.assertEqual(self.localization_interface.KickstartSections, [])
-        self.assertEqual(self.localization_interface.KickstartAddons, [])
-        self.callback.assert_not_called()
+        self._check_kickstart_properties(commands=["keyboard", "lang"])
 
     def language_property_test(self):
         """Test the Language property."""
-        self.localization_interface.SetLanguage("cs_CZ.UTF-8")
-        self.assertEqual(self.localization_interface.Language, "cs_CZ.UTF-8")
-        self.callback.assert_called_once_with(LOCALIZATION.interface_name, {'Language': 'cs_CZ.UTF-8'}, [])
+        self._check_dbus_property(
+            "Language",
+            "cs_CZ.UTF-8"
+        )
 
     def language_support_property_test(self):
         """Test the LanguageSupport property."""
-        self.localization_interface.SetLanguageSupport(["fr_FR"])
-        self.assertEqual(self.localization_interface.LanguageSupport, ["fr_FR"])
-        self.callback.assert_called_once_with(LOCALIZATION.interface_name, {'LanguageSupport': ["fr_FR"]}, [])
+        self._check_dbus_property(
+            "LanguageSupport",
+            ["fr_FR"]
+        )
 
     def keyboard_property_test(self):
         """Test the Keyboard property."""
-        self.localization_interface.SetKeyboard("cz")
-        self.assertEqual(self.localization_interface.Keyboard, "cz")
-        self.callback.assert_called_once_with(LOCALIZATION.interface_name, {'Keyboard': 'cz'}, [])
+        self._check_dbus_property(
+            "Keyboard",
+            "cz"
+        )
 
     def vc_keymap_property_test(self):
         """Test the VirtualConsoleKeymap property."""
-        self.localization_interface.SetVirtualConsoleKeymap("cz")
-        self.assertEqual(self.localization_interface.VirtualConsoleKeymap, "cz")
-        self.callback.assert_called_once_with(LOCALIZATION.interface_name, {'VirtualConsoleKeymap': 'cz'}, [])
+        self._check_dbus_property(
+            "VirtualConsoleKeymap",
+            "cz"
+        )
 
     def x_layouts_property_test(self):
         """Test the XLayouts property."""
-        self.localization_interface.SetXLayouts(["en", "cz(querty)"])
-        self.assertEqual(self.localization_interface.XLayouts, ["en", "cz(querty)"])
-        self.callback.assert_called_once_with(LOCALIZATION.interface_name, {'XLayouts': ["en", "cz(querty)"]}, [])
+        self._check_dbus_property(
+            "XLayouts",
+            ["en", "cz(querty)"]
+        )
 
     def switch_options_property_test(self):
         """Test the LayoutSwitchOptions property."""
-        self.localization_interface.SetLayoutSwitchOptions(["grp:alt_shift_toggle"])
-        self.assertEqual(self.localization_interface.LayoutSwitchOptions, ["grp:alt_shift_toggle"])
-        self.callback.assert_called_once_with(LOCALIZATION.interface_name, {'LayoutSwitchOptions': ["grp:alt_shift_toggle"]}, [])
+        self._check_dbus_property(
+            "LayoutSwitchOptions",
+            ["grp:alt_shift_toggle"]
+        )
 
     def keyboard_seen_test(self):
         """Test the KeyboardKickstarted property."""
@@ -125,9 +124,10 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
 
     def set_language_kickstarted_test(self):
         """Test SetLanguageKickstart."""
-        self.localization_interface.SetLanguageKickstarted(True)
-        self.assertEqual(self.localization_interface.LanguageKickstarted, True)
-        self.callback.assert_called_once_with(LOCALIZATION.interface_name, {'LanguageKickstarted': True}, [])
+        self._check_dbus_property(
+            "LanguageKickstarted",
+            True
+        )
 
     @patch_dbus_publish_object
     def install_language_with_task_test(self, publisher):
@@ -138,20 +138,17 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
         obj = check_task_creation(self, task_path, publisher, LanguageInstallationTask)
         self.assertEqual(obj.implementation._lang, "cs_CZ.UTF-8")
 
-    def _test_kickstart(self, ks_in, ks_out):
-        check_kickstart_interface(self, self.localization_interface, ks_in, ks_out)
-
     def no_kickstart_test(self):
         """Test with no kickstart."""
         ks_in = None
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_empty_test(self):
         """Test with empty string."""
         ks_in = ""
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def lang_kickstart_test(self):
         """Test the lang command."""
@@ -162,7 +159,7 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
         # System language
         lang cs_CZ.UTF-8
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def lang_kickstart2_test(self):
         """Test the lang command with added language support.."""
@@ -173,7 +170,7 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
         # System language
         lang en_US.UTF-8 --addsupport=cs_CZ.UTF-8
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def keyboard_kickstart1_test(self):
         """Test the keyboard command."""
@@ -184,7 +181,7 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
         # Keyboard layouts
         keyboard --vckeymap=us --xlayouts='us','cz (qwerty)'
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def keyboard_kickstart2_test(self):
         """Test the keyboard command."""
@@ -195,7 +192,7 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
         # Keyboard layouts
         keyboard 'us'
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def keyboard_kickstart3_test(self):
         """Test the keyboard command."""
@@ -206,7 +203,7 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
         # Keyboard layouts
         keyboard --xlayouts='cz','cz (qwerty)' --switch='grp:alt_shift_toggle'
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def keyboard_kickstart4_test(self):
         """Test the keyboard command."""
@@ -219,7 +216,7 @@ class LocalizationInterfaceTestCase(unittest.TestCase):
         # new format:
         keyboard --xlayouts='cz (qwerty)','en'
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
 
 class LocalizationTasksTestCase(unittest.TestCase):

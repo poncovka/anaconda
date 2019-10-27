@@ -27,8 +27,7 @@ import gi
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface, patch_dbus_publish_object, \
-    PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, ModuleHandlerMixin
 
 from pyanaconda.modules.common.constants.services import USERS
 from pyanaconda.modules.common.structures.user import UserData
@@ -40,25 +39,19 @@ from dasbus.typing import get_variant, List, Str, Int, Bool
 from pyanaconda.ui.lib.users import get_user_list, set_user_list
 
 
-class UsersInterfaceTestCase(unittest.TestCase):
+class UsersInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface for the users module."""
 
     def setUp(self):
         """Set up the user module."""
-        # Set up the users module.
         self.users_module = UsersService()
         self.users_interface = UsersInterface(self.users_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.users_interface.PropertiesChanged.connect(self.callback)
+        self.set_identifier(USERS)
+        self.set_interface(self.users_interface)
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(self.users_interface.KickstartCommands, ["rootpw", "user", "group", "sshkey"])
-        self.assertEqual(self.users_interface.KickstartSections, [])
-        self.assertEqual(self.users_interface.KickstartAddons, [])
-        self.callback.assert_not_called()
+        self._check_kickstart_properties(commands=["rootpw", "user", "group", "sshkey"])
 
     def default_property_values_test(self):
         """Test the default user module values are as expected."""
@@ -66,39 +59,53 @@ class UsersInterfaceTestCase(unittest.TestCase):
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
         self.assertEqual(self.users_interface.RootPasswordSSHLoginAllowed, False)
 
+    def is_root_password_set_property_test(self):
+        """Test the IsRootPasswordSet property."""
+        self._check_dbus_property(
+            "IsRootPasswordSet",
+            in_value="abcef",
+            out_value=True,
+            setter=self.users_interface.SetCryptedRootPassword
+        )
+
+    def is_root_account_locked_test(self):
+        """Test the IsRootAccountLocked property."""
+        self._check_dbus_property(
+            "IsRootAccountLocked",
+            False,
+            setter=self.users_interface.SetRootAccountLocked
+        )
+
+    def root_password_ssh_login_allowed_test(self):
+        """Test the RootPasswordSSHLoginAllowed property."""
+        self._check_dbus_property(
+            "RootPasswordSSHLoginAllowed",
+            True
+        )
+
     def set_crypted_roopw_test(self):
         """Test if setting crypted root password works correctly."""
         self.users_interface.SetCryptedRootPassword("abcef")
         self.assertEqual(self.users_interface.IsRootPasswordSet, True)
         # root password is locked by default
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
-        self.callback.assert_called_once_with(USERS.interface_name, {'IsRootPasswordSet': True}, [])
 
     def set_crypted_roopw_and_unlock_test(self):
         """Test if setting crypted root password & unlocking it from kickstart works correctly."""
         self.users_interface.SetCryptedRootPassword("abcef")
         self.assertEqual(self.users_interface.IsRootPasswordSet, True)
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
-        self.callback.assert_called_once_with(USERS.interface_name, {'IsRootPasswordSet': True}, [])
         # root password is locked by default and remains locked even after a password is set
         # and needs to be unlocked via another DBus API call
         self.users_interface.SetRootAccountLocked(False)
         self.assertEqual(self.users_interface.IsRootPasswordSet, True)
         self.assertEqual(self.users_interface.IsRootAccountLocked, False)
-        self.callback.assert_called_with(USERS.interface_name, {'IsRootAccountLocked': False}, [])
 
     def lock_root_account_test(self):
         """Test if root account can be locked via DBus correctly."""
         self.users_interface.SetRootAccountLocked(True)
         self.assertEqual(self.users_interface.IsRootPasswordSet, False)
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
-        self.callback.assert_called_once_with(USERS.interface_name, {'IsRootAccountLocked': True}, [])
-
-    def allow_root_password_ssh_login_test(self):
-        """Test if root password SSH login can be allowed."""
-        self.users_interface.SetRootPasswordSSHLoginAllowed(True)
-        self.assertEqual(self.users_interface.RootPasswordSSHLoginAllowed, True)
-        self.callback.assert_called_once_with(USERS.interface_name, {'RootPasswordSSHLoginAllowed': True}, [])
 
     def ks_set_plaintext_roopw_test(self):
         """Test if setting plaintext root password from kickstart works correctly."""
@@ -125,7 +132,6 @@ class UsersInterfaceTestCase(unittest.TestCase):
         self.assertEqual(self.users_interface.IsRootPasswordSet, False)
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
         self.users_interface.SetRootAccountLocked(False)
-        self.callback.assert_called_with(USERS.interface_name, {'IsRootAccountLocked': False}, [])
         self.assertEqual(self.users_interface.IsRootPasswordSet, False)
         self.assertEqual(self.users_interface.IsRootAccountLocked, False)
 
@@ -135,29 +141,23 @@ class UsersInterfaceTestCase(unittest.TestCase):
         self.users_interface.SetCryptedRootPassword("abcef")
         self.assertEqual(self.users_interface.IsRootPasswordSet, True)
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
-        self.callback.assert_called_once_with(USERS.interface_name, {'IsRootPasswordSet': True}, [])
         # clear it
         self.users_interface.ClearRootPassword()
         # check if it looks cleared
         self.assertEqual(self.users_interface.IsRootPasswordSet, False)
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
-        self.callback.assert_called_with(USERS.interface_name, {'IsRootPasswordSet': False,
-                                                                'IsRootAccountLocked': True}, [])
 
     def clear_unlocked_rootpw_test(self):
         """Test clearing of unlocked root password."""
         # set the password to something
         self.users_interface.SetCryptedRootPassword("abcef")
-        self.callback.assert_called_once_with(USERS.interface_name, {'IsRootPasswordSet': True}, [])
         self.users_interface.SetRootAccountLocked(False)
-        self.callback.assert_called_with(USERS.interface_name, {'IsRootAccountLocked': False}, [])
         self.assertEqual(self.users_interface.IsRootPasswordSet, True)
         self.assertEqual(self.users_interface.IsRootAccountLocked, False)
         # clear it
         self.users_interface.ClearRootPassword()
         # check if it looks cleared
         self.assertEqual(self.users_interface.IsRootPasswordSet, False)
-        self.callback.assert_called_with(USERS.interface_name, {'IsRootPasswordSet': False, 'IsRootAccountLocked' : True}, [])
         self.assertEqual(self.users_interface.IsRootAccountLocked, True)
 
     def rootpw_can_be_changed_test(self):
@@ -174,7 +174,6 @@ class UsersInterfaceTestCase(unittest.TestCase):
     def no_users_property_test(self):
         """Test the users property with no users."""
         self.assertEqual(self.users_interface.Users, [])
-        self.callback.assert_not_called()
 
     def basic_users_test(self):
         """Test that user data can be set and read again."""
@@ -203,13 +202,6 @@ class UsersInterfaceTestCase(unittest.TestCase):
                 "gecos" : "some other stuff",
         }
 
-        user_list_in = [user1, user2]
-        # set the users list via API
-        self.users_interface.SetUsers(user_list_in)
-
-        # retrieve the users list via API and validate the returned data
-        users_list_out = self.users_interface.Users
-
         # construct the expected result
         user1_out = {
                     "name" : get_variant(Str, "user1"),
@@ -236,9 +228,11 @@ class UsersInterfaceTestCase(unittest.TestCase):
                     "gecos" : get_variant(Str, "some other stuff"),
         }
 
-        # check the output os the same as the expected result & in correct order
-        self.assertEqual(users_list_out[0], user1_out)
-        self.assertEqual(users_list_out[1], user2_out)
+        self._check_dbus_property(
+            "Users",
+            in_value=[user1, user2],
+            out_value=[user1_out, user2_out]
+        )
 
     def users_clear_test(self):
         """Test that user data can be se and then cleared."""
@@ -414,7 +408,6 @@ class UsersInterfaceTestCase(unittest.TestCase):
         self.users_interface.SetCryptedRootPassword("abc")
         self.users_interface.SetRootAccountLocked(True)
         self.assertTrue(self.users_interface.CheckAdminUserExists())
-
 
     def admin_user_detection_5_test(self):
         """Test that admin user detection works correctly - 1 admin (case 4)."""
@@ -659,7 +652,6 @@ user --groups=baz,bar --homedir=user2_home --name=user2 --password=laksdjaskldjh
     def no_groups_property_test(self):
         """Test the groups property with no groups."""
         self.assertEqual(self.users_interface.Groups, [])
-        self.callback.assert_not_called()
 
     def basic_groups_test(self):
         """Test that the group data can be set and read again."""
@@ -672,14 +664,6 @@ user --groups=baz,bar --homedir=user2_home --name=user2 --password=laksdjaskldjh
                 "gid" : 654,
         }
 
-        group_list_in = [group1, group2]
-        # set the groups list via API
-        self.users_interface.SetGroups(group_list_in)
-
-        # retrieve the group list via API and validate the returned data
-        group_list_out = self.users_interface.Groups
-
-        # construct the expected result
         group1_out = {
                     "name" : get_variant(Str, "group1"),
                     "gid" : get_variant(Int, 321),
@@ -689,9 +673,11 @@ user --groups=baz,bar --homedir=user2_home --name=user2 --password=laksdjaskldjh
                     "gid" : get_variant(Int, 654),
         }
 
-        # check the output os the same as the expected result & in correct order
-        self.assertEqual(group_list_out[0], group1_out)
-        self.assertEqual(group_list_out[1], group2_out)
+        self._check_dbus_property(
+            "Groups",
+            in_value=[group1, group2],
+            out_value=[group1_out, group2_out]
+        )
 
     def groups_clear_test(self):
         """Test that we can set group data and then clear it again."""
@@ -780,7 +766,6 @@ rootpw --iscrypted --lock abcdef
     def no_ssh_keys_property_test(self):
         """Test the SSH keys property with no ssh keys."""
         self.assertEqual(self.users_interface.SshKeys, [])
-        self.callback.assert_not_called()
 
     def basic_ssh_keys_test(self):
         """Test that the SSH key data can be set and read again."""
@@ -793,14 +778,6 @@ rootpw --iscrypted --lock abcdef
                 "username" : "user2",
         }
 
-        key_list_in = [key1, key2]
-        # set the SSH key list via API
-        self.users_interface.SetSshKeys(key_list_in)
-
-        # retrieve the SSH key list via API and validate the returned data
-        key_list_out = self.users_interface.SshKeys
-
-        # construct the expected result
         key1_out = {
                     "key" : get_variant(Str, "aaa"),
                     "username" : get_variant(Str, "user1"),
@@ -810,9 +787,11 @@ rootpw --iscrypted --lock abcdef
                     "username" : get_variant(Str, "user2"),
         }
 
-        # check the output is the same as the expected result & in correct order
-        self.assertEqual(key_list_out[0], key1_out)
-        self.assertEqual(key_list_out[1], key2_out)
+        self._check_dbus_property(
+            "SshKeys",
+            in_value=[key1, key2],
+            out_value=[key1_out, key2_out]
+        )
 
     def ssh_keys_clear_test(self):
         """Test that we can set SSH key data and then clear it again."""
@@ -900,9 +879,6 @@ sshkey --username=user3 "ccc"
 """
         self.assertEqual(str(ksdata), expected_kickstart)
 
-    def _test_kickstart(self, ks_in, ks_out, ks_tmp=None):
-        check_kickstart_interface(self, self.users_interface, ks_in, ks_out, ks_tmp=ks_tmp)
-
     def kickstart_set_plain_rootpw_test(self):
         """Test the setting plaintext root password via kickstart."""
 
@@ -914,7 +890,7 @@ sshkey --username=user3 "ccc"
         # Root password
         rootpw --plaintext abcdef
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
         # but check if the result is the same if it's actually used
         ks_in = """
@@ -924,7 +900,7 @@ sshkey --username=user3 "ccc"
         # Root password
         rootpw --plaintext abcdef
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_set_crypted_rootpw_test(self):
         """Test the setting crypted root password via kickstart."""
@@ -935,7 +911,7 @@ sshkey --username=user3 "ccc"
         # Root password
         rootpw --iscrypted abcdef
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_lock_root_account_test(self):
         """Test locking the root account via kickstart."""
@@ -946,7 +922,7 @@ sshkey --username=user3 "ccc"
         #Root password
         rootpw --lock
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_users_test(self):
         """Test kickstart user input and output."""
@@ -962,7 +938,7 @@ sshkey --username=user3 "ccc"
         user --groups=wheel,mockuser --homedir=user2_home --name=user2 --password=asasas --iscrypted --shell=csh --uid=321 --gecos="bar" --gid=543
         user --name=user3 --lock
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
 
 class UsersDataTestCase(unittest.TestCase):
@@ -1556,10 +1532,6 @@ class UsersModuleTasksTestCase(unittest.TestCase):
         """Set up the users module."""
         self.users_module = UsersService()
         self.users_interface = UsersInterface(self.users_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.users_interface.PropertiesChanged.connect(self.callback)
 
     @patch_dbus_publish_object
     def root_ssh_password_config_task_basic_test(self, publisher):

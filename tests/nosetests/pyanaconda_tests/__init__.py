@@ -15,6 +15,8 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from abc import ABC, abstractmethod
+
 import gi
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib
@@ -29,8 +31,7 @@ from dasbus.server.template import BasicInterfaceTemplate
 from pyanaconda.modules.common.constants.interfaces import KICKSTART_MODULE
 from pyanaconda.modules.common.structures.kickstart import KickstartReport
 from pyanaconda.modules.common.task import TaskInterface
-from dasbus.typing import get_native
-
+from dasbus.typing import get_native, get_variant, Bool
 
 # Set the default locale.
 locale.setlocale(locale.LC_ALL, DEFAULT_LANG)
@@ -68,97 +69,111 @@ class run_in_glib(object):
         return create_loop
 
 
-def check_kickstart_interface(test, interface, ks_in, ks_out=None, ks_valid=True, ks_tmp=None):
-    """Test the parsing and generating of a kickstart module.
+class ModuleHandlerMixin(ABC):
 
-    :param test: instance of TestCase
-    :param interface: instance of KickstartModuleInterface
-    :param ks_in: string with the input kickstart
-    :param ks_out: string with the output kickstart
-    :param ks_valid: True if the input kickstart is valid, otherwise False
-    :param ks_tmp: string with the temporary output kickstart
-    """
-    callback = PropertiesChangedCallback()
-    interface.PropertiesChanged.connect(callback)
+    def __init__(self):
+        self._interface = None
+        self._identifier = None
 
-    # Read a kickstart,
-    if ks_in is not None:
-        ks_in = dedent(ks_in).strip()
-        result = KickstartReport.from_structure(get_native(interface.ReadKickstart(ks_in)))
-        test.assertEqual(ks_valid, result.is_valid())
+    def set_interface(self, interface):
+        self._interface = interface
 
-    if not ks_valid:
-        return
+    def set_identifier(self, identifier):
+        self._identifier = identifier
 
-    if ks_out is None:
-        return
+    @abstractmethod
+    def assertEqual(self, first, second, msg=None):
+        pass
 
-    # Generate a kickstart
-    ks_out = dedent(ks_out).strip()
-    test.assertEqual(ks_out, interface.GenerateKickstart().strip())
+    def _check_kickstart_properties(self, commands=None, sections=None, addons=None):
+        """Check the kickstart properties."""
+        self.assertEqual(self._interface.KickstartCommands, commands or [])
+        self.assertEqual(self._interface.KickstartSections, sections or [])
+        self.assertEqual(self._interface.KickstartAddons, addons or [])
 
-    # Test the properties changed callback.
-    if ks_in is not None:
-        callback.assert_any_call(KICKSTART_MODULE.interface_name, {'Kickstarted': True}, [])
-    else:
-        test.assertEqual(interface.Kickstarted, False)
-        callback.assert_not_called()
+    def _check_kickstart(self, ks_in, ks_out=None, ks_valid=True, ks_tmp=None):
+        """Check parsing and generating of a kickstart module.
 
-    # Test the temporary kickstart.
-    if ks_tmp is None:
-        return
+        :param ks_in: string with the input kickstart
+        :param ks_out: string with the output kickstart
+        :param ks_valid: True if the input kickstart is valid, otherwise False
+        :param ks_tmp: string with the temporary output kickstart
+        """
+        callback = Mock()
+        self._interface.PropertiesChanged.connect(callback)
 
-    ks_tmp = dedent(ks_tmp).strip()
-    test.assertEqual(ks_tmp, interface.GenerateTemporaryKickstart().strip())
+        # Read a kickstart,
+        if ks_in is not None:
+            ks_in = dedent(ks_in).strip()
+            result = KickstartReport.from_structure(
+                get_native(self._interface.ReadKickstart(ks_in))
+            )
+            self.assertEqual(ks_valid, result.is_valid())
 
+        if not ks_valid:
+            return
 
-class PropertiesChangedCallback(Mock):
-    """Mocked callback for the DBus signal PropertiesChanged.
+        if ks_out is None:
+            return
 
-    The arguments of the call are unpacked into native values.
-    """
-    def __call__(self, interface, changed, invalid):
-        return super().__call__(
-            interface, {k: v.unpack() for k, v in changed.items()}, invalid
-        )
+        # Generate a kickstart
+        ks_out = dedent(ks_out).strip()
+        self.assertEqual(ks_out, self._interface.GenerateKickstart().strip())
 
+        # Test the properties changed callback.
+        if ks_in is not None:
+            callback.assert_any_call(
+                KICKSTART_MODULE.interface_name,
+                {'Kickstarted': get_variant(Bool, True)},
+                []
+            )
+        else:
+            self.assertEqual(self._interface.Kickstarted, False)
+            callback.assert_not_called()
 
-def check_dbus_property(test, interface_id, interface, property_name,
-                        in_value, out_value=None, getter=None, setter=None, changed=None):
-    """Check DBus property.
+        # Test the temporary kickstart.
+        if ks_tmp is None:
+            return
 
-    :param test: instance of TestCase
-    :param interface_id: instance of DBusInterfaceIdentifier
-    :param interface: instance of a DBus interface
-    :param property_name: a DBus property name
-    :param in_value: an input value of the property
-    :param out_value: an output value of the property or None
-    :param getter: a property getter or None
-    :param setter: a property setter or None
-    :param changed: a dictionary of changed properties or None
-    """
-    callback = PropertiesChangedCallback()
-    interface.PropertiesChanged.connect(callback)
+        ks_tmp = dedent(ks_tmp).strip()
+        self.assertEqual(ks_tmp, self._interface.GenerateTemporaryKickstart().strip())
 
-    if out_value is None:
-        out_value = in_value
+    def _check_dbus_property(self, property_name, in_value, out_value=None, getter=None,
+                             setter=None, changed=None):
+        """Check DBus property.
 
-    # Set the property.
-    if not setter:
-        setter = getattr(interface, "Set{}".format(property_name))
+        :param property_name: a DBus property name
+        :param in_value: an input value of the property
+        :param out_value: an output value of the property or None
+        :param getter: a property getter or None
+        :param setter: a property setter or None
+        :param changed: a dictionary of changed properties or None
+        """
+        callback = Mock()
+        self._interface.PropertiesChanged.connect(callback)
 
-    setter(in_value)
+        if out_value is None:
+            out_value = in_value
 
-    if not changed:
-        changed = {property_name: out_value}
+        # Set the property.
+        if not setter:
+            setter = getattr(self._interface, "Set{}".format(property_name))
 
-    callback.assert_called_once_with(interface_id.interface_name, get_native(changed), [])
+        setter(in_value)
 
-    # Get the property.
-    if not getter:
-        getter = lambda: getattr(interface, property_name)
+        if not changed:
+            changed = {property_name: out_value}
 
-    test.assertEqual(getter(), out_value)
+        callback.assert_called_once()
+        callback_value = (self._identifier.interface_name, get_native(changed), [])
+        self.assertEqual(get_native(callback.call_args.args), callback_value)
+        self.assertEqual(callback.call_args.kwargs, {})
+
+        # Get the property.
+        if not getter:
+            getter = lambda: getattr(self._interface, property_name)
+
+        self.assertEqual(getter(), out_value)
 
 
 def check_task_creation(test, task_path, publisher, task_class):

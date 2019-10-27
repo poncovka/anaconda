@@ -24,7 +24,9 @@ from unittest.mock import patch, Mock, create_autospec, DEFAULT
 from textwrap import dedent
 from tempfile import TemporaryDirectory
 
-from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_dbus_object_creation
+from pyanaconda.modules.common.constants.services import PAYLOAD
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_dbus_object_creation, \
+    ModuleHandlerMixin
 from pyanaconda.modules.common.constants.objects import PAYLOAD_DEFAULT, LIVE_OS_HANDLER, \
     LIVE_IMAGE_HANDLER
 from pyanaconda.modules.common.errors.payload import SourceSetupError, SourceTearDownError
@@ -44,18 +46,18 @@ from pyanaconda.modules.payload.payloads.live_os.live_os import LiveOSHandlerMod
 from pyanaconda.modules.payload.sources.live_os.live_os import LiveOSSourceModule
 
 
-class PayloadInterfaceTestCase(TestCase):
+class PayloadInterfaceTestCase(TestCase, ModuleHandlerMixin):
 
     def setUp(self):
         """Set up the payload module."""
         self.payload_module = PayloadService()
         self.payload_interface = PayloadInterface(self.payload_module)
+        self.set_identifier(PAYLOAD)
+        self.set_interface(self.payload_interface)
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(self.payload_interface.KickstartCommands, ['liveimg'])
-        self.assertEqual(self.payload_interface.KickstartSections, ["packages"])
-        self.assertEqual(self.payload_interface.KickstartAddons, [])
+        self._check_kickstart_properties(commands=['liveimg'], sections=["packages"])
 
     def no_handler_set_test(self):
         """Test empty string is returned when no handler is set."""

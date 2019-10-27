@@ -19,31 +19,29 @@ import unittest
 
 from pyanaconda.dbus_addons.baz.baz import Baz
 from pyanaconda.dbus_addons.baz.baz_interface import BazInterface
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface
+from pyanaconda.modules.common.constants.services import BAZ
+from tests.nosetests.pyanaconda_tests import ModuleHandlerMixin
 
 
-class BazInterfaceTestCase(unittest.TestCase):
+class BazInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface for the Baz module."""
 
     def setUp(self):
         """Set up the localization module."""
         self.module = Baz()
         self.interface = BazInterface(self.module)
+        self.set_identifier(BAZ)
+        self.set_interface(self.interface)
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(self.interface.KickstartCommands, [])
-        self.assertEqual(self.interface.KickstartSections, [])
-        self.assertEqual(self.interface.KickstartAddons, ["my_example_baz"])
-
-    def _test_kickstart(self, ks_in, ks_out):
-        check_kickstart_interface(self, self.interface, ks_in, ks_out)
+        self._check_kickstart_properties(addons=["my_example_baz"])
 
     def no_kickstart_test(self):
         """Test with no kickstart."""
         ks_in = None
         ks_out = ""
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_test(self):
         """Test with kickstart."""
@@ -57,4 +55,4 @@ class BazInterfaceTestCase(unittest.TestCase):
         The content of the baz section.
         %end
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)

@@ -23,8 +23,8 @@ import os
 import shutil
 from unittest.mock import patch, Mock
 
-from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_dbus_property, \
-    check_kickstart_interface, check_task_creation, PropertiesChangedCallback
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, check_task_creation, \
+    ModuleHandlerMixin
 
 from pyanaconda.core.constants import FIREWALL_DEFAULT, FIREWALL_ENABLED, \
         FIREWALL_DISABLED, FIREWALL_USE_SYSTEM_DEFAULTS
@@ -63,32 +63,19 @@ class MockedNMClient():
         return self.state
 
 
-class NetworkInterfaceTestCase(unittest.TestCase):
+class NetworkInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface for the Network module."""
 
     def setUp(self):
         """Set up the network module."""
-        # Set up the network module.
         self.network_module = NetworkService()
         self.network_interface = NetworkInterface(self.network_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.network_interface.PropertiesChanged.connect(self.callback)
+        self.set_identifier(NETWORK)
+        self.set_interface(self.network_interface)
 
     def kickstart_properties_test(self):
         """Test kickstart properties."""
-        self.assertEqual(self.network_interface.KickstartCommands, ["network", "firewall"])
-        self.assertEqual(self.network_interface.KickstartSections, [])
-        self.assertEqual(self.network_interface.KickstartAddons, [])
-
-    def _test_dbus_property(self, *args, **kwargs):
-        check_dbus_property(
-            self,
-            NETWORK,
-            self.network_interface,
-            *args, **kwargs
-        )
+        self._check_kickstart_properties(commands=["network", "firewall"])
 
     @patch("pyanaconda.modules.common.base.base.setlocale")
     @patch("pyanaconda.modules.common.base.base.os")
@@ -105,7 +92,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
 
     def hostname_property_test(self):
         """Test the hostname property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Hostname",
             "dot.dot",
         )
@@ -125,6 +112,9 @@ class NetworkInterfaceTestCase(unittest.TestCase):
 
     def mocked_client_connectivity_test(self):
         """Test connectivity properties with mocked NMClient."""
+        callback = Mock()
+        self.network_interface.PropertiesChanged.connect(callback)
+
         nm_client = MockedNMClient()
         nm_client._connect_state_changed(self.network_module._nm_state_changed)
         self.network_module.nm_client = nm_client
@@ -134,27 +124,37 @@ class NetworkInterfaceTestCase(unittest.TestCase):
 
         nm_client._set_state(NM.State.DISCONNECTED)
         self.assertFalse(self.network_interface.Connected)
-        self.callback.assert_called_with(NETWORK.interface_name, {'Connected': False}, [])
+        callback.assert_called_with(NETWORK.interface_name, {
+            'Connected': get_variant(Bool, False)
+        }, [])
         self.assertFalse(self.network_interface.IsConnecting())
 
         nm_client._set_state(NM.State.CONNECTED_SITE)
         self.assertTrue(self.network_interface.Connected)
-        self.callback.assert_called_with(NETWORK.interface_name, {'Connected': True}, [])
+        callback.assert_called_with(NETWORK.interface_name, {
+            'Connected': get_variant(Bool, True)
+        }, [])
         self.assertFalse(self.network_interface.IsConnecting())
 
         nm_client._set_state(NM.State.CONNECTED_GLOBAL)
         self.assertTrue(self.network_interface.Connected)
-        self.callback.assert_called_with(NETWORK.interface_name, {'Connected': True}, [])
+        callback.assert_called_with(NETWORK.interface_name, {
+            'Connected': get_variant(Bool, True)
+        }, [])
         self.assertFalse(self.network_interface.IsConnecting())
 
         nm_client._set_state(NM.State.CONNECTING)
         self.assertFalse(self.network_interface.Connected)
-        self.callback.assert_called_with(NETWORK.interface_name, {'Connected': False}, [])
+        callback.assert_called_with(NETWORK.interface_name, {
+            'Connected': get_variant(Bool, False)
+        }, [])
         self.assertTrue(self.network_interface.IsConnecting())
 
         nm_client._set_state(NM.State.CONNECTED_LOCAL)
         self.assertTrue(self.network_interface.Connected)
-        self.callback.assert_called_with(NETWORK.interface_name, {'Connected': True}, [])
+        callback.assert_called_with(NETWORK.interface_name, {
+            'Connected': get_variant(Bool, True)
+        }, [])
         self.assertFalse(self.network_interface.IsConnecting())
 
     def nm_availability_test(self):
@@ -432,9 +432,6 @@ class NetworkInterfaceTestCase(unittest.TestCase):
             ["ens3", "ens5", "ens7", "bond0", "devA", "devB"]
         )
 
-    def _test_kickstart(self, ks_in, ks_out):
-        check_kickstart_interface(self, self.network_interface, ks_in, ks_out)
-
     def no_kickstart_test(self):
         """Test with no kickstart."""
         ks_in = None
@@ -442,7 +439,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_empty_test(self):
         """Test with empty string."""
@@ -451,7 +448,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def network_kickstart_test(self):
         """Test the network command.
@@ -467,7 +464,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --bootproto=static --device=ens7 --gateway=192.168.124.255 --hostname=dot.dot --ip=192.168.124.200 --nameserver=10.34.39.2 --netmask=255.255.255.0 --onboot=off --activate
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_firewall_basic_test(self):
         """Test basic firewall command usage."""
@@ -478,7 +475,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_firewall_disable_test(self):
         """Test firewall --disabled."""
@@ -489,7 +486,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_firewall_disable_with_options_test(self):
         """Test firewall --disabled with options."""
@@ -501,7 +498,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_firewall_use_system_defaults_test(self):
         """Test firewall --use-system-defaults."""
@@ -512,7 +509,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_firewall_use_system_defaults_with_options_test(self):
         """Test firewall --use-system-defaults."""
@@ -524,7 +521,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def kickstart_firewall_service_options_test(self):
         """Test firewall with individual service options.
@@ -539,7 +536,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
 
     def default_requirements_test(self):
         """Test that by default no packages are required by the network module."""
@@ -555,7 +552,7 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         # Network information
         network  --hostname=localhost.localdomain
         """
-        self._test_kickstart(ks_in, ks_out)
+        self._check_kickstart(ks_in, ks_out)
         self.assertEqual(self.network_interface.CollectRequirements(), [
             {
                 "type": get_variant(Str, "package"),
@@ -585,28 +582,15 @@ class NetworkInterfaceTestCase(unittest.TestCase):
         ])
 
 
-class FirewallInterfaceTestCase(unittest.TestCase):
+class FirewallInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface of the Firewall module."""
 
     def setUp(self):
         """Set up the module."""
         self.firewall_module = FirewallModule()
         self.firewall_interface = FirewallInterface(self.firewall_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.firewall_interface.PropertiesChanged.connect(self.callback)
-
-    def _test_dbus_property(self, *args, **kwargs):
-        check_dbus_property(
-            self,
-            FIREWALL,
-            self.firewall_interface,
-            *args, **kwargs
-        )
-
-    def _test_kickstart(self, ks_in, ks_out):
-        check_kickstart_interface(self, self.firewall_interface, ks_in, ks_out)
+        self.set_identifier(FIREWALL)
+        self.set_interface(self.firewall_interface)
 
     def default_property_values_test(self):
         """Test the default firewall module values are as expected."""
@@ -618,85 +602,85 @@ class FirewallInterfaceTestCase(unittest.TestCase):
 
     def set_use_system_defaults_test(self):
         """Test if the use-system-firewall-defaults option can be set."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "FirewallMode",
             FIREWALL_USE_SYSTEM_DEFAULTS,
         )
 
     def disable_firewall_test(self):
         """Test if firewall can be disabled."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "FirewallMode",
             FIREWALL_DISABLED,
         )
 
     def toggle_firewall_test(self):
         """Test if firewall can be toggled."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "FirewallMode",
             FIREWALL_DISABLED,
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "FirewallMode",
             FIREWALL_ENABLED,
         )
 
     def set_enabled_ports_test(self):
         """Test if enabled ports can be set."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "EnabledPorts",
             ["imap:tcp","1234:udp","47"],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "EnabledPorts",
             [],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "EnabledPorts",
             ["1337:udp","9001"],
         )
 
     def set_trusts_test(self):
         """Tests if trusts can be set."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Trusts",
             ["eth1", "eth2", "enps1337"],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Trusts",
             [],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Trusts",
             ["virbr0", "wl01", "foo", "bar"],
         )
 
     def set_enabled_services_test(self):
         """Tests if enabled services can be set."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "EnabledServices",
             ["tftp", "rsyncd", "ssh"],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "EnabledServices",
             [],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "EnabledServices",
             ["ptp", "syslog", "ssh"],
         )
 
     def set_disabled_services_test(self):
         """Tests if disabled services can be set."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "DisabledServices",
             ["samba", "nfs", "ssh"],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "DisabledServices",
             [],
         )
-        self._test_dbus_property(
+        self._check_dbus_property(
             "DisabledServices",
             ["ldap", "ldaps", "ssh"],
         )
@@ -736,10 +720,6 @@ class FirewallConfigurationTaskTestCase(unittest.TestCase):
         """Set up the module."""
         self.firewall_module = FirewallModule()
         self.firewall_interface = FirewallInterface(self.firewall_module)
-
-        # Connect to the properties changed signal.
-        self.callback = PropertiesChangedCallback()
-        self.firewall_interface.PropertiesChanged.connect(self.callback)
 
     @patch_dbus_publish_object
     def firewall_config_task_basic_test(self, publisher):

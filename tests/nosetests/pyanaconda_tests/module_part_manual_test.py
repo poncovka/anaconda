@@ -20,9 +20,9 @@
 import unittest
 from unittest.mock import Mock
 
-from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object
+from tests.nosetests.pyanaconda_tests import patch_dbus_publish_object, ModuleHandlerMixin
 
-from tests.nosetests.pyanaconda_tests import check_task_creation, check_dbus_property
+from tests.nosetests.pyanaconda_tests import check_task_creation
 
 from blivet.devices import StorageDevice, DiskDevice
 from blivet.formats import get_format
@@ -37,41 +37,35 @@ from pyanaconda.modules.storage.partitioning.manual_partitioning import ManualPa
 from pyanaconda.storage.initialization import create_storage
 
 
-class ManualPartitioningInterfaceTestCase(unittest.TestCase):
+class ManualPartitioningInterfaceTestCase(unittest.TestCase, ModuleHandlerMixin):
     """Test DBus interface of the manual partitioning module."""
 
     def setUp(self):
         """Set up the module."""
         self.module = ManualPartitioningModule()
         self.interface = ManualPartitioningInterface(self.module)
+        self.set_identifier(MANUAL_PARTITIONING)
+        self.set_interface(self.interface)
 
     def publication_test(self):
         """Test the DBus representation."""
         self.assertIsInstance(self.module.for_publication(), ManualPartitioningInterface)
 
-    def _test_dbus_property(self, *args, **kwargs):
-        check_dbus_property(
-            self,
-            MANUAL_PARTITIONING,
-            self.interface,
-            *args, **kwargs
-        )
-
     def enabled_property_test(self):
         """Test the enabled property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Enabled",
             True
         )
 
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Enabled",
             False
         )
 
     def mount_points_property_test(self):
         """Test the mount points property."""
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Requests",
             []
         )
@@ -94,7 +88,7 @@ class ManualPartitioningInterfaceTestCase(unittest.TestCase):
             }
         ]
 
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Requests",
             in_value,
             out_value
@@ -122,7 +116,7 @@ class ManualPartitioningInterfaceTestCase(unittest.TestCase):
             }
         ]
 
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Requests",
             in_value,
             out_value,
@@ -159,7 +153,7 @@ class ManualPartitioningInterfaceTestCase(unittest.TestCase):
             }
         ]
 
-        self._test_dbus_property(
+        self._check_dbus_property(
             "Requests",
             in_value,
             out_value
