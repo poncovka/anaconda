@@ -23,7 +23,7 @@ from unittest.mock import patch, Mock
 
 from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, PARTITIONING_METHOD_MANUAL, \
     PARTITIONING_METHOD_INTERACTIVE, PARTITIONING_METHOD_CUSTOM
-from dasbus.container import DBusContainerError
+from dasbus.server.container import DBusContainerError
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.containers import PartitioningContainer
 from pyanaconda.modules.storage.partitioning import AutoPartitioningModule, \

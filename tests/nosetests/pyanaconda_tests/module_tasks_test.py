@@ -19,7 +19,7 @@ import unittest
 from time import sleep
 from mock import Mock, call
 
-from dasbus.interface import dbus_class
+from dasbus.server.interface import dbus_class
 from dasbus.typing import *  # pylint: disable=wildcard-import
 from pyanaconda.modules.boss.install_manager.installation import SystemInstallationTask
 from pyanaconda.modules.common.errors.task import NoResultError
