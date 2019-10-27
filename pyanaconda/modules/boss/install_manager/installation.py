@@ -17,7 +17,6 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from dasbus.client.proxy import disconnect_proxy
 from pyanaconda.modules.common.task import AbstractTask
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -61,7 +60,8 @@ class SystemInstallationTask(AbstractTask):
 
     def _task_run_callback(self):
         """Start the next installation task."""
-        self._disconnect_all()
+        if self._current_subtask:
+            self._disconnect(self._current_subtask)
 
         if self.check_cancel():
             log.info("Installation is canceled.")
@@ -85,12 +85,12 @@ class SystemInstallationTask(AbstractTask):
         subtask.Stopped.connect(self._subtask_stopped_callback)
         subtask.ProgressChanged.connect(self._subtask_progress_changed)
 
-    def _disconnect_all(self):
-        """Disconnect from all signals of the previous task."""
-        if self._current_subtask:
-            disconnect_proxy(self._current_subtask)
-
-        self._current_subtask = None
+    def _disconnect(self, subtask):
+        """Disconnect from signals of the previous task."""
+        subtask.Started.disconnect()
+        subtask.Failed.disconnect()
+        subtask.Stopped.disconnect()
+        subtask.ProgressChanged.disconnect()
 
     def _subtask_started_callback(self):
         log.info("'%s' has started.", self._current_subtask.Name)
