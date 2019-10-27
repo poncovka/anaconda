@@ -21,6 +21,7 @@ from mock import Mock, patch, call
 
 from pyanaconda.modules.boss.install_manager import InstallManager
 from pyanaconda.modules.boss.install_manager.installation import SystemInstallationTask
+from tests.nosetests.pyanaconda_tests import patch_dbus_get_proxy
 
 
 class InstallManagerTestCase(unittest.TestCase):
@@ -48,7 +49,7 @@ class InstallManagerTestCase(unittest.TestCase):
         self.assertIsInstance(main_task, SystemInstallationTask)
         self.assertEqual(main_task._subtasks, [])
 
-    @patch('pyanaconda.dbus.DBus.get_proxy')
+    @patch_dbus_get_proxy
     def install_one_task_test(self, proxy_getter):
         """Install with one task."""
         observer = Mock()
@@ -68,7 +69,7 @@ class InstallManagerTestCase(unittest.TestCase):
         self.assertIsInstance(main_task, SystemInstallationTask)
         self.assertEqual(main_task._subtasks, [task_proxy])
 
-    @patch('pyanaconda.dbus.DBus.get_proxy')
+    @patch_dbus_get_proxy
     def install_three_tasks_test(self, proxy_getter):
         """Install with three tasks."""
         observers = []

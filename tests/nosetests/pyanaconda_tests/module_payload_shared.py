@@ -18,9 +18,9 @@
 # Red Hat Author(s): Jiri Konecny <jkonecny@redhat.com>
 #
 from abc import abstractmethod
-from mock import patch
+from unittest.mock import patch
 
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface
+from tests.nosetests.pyanaconda_tests import check_kickstart_interface, patch_dbus_publish_object
 from pyanaconda.modules.payload.payload_interface import PayloadInterface
 from pyanaconda.modules.payload.payload import PayloadService
 
@@ -59,7 +59,7 @@ class PayloadHandlerMixin(object):
         :param expected_publish_calls: how many times times the publisher should be called
         :type expected_publish_calls: int
         """
-        with patch('pyanaconda.dbus.DBus.publish_object') as publisher:
+        with patch('pyanaconda.core.dbus.DBus.publish_object') as publisher:
             check_kickstart_interface(self, self.payload_interface, ks_in, "", ks_tmp=ks_out)
 
             publisher.assert_called()

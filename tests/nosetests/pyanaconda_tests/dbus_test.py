@@ -54,20 +54,20 @@ class AnacondaDBusConnectionTestCase(unittest.TestCase):
             f.write("ADDRESS")
             f.flush()
 
-            with patch("pyanaconda.dbus.connection.ANACONDA_BUS_ADDR_FILE", f.name):
+            with patch("pyanaconda.core.dbus.ANACONDA_BUS_ADDR_FILE", f.name):
                 self._check_addressed_connection(message_bus, getter, "ADDRESS")
 
         with patch.dict("os.environ") as environment:
             environment[DBUS_ANACONDA_SESSION_ADDRESS] = "ADDRESS"
             self._check_addressed_connection(message_bus, getter, "ADDRESS")
 
-    @patch("pyanaconda.dbus.connection.Gio.DBusConnection.new_for_address_sync")
+    @patch("dasbus.connection.Gio.DBusConnection.new_for_address_sync")
     def anaconda_bus_test(self, getter):
         """Test the anaconda bus."""
         message_bus = AnacondaMessageBus()
         self._check_anaconda_connection(message_bus, getter)
 
-    @patch("pyanaconda.dbus.connection.Gio.DBusConnection.new_for_address_sync")
+    @patch("dasbus.connection.Gio.DBusConnection.new_for_address_sync")
     def default_bus_test(self, getter):
         """Test the default bus."""
         message_bus = DefaultMessageBus()

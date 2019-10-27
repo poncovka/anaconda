@@ -17,7 +17,7 @@
 #
 import unittest
 from time import sleep
-from mock import Mock, call
+from unittest.mock import Mock, call
 
 from dasbus.server.interface import dbus_class
 from dasbus.typing import *  # pylint: disable=wildcard-import

@@ -155,7 +155,7 @@ def check_task_creation(test, task_path, publisher, task_class):
 
     :param test: instance of TestCase
     :param task_path: DBus path of the task
-    :param publisher: Mock instance of the pyanaconda.dbus.DBus.publish_object
+    :param publisher: Mock instance of the publish_object method
     :param task_class: class of the tested task
 
     :return: instance of the task
@@ -172,7 +172,7 @@ def check_task_creation_list(test, task_paths, publisher, task_classes):
     :param test: instance of TestCase
     :param task_paths: DBus paths of the tasks
     :type task_paths: [str]
-    :param publisher: Mock instance of the pyanaconda.dbus.DBus.publish_object
+    :param publisher: Mock instance of the publish_object method
     :param task_classes: list of classes of the tested tasks; the order is important here
 
     :return: list of instances of tasks
@@ -190,7 +190,7 @@ def check_dbus_object_creation(test, path, publisher, klass):
 
     :param test: instance of TestCase
     :param task: DBus path of the published object
-    :param publisher: Mock instance of the pyanaconda.dbus.DBus.publish_object
+    :param publisher: Mock instance of the publish_object method
     :param klass: class of the tested DBus object
     """
     publisher.assert_called_once()
@@ -210,7 +210,7 @@ def patch_dbus_publish_object(func):
 
     # TODO: Extend this to patch the whole DBus object and pass in a useful abstraction.
     """
-    return patch('pyanaconda.dbus.DBus.publish_object')(func)
+    return patch('pyanaconda.core.dbus.DBus.publish_object')(func)
 
 
 def patch_dbus_get_proxy(func):
@@ -218,4 +218,4 @@ def patch_dbus_get_proxy(func):
 
     This is a shortcut to avoid creating of DBus proxies using DBus.
     """
-    return patch('pyanaconda.dbus.DBus.get_proxy')(func)
+    return patch('pyanaconda.core.dbus.DBus.get_proxy')(func)
