@@ -23,7 +23,7 @@ from dasbus.client.property import PropertyProxy
 from dasbus.signal import Signal
 from dasbus.constants import DBUS_FLAG_NONE
 from dasbus.error import GLibErrorHandler
-from dasbus.specification import DBusSpecification, DBusSpecificationError
+from dasbus.specification import DBusSpecification
 from dasbus.typing import *  # pylint: disable=wildcard-import
 
 import gi
