@@ -15,9 +15,8 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
 import unittest
-from mock import Mock, patch, call
+from mock import Mock, call
 
 from pyanaconda.modules.boss.install_manager import InstallManager
 from pyanaconda.modules.boss.install_manager.installation import SystemInstallationTask

@@ -20,7 +20,7 @@
 from abc import abstractmethod
 from unittest.mock import patch
 
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface, patch_dbus_publish_object
+from tests.nosetests.pyanaconda_tests import check_kickstart_interface
 from pyanaconda.modules.payload.payload_interface import PayloadInterface
 from pyanaconda.modules.payload.payload import PayloadService
 
