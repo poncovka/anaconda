@@ -21,10 +21,11 @@ import unittest
 from textwrap import dedent
 from unittest.mock import Mock, patch
 
-from pyanaconda.core.signal import Signal
-from dasbus.client import ClientObjectHandler, ObjectProxy, GLibClient
+from dasbus.client.handler import ClientObjectHandler, GLibClient
+from dasbus.client.proxy import ObjectProxy
 from dasbus.constants import DBUS_FLAG_NONE
 from dasbus.error import ErrorRegister
+from dasbus.signal import Signal
 from dasbus.specification import DBusSpecification
 from dasbus.typing import get_variant, get_variant_type, VariantType
 
@@ -124,7 +125,7 @@ class DBusClientTestCase(unittest.TestCase):
             self.handler.specification.members
         )
 
-    @patch("pyanaconda.dbus.error.GLibErrorHandler.register", new_callable=ErrorRegister)
+    @patch("dasbus.error.GLibErrorHandler.register", new_callable=ErrorRegister)
     def method_test(self, register):
         """Test the method proxy."""
         self._create_proxy("""
@@ -232,7 +233,7 @@ class DBusClientTestCase(unittest.TestCase):
 
         self.connection.call_sync.reset_mock()
 
-    @patch("pyanaconda.dbus.error.GLibErrorHandler.register", new_callable=ErrorRegister)
+    @patch("dasbus.error.GLibErrorHandler.register", new_callable=ErrorRegister)
     def async_method_test(self, register):
         """Test asynchronous calls of a method proxy."""
         self._create_proxy("""

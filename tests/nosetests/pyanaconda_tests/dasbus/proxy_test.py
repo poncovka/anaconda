@@ -20,8 +20,7 @@
 import unittest
 from unittest.mock import Mock
 
-from dasbus.client import ObjectProxy
-from dasbus.proxy import get_object_path
+from dasbus.client.proxy import ObjectProxy, get_object_path
 
 
 class DBusProxyTestCase(unittest.TestCase):

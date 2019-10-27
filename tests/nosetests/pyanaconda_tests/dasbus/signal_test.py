@@ -20,8 +20,8 @@
 import unittest
 from unittest.mock import Mock
 
-from pyanaconda.core.signal import Signal
-from dasbus.interface import dbus_signal
+from dasbus.server.interface import dbus_signal
+from dasbus.signal import Signal
 
 
 class DBusSignalTestCase(unittest.TestCase):

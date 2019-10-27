@@ -20,15 +20,15 @@
 import unittest
 from mock import Mock
 
-from dasbus.container import DBusContainer, DBusContainerError
-from dasbus.interface import dbus_interface
-from dasbus.publishable import Publishable
-from pyanaconda.modules.common.base.base_template import InterfaceTemplate
+from dasbus.server.container import DBusContainer, DBusContainerError
+from dasbus.server.interface import dbus_interface
+from dasbus.server.publishable import Publishable
+from dasbus.server.template import BasicInterfaceTemplate
 from dasbus.typing import Str, ObjPath
 
 
 @dbus_interface("org.Project.Object")
-class MyInterface(InterfaceTemplate):
+class MyInterface(BasicInterfaceTemplate):
 
     def HelloWorld(self) -> Str:
         return self.implementation.hello_world()

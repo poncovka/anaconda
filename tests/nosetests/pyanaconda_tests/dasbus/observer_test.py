@@ -21,8 +21,7 @@ import unittest
 from unittest.mock import patch, Mock
 
 from dasbus.constants import DBUS_FLAG_NONE
-from dasbus.observer import DBusObserverError, DBusObserver
-from pyanaconda.modules.boss.module_manager.module_observer import ModuleObserver
+from dasbus.client.observer import DBusObserver
 
 
 class DBusObserverTestCase(unittest.TestCase):
@@ -71,36 +70,7 @@ class DBusObserverTestCase(unittest.TestCase):
         self._make_service_available(observer)
         self._make_service_unavailable(observer)
 
-    def module_observer_test(self):
-        """Test the module observer."""
-        dbus = Mock()
-        observer = ModuleObserver(dbus, "my.test.module")
-
-        # Setup the observer.
-        self._setup_observer(observer)
-        self.assertIsNone(observer._proxy)
-
-        with self.assertRaises(DBusObserverError):
-            observer.proxy.DoSomething()
-
-        # Service available.
-        self._make_service_available(observer)
-        self.assertIsNone(observer._proxy)
-
-        # Access the proxy.
-        observer.proxy.DoSomething()
-        dbus.get_proxy.assert_called_once_with("my.test.module", "/my/test/module")
-        self.assertIsNotNone(observer._proxy)
-
-        # Service unavailable.
-
-        self._make_service_unavailable(observer)
-        self.assertIsNone(observer._proxy)
-
-        with self.assertRaises(DBusObserverError):
-            observer.proxy.DoSomething()
-
-    @patch("pyanaconda.dbus.observer.Gio")
+    @patch("dasbus.client.observer.Gio")
     def connect_test(self, gio):
         """Test Gio support for watching names."""
         dbus = Mock()

@@ -17,7 +17,6 @@
 #
 # Red Hat Author(s): Vendula Poncova <vponcova@redhat.com>
 #
-
 import unittest
 
 from dasbus.specification import DBusSpecificationParser, DBusSpecification, \

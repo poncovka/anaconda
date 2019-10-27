@@ -22,16 +22,47 @@ from threading import Thread, Event
 from unittest import mock
 from unittest.mock import Mock
 
-from pyanaconda.dbus import AddressedMessageBus
+from dasbus.connection import AddressedMessageBus
 from dasbus.error import map_error
-from dasbus.interface import dbus_interface, dbus_signal
+from dasbus.server.interface import dbus_interface, dbus_signal
 from dasbus.typing import *  # pylint: disable=wildcard-import
-
-from tests.nosetests.pyanaconda_tests import run_in_glib
 
 import gi
 gi.require_version("Gio", "2.0")
-from gi.repository import Gio
+gi.require_version("GLib", "2.0")
+from gi.repository import Gio, GLib
+
+
+class run_in_glib(object):
+    """Run the test methods in GLib.
+
+    :param timeout: Timeout in seconds when the loop will be killed.
+    """
+
+    def __init__(self, timeout):
+        self._timeout = timeout
+        self._result = None
+
+    def __call__(self, func):
+
+        def kill_loop(loop):
+            loop.quit()
+            return False
+
+        def run_in_loop(*args, **kwargs):
+            self._result = func(*args, **kwargs)
+
+        def create_loop(*args, **kwargs):
+            loop = GLib.MainLoop()
+
+            GLib.idle_add(run_in_loop, *args, **kwargs)
+            GLib.timeout_add_seconds(self._timeout, kill_loop, loop)
+
+            loop.run()
+
+            return self._result
+
+        return create_loop
 
 
 @map_error("my.testing.Error")
