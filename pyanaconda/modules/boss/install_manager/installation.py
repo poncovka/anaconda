@@ -17,7 +17,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from dasbus.client import disconnect_proxy
+from dasbus.client.proxy import disconnect_proxy
 from pyanaconda.modules.common.task import AbstractTask
 
 from pyanaconda.anaconda_loggers import get_module_logger
