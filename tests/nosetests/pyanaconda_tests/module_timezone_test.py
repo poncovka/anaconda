@@ -23,7 +23,7 @@ from mock import Mock
 from pyanaconda.modules.common.constants.services import TIMEZONE
 from pyanaconda.modules.timezone.timezone import TimezoneService
 from pyanaconda.modules.timezone.timezone_interface import TimezoneInterface
-from tests.nosetests.pyanaconda_tests import check_kickstart_interface
+from tests.nosetests.pyanaconda_tests import check_kickstart_interface, PropertiesChangedCallback
 
 
 class TimezoneInterfaceTestCase(unittest.TestCase):
@@ -36,7 +36,7 @@ class TimezoneInterfaceTestCase(unittest.TestCase):
         self.timezone_interface = TimezoneInterface(self.timezone_module)
 
         # Connect to the properties changed signal.
-        self.callback = Mock()
+        self.callback = PropertiesChangedCallback()
         self.timezone_interface.PropertiesChanged.connect(self.callback)
 
     def kickstart_properties_test(self):

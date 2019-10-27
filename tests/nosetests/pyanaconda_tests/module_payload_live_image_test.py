@@ -21,7 +21,8 @@ import unittest
 
 from mock import Mock, patch
 
-from tests.nosetests.pyanaconda_tests import check_task_creation, patch_dbus_publish_object
+from tests.nosetests.pyanaconda_tests import check_task_creation, patch_dbus_publish_object, \
+    PropertiesChangedCallback
 from tests.nosetests.pyanaconda_tests.module_payload_shared import PayloadHandlerMixin
 
 from pyanaconda.core.constants import INSTALL_TREE
@@ -125,7 +126,7 @@ class LiveImageHandlerInterfaceTestCase(unittest.TestCase):
         self.live_image_module = LiveImageHandlerModule()
         self.live_image_interface = LiveImageHandlerInterface(self.live_image_module)
 
-        self.callback = Mock()
+        self.callback = PropertiesChangedCallback()
         self.live_image_interface.PropertiesChanged.connect(self.callback)
 
     def default_url_test(self):
