@@ -72,7 +72,8 @@ from pyanaconda.core.i18n import _, C_, CN_
 from pyanaconda.core import util, constants
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import CLEAR_PARTITIONS_NONE, BOOTLOADER_ENABLED, \
-    STORAGE_METADATA_RATIO, WARNING_NO_DISKS_SELECTED, WARNING_NO_DISKS_DETECTED
+    STORAGE_METADATA_RATIO, WARNING_NO_DISKS_SELECTED, WARNING_NO_DISKS_DETECTED, \
+    PARTITIONING_METHOD_AUTOMATIC, PARTITIONING_METHOD_CUSTOM, PARTITIONING_METHOD_BLIVET
 from pyanaconda.storage.initialization import reset_storage, select_all_disks_by_default, \
     reset_bootloader
 from pyanaconda.storage.snapshot import on_disk_storage
@@ -103,10 +104,6 @@ DASD_FORMAT_NO_CHANGE = -1
 DASD_FORMAT_REFRESH = 1
 DASD_FORMAT_RETURN_TO_HUB = 2
 
-class PartitioningMethod(Enum):
-    AUTO = "auto"
-    CUSTOM = "custom"
-    BLIVET_GUI = "blivet-gui"
 
 class InstallOptionsDialogBase(GUIObject):
     uiFile = "spokes/storage.glade"
@@ -347,12 +344,13 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         Return partitioning method according to which method selection
         radio button is currently active.
         """
-        if self._auto_part_radio_button.get_active():
-            return PartitioningMethod.AUTO
-        elif self._custom_part_radio_button.get_active():
-            return PartitioningMethod.CUSTOM
-        else:
-            return PartitioningMethod.BLIVET_GUI
+        if self._custom_part_radio_button.get_active():
+            return PARTITIONING_METHOD_CUSTOM
+
+        if self._blivet_gui_radio_button.get_active():
+            return PARTITIONING_METHOD_BLIVET
+
+        return PARTITIONING_METHOD_AUTOMATIC
 
     def _method_radio_button_toggled(self, radio_button):
         """Triggered when one of the partitioning method radio buttons is toggled."""
@@ -364,14 +362,14 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # as Blivet GUI handles encryption per encrypted device, not globally.
         # Hide it also for the interactive partitioning as CustomPartitioningSpoke
         # provides support for encryption of mount points.
-        if self._get_selected_partitioning_method() != PartitioningMethod.AUTO:
+        if self._get_selected_partitioning_method() != PARTITIONING_METHOD_AUTOMATIC:
             self._encryption_revealer.set_reveal_child(False)
             self._encrypted_checkbox.set_active(False)
         else:
             self._encryption_revealer.set_reveal_child(True)
 
         # Hide the reclaim space checkbox if automatic storage configuration is not used.
-        if self._get_selected_partitioning_method() == PartitioningMethod.AUTO:
+        if self._get_selected_partitioning_method() == PARTITIONING_METHOD_AUTOMATIC:
             self._reclaim_revealer.set_reveal_child(True)
         else:
             self._reclaim_revealer.set_reveal_child(False)
@@ -1021,13 +1019,15 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # 2) user wants to reclaim some more space => run the ResizeDialog
         # 3) we are just asked to do autopart => check free space and see if we need
         #                                        user to do anything more
-        self._auto_part_enabled = self._get_selected_partitioning_method() == PartitioningMethod.AUTO
+        self._auto_part_enabled = (
+            self._get_selected_partitioning_method() == PARTITIONING_METHOD_AUTOMATIC
+        )
         disks = filter_disks_by_names(self._available_disks, self._selected_disks)
         dialog = None
         if not self._auto_part_enabled:
-            if self._get_selected_partitioning_method() == PartitioningMethod.CUSTOM:
+            if self._get_selected_partitioning_method() == PARTITIONING_METHOD_CUSTOM:
                 self.skipTo = "CustomPartitioningSpoke"
-            if self._get_selected_partitioning_method() == PartitioningMethod.BLIVET_GUI:
+            if self._get_selected_partitioning_method() == PARTITIONING_METHOD_BLIVET:
                 self.skipTo = "BlivetGuiSpoke"
         elif self._reclaim_checkbox.get_active():
             # HINT: change the logic of this 'if' statement if we are asked to
