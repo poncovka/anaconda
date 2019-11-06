@@ -753,7 +753,7 @@ class FilterSpoke(NormalSpoke):
         self.refresh()
 
     def on_add_iscsi_clicked(self, widget, *args):
-        dialog = ISCSIDialog(self.data, self.storage)
+        dialog = ISCSIDialog(self.data)
 
         with self.main_window.enlightbox(dialog.window):
             dialog.refresh()
@@ -764,7 +764,7 @@ class FilterSpoke(NormalSpoke):
         self.refresh()
 
     def on_add_fcoe_clicked(self, widget, *args):
-        dialog = FCoEDialog(self.data, self.storage)
+        dialog = FCoEDialog(self.data)
 
         with self.main_window.enlightbox(dialog.window):
             dialog.refresh()
@@ -775,7 +775,7 @@ class FilterSpoke(NormalSpoke):
         self.refresh()
 
     def on_add_zfcp_clicked(self, widget, *args):
-        dialog = ZFCPDialog(self.data, self.storage)
+        dialog = ZFCPDialog(self.data)
 
         with self.main_window.enlightbox(dialog.window):
             dialog.refresh()
@@ -786,7 +786,7 @@ class FilterSpoke(NormalSpoke):
         self.refresh()
 
     def on_add_dasd_clicked(self, widget, *args):
-        dialog = DASDDialog(self.data, self.storage)
+        dialog = DASDDialog(self.data)
 
         with self.main_window.enlightbox(dialog.window):
             dialog.refresh()
@@ -798,7 +798,7 @@ class FilterSpoke(NormalSpoke):
 
     def on_reconfigure_nvdimm_clicked(self, widget, *args):
         namespaces = self.pages[PAGE_NVDIMM].get_selected_namespaces()
-        dialog = NVDIMMDialog(self.data, self.storage, namespaces)
+        dialog = NVDIMMDialog(self.data, namespaces)
 
         with self.main_window.enlightbox(dialog.window):
             dialog.refresh()
