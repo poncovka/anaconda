@@ -16,7 +16,6 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
 from pyanaconda.core.timer import Timer
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.ui.gui import GUIObject
@@ -25,16 +24,14 @@ from pyanaconda.ui.lib.storage import reset_storage
 
 __all__ = ["RefreshDialog"]
 
+
 class RefreshDialog(GUIObject):
     builderObjects = ["refreshDialog"]
     mainWidgetName = "refreshDialog"
     uiFile = "spokes/lib/refresh.glade"
 
-    def __init__(self, data, storage):
+    def __init__(self, data):
         super().__init__(data)
-
-        self.storage = storage
-
         self._notebook = self.builder.get_object("refreshNotebook")
         self._cancel_button = self.builder.get_object("refreshCancelButton")
         self._ok_button = self.builder.get_object("refreshOKButton")
