@@ -20,7 +20,8 @@ from blivet.errors import StorageError
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, BOOTLOADER_DRIVE_UNSET
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
-from pyanaconda.modules.common.constants.objects import DISK_SELECTION, BOOTLOADER, DEVICE_TREE
+from pyanaconda.modules.common.constants.objects import DISK_SELECTION, BOOTLOADER, DEVICE_TREE, \
+    DISK_INITIALIZATION
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.task import sync_run_task
 
@@ -113,3 +114,37 @@ def select_all_disks_by_default():
         log.debug("Selecting all disks by default: %s", ",".join(selected_disks))
 
     return selected_disks
+
+
+def apply_disk_selection(selected_names):
+    """Apply the disks selection.
+
+    :param selected_names: a list of selected disk names
+    """
+    device_tree = STORAGE.get_proxy(DEVICE_TREE)
+
+    # Get disks.
+    disks = set(device_tree.GetDisks())
+
+    # Get ancestors.
+    ancestor_names = []
+
+    for device in selected_names:
+        if device not in disks:
+            continue
+
+        ancestors = device_tree.GetDeviceAncestors(device)
+
+        for ancestor in ancestors:
+            if ancestor not in disks:
+                continue
+
+            ancestor_names.append(ancestor)
+
+    # Set the disks to select.
+    disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
+    disk_select_proxy.SetSelectedDisks(selected_names + ancestor_names)
+
+    # Set the drives to clear.
+    disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
+    disk_init_proxy.SetDrivesToClear(selected_names)
