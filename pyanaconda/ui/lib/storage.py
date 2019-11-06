@@ -21,7 +21,7 @@ from blivet.size import Size
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, BOOTLOADER_DRIVE_UNSET
 from pyanaconda.core.i18n import P_
-from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
+from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE, errorHandler
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, BOOTLOADER, DEVICE_TREE, \
     DISK_INITIALIZATION
 from pyanaconda.modules.common.constants.services import STORAGE
@@ -196,3 +196,26 @@ def unmark_protected_device(spec):
         protected_devices.remove(spec)
 
     disk_selection_proxy.SetProtectedDevices(protected_devices)
+
+
+def try_populate_devicetree():
+    """Try to populate a device tree.
+
+    Try to populate the devic etree while catching errors and dealing with
+    some special ones in a nice way (giving user chance to do something about
+    them).
+    """
+    device_tree = STORAGE.get_proxy(DEVICE_TREE)
+
+    while True:
+        try:
+            task_path = device_tree.FindDevicesWithTask()
+            task_proxy = STORAGE.get_proxy(task_path)
+            sync_run_task(task_proxy)
+        except StorageError as e:
+            if errorHandler.cb(e) == ERROR_RAISE:
+                raise
+            else:
+                continue
+        else:
+            break
