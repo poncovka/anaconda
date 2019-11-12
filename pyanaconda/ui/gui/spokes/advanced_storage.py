@@ -709,7 +709,7 @@ class FilterSpoke(NormalSpoke):
 
     def on_summary_clicked(self, button):
         disks = filter_disks_by_names(self.disks, self.selected_disks)
-        dialog = SelectedDisksDialog(self.data, self.storage, disks, show_remove=False, set_boot=False)
+        dialog = SelectedDisksDialog(self.data, disks, show_remove=False, set_boot=False)
 
         with self.main_window.enlightbox(dialog.window):
             dialog.refresh()
