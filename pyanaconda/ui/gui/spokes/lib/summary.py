@@ -16,11 +16,10 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pyanaconda.modules.common.structures.storage import DeviceActionData, DeviceData, \
+    DeviceFormatData
 from pyanaconda.ui.gui import GUIObject
-from pyanaconda.ui.gui.utils import escape_markup
 from pyanaconda.core.i18n import _
-
-from blivet.deviceaction import ACTION_TYPE_DESTROY, ACTION_TYPE_RESIZE, ACTION_OBJECT_FORMAT
 
 __all__ = ["ActionSummaryDialog"]
 
@@ -30,41 +29,91 @@ class ActionSummaryDialog(GUIObject):
     mainWidgetName = "summaryDialog"
     uiFile = "spokes/lib/summary.glade"
 
-    def __init__(self, data, actions):
+    def __init__(self, data, device_tree):
         super().__init__(data)
+        self._device_tree = device_tree
         self._store = self.builder.get_object("actionStore")
+        self._index = 1
 
-        for (i, action) in enumerate(actions, start=1):
-            mountpoint = ""
+        # Get actions of the given device tree.
+        self._actions = DeviceActionData.from_structure_list(
+            device_tree.GetActions()
+        )
 
-            if action.type in [ACTION_TYPE_DESTROY, ACTION_TYPE_RESIZE]:
-                action_type = """<span foreground='red'>%s</span>""" % \
-                        escape_markup(action.type_desc.title())
-            else:
-                action_type = """<span foreground='green'>%s</span>""" % \
-                        escape_markup(action.type_desc.title())
+        # Add actions to the dialog.
+        for action in self._actions:
+            self._add_action(action)
 
-                if action.obj == ACTION_OBJECT_FORMAT:
-                    mountpoint = getattr(action.device.format, "mountpoint", "")
+    def _add_action(self, action: DeviceActionData):
+        # Get the device data.
+        device_data = DeviceData.from_structure(
+            self._device_tree.GetDeviceData(action.device_name)
+        )
 
-            if hasattr(action.device, "description"):
-                desc = _("%(description)s (%(deviceName)s)") % {"deviceName": action.device.name,
-                                                                "description": action.device.description}
-                serial = action.device.serial
-            elif hasattr(action.device, "disk"):
-                desc = _("%(deviceName)s on %(container)s") % {"deviceName": action.device.name,
-                                                               "container": action.device.disk.description}
-                serial = action.device.disk.serial
-            else:
-                desc = action.device.name
-                serial = action.device.serial
+        format_data = DeviceFormatData.from_structure(
+            self._device_tree.GetFormatData(action.device_name)
+        )
 
-            self._store.append([i,
-                                action_type,
-                                action.object_type_string,
-                                desc,
-                                mountpoint,
-                                serial])
+        # Get the object description and the mount point.
+        if action.object_type == "format":
+            object_description = format_data.description
+            mount_point = format_data.attrs.get("mount-point", "")
+        else:
+            object_description = device_data.type
+            mount_point = ""
+
+        # Get the action description.
+        if action.action_type in ["destroy", "resize"]:
+            action_color = "red"
+            mount_point = ""
+        else:
+            action_color = "green"
+
+        action_description = "<span foreground='{color}'>{action}</span>".format(
+            color=action_color,
+            action=action.description
+        )
+
+        # Get the device description and the serial number.
+        if device_data.description:
+            serial = device_data.attrs.get("serial", "")
+            device_description = _("{description} ({device_name})").format(
+                desciption=device_data.description,
+                device_name=device_data.name
+            )
+        elif device_data.type == "partition":
+            disk_name = device_data.parents[0]
+            disk_data = DeviceData.from_structure(
+                self._device_tree.GetDeviceData(disk_name)
+            )
+
+            serial = disk_data.attrs.get("serial", "")
+            device_description = _("{partition_name} on {disk_name}").format(
+                partition_name=device_data.name,
+                disk_name=disk_data.description
+            )
+        else:
+            serial = device_data.attrs.get("serial", "")
+            device_description = device_data.name
+
+        # Get the action order.
+        index = self._index
+        self._index += 1
+
+        # Create a new row in the action store.
+        self._store.append([
+            index,
+            action_description,
+            object_description,
+            device_description,
+            mount_point,
+            serial
+        ])
+
+    @property
+    def actions(self):
+        """A list of scheduled actions."""
+        return self._actions
 
     def run(self):
         rc = self.window.run()
