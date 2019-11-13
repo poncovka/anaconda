@@ -16,23 +16,21 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
-
 from collections import namedtuple
 
-import gi
-gi.require_version("Gdk", "3.0")
-gi.require_version("Gtk", "3.0")
-
-from gi.repository import Gdk, Gtk
+from blivet.size import Size
 
 from pyanaconda.core.i18n import _, C_, N_, P_
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.constants.services import STORAGE
-from pyanaconda.modules.storage.partitioning import AutoPartitioningModule
+from pyanaconda.modules.common.structures.storage import OSData
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.utils import blockedHandler, escape_markup, timed_action
-from blivet.size import Size
+
+import gi
+gi.require_version("Gdk", "3.0")
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gdk, Gtk
 
 __all__ = ["ResizeDialog"]
 
@@ -65,16 +63,19 @@ class ResizeDialog(GUIObject):
     mainWidgetName = "resizeDialog"
     uiFile = "spokes/lib/resize.glade"
 
-    def __init__(self, data, storage, payload):
+    def __init__(self, data, payload, partitioning, disks):
         super().__init__(data)
-        self.storage = storage
-        self.payload = payload
+        self._device_tree = STORAGE.get_proxy(DEVICE_TREE)
+        self._partitioning = partitioning
+        self._disks = disks
 
-        self._device_tree_proxy = STORAGE.get_proxy(DEVICE_TREE)
+        self._roots = OSData.from_structure_list(
+            self._device_tree.GetExistingSystems()
+        )
 
         # Get the required device size.
-        required_space = self.payload.space_required.get_bytes()
-        required_size = self._device_tree_proxy.GetRequiredDeviceSize(required_space)
+        required_space = payload.space_required.get_bytes()
+        required_size = self._device_tree.GetRequiredDeviceSize(required_space)
 
         self._required_size = Size(required_size)
         self._initial_free_space = Size(0)
@@ -100,21 +101,23 @@ class ResizeDialog(GUIObject):
         self._delete_button = self.builder.get_object("deleteButton")
         self._resize_slider = self.builder.get_object("resizeSlider")
 
-    def _get_description(self, part):
-        # First, try to find the partition in some known Root.  If we find
-        # it, return the mountpoint as the description.
-        for root in self.storage.roots:
-            for (mount, device) in root.mounts.items():
-                if device == part:
-                    return "%s (%s)" % (mount, root.name)
+    def _get_description(self, partition):
+        # First, try to find the partition in some known root.
+        # If we find it, return the mount point as the description.
+        for root in self._roots:
+            for mount_point, device_name in root.mount_points.items():
+                if device_name == partition:
+                    return "{mount_point} ({os_name})".format(
+                        mount_point=mount_point, os_name=root.os_name
+                    )
 
         # Otherwise, fall back on increasingly vague information.
-        if not part.isleaf:
-            return part.children[0].name
-        if getattr(part.format, "label", None):
-            return part.format.label
-        elif getattr(part.format, "name", None):
-            return part.format.name
+        if not partition.isleaf:
+            return partition.children[0].name
+        if getattr(partition.format, "label", None):
+            return partition.format.label
+        elif getattr(partition.format, "name", None):
+            return partition.format.name
         else:
             return ""
 
@@ -194,14 +197,16 @@ class ResizeDialog(GUIObject):
 
             # And then add another uneditable line that lists how much space is
             # already free in the disk.
-            disk_free = self.storage.get_disk_free_space([disk])
+            disk_free = Size(self._device_tree.GetDiskFreeSpace([disk]))
 
             if disk_free >= Size("1MiB"):
-                free_space_string = "<span foreground='grey' style='italic'>%s</span>" \
-                                    % escape_markup(_("Free space"))
+                free_space_string = "<span foreground='grey' style='italic'>{}</span>".format(
+                    escape_markup(_("Free space"))
+                )
 
-                disk_free_string = "<span foreground='grey' style='italic'>%s</span>" \
-                                   % escape_markup(disk_free.human_readable(max_places=1))
+                disk_free_string = "<span foreground='grey' style='italic'>{}</span>".format(
+                    escape_markup(disk_free.human_readable(max_places=1))
+                )
 
                 self._disk_store.append(itr, [
                     "",
@@ -341,12 +346,12 @@ class ResizeDialog(GUIObject):
         self._resize_button.set_sensitive(got + self._initial_free_space >= self._required_size)
 
     # pylint: disable=arguments-differ
-    def refresh(self, disks):
+    def refresh(self):
         super().refresh()
 
         # clear out the store and repopulate it from the devicetree
         self._disk_store.clear()
-        self.populate(disks)
+        self.populate(self._disks)
 
         self._view.expand_all()
 
@@ -453,11 +458,9 @@ class ResizeDialog(GUIObject):
         if obj.action == _(PRESERVE):
             pass
         elif obj.action == _(SHRINK):
-            # FIXME: This is an ugly temporary workaround for UI.
-            AutoPartitioningModule.shrink_device(self, obj.name, obj.target)
+            self._partitioning.ShrinkDevice(obj.name, obj.target)
         elif obj.action == _(DELETE):
-            # FIXME: This is an ugly temporary workaround for UI.
-            AutoPartitioningModule.remove_device(self, obj.name)
+            self._partitioning.RemoveDevice(obj.name)
 
         return False
 
