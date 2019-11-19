@@ -18,11 +18,22 @@
 # Red Hat, Inc.
 #
 from pyanaconda.dbus.interface import dbus_interface
+from pyanaconda.dbus.typing import Str
 from pyanaconda.modules.common.base import KickstartModuleInterface
 from pyanaconda.modules.common.constants.services import BAZ
+from pyanaconda.modules.common.task import TaskInterface
 
 
 @dbus_interface(BAZ.interface_name)
 class BazInterface(KickstartModuleInterface):
     """The interface for Baz."""
     pass
+
+
+@dbus_interface(BAZ.interface_name + ".Task")
+class BazTaskInterface(TaskInterface):
+    """The interface for the Baz calculation task."""
+
+    @property
+    def MyProperty(self) -> Str:
+        return self.implementation.my_property

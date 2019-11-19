@@ -20,7 +20,7 @@
 from time import sleep
 
 from pyanaconda.dbus import DBus
-from pyanaconda.dbus_addons.baz.baz_interface import BazInterface
+from pyanaconda.dbus_addons.baz.baz_interface import BazInterface, BazTaskInterface
 from pyanaconda.modules.common.base import KickstartModule
 from pyanaconda.modules.common.constants.services import BAZ
 from pyanaconda.modules.common.task import Task
@@ -39,11 +39,15 @@ class Baz(KickstartModule):
 
     def install_with_tasks(self):
         """Return installation tasks."""
-        return [self.publish_task(BAZ.namespace, BazTask())]
+        return [self.publish_task(BAZ.namespace, BazTask(), BazTaskInterface)]
 
 
 class BazTask(Task):
     """The Baz task."""
+
+    @property
+    def my_property(self):
+        return "Value of my property"
 
     @property
     def name(self):
