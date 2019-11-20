@@ -352,12 +352,7 @@ class StorageSpoke(NormalTUISpoke):
 
     def apply(self):
         self._bootloader_module.SetPreferredLocation(BOOTLOADER_LOCATION_MBR)
-        boot_drive = self._bootloader_module.Drive
-
-        if boot_drive and boot_drive not in self._selected_disks:
-            reset_bootloader()
-
-        apply_disk_selection(self._selected_disks)
+        apply_disk_selection(self._selected_disks, reset_boot_drive=True)
 
     def execute(self):
         report = apply_partitioning(self._partitioning, print)
