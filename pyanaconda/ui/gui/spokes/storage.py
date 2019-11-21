@@ -38,7 +38,7 @@ from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.payload.livepayload import LiveImagePayload
 from pyanaconda.product import productName
-from pyanaconda.storage.utils import filter_disks_by_names, is_local_disk, suggest_swap_size
+from pyanaconda.storage.utils import filter_disks_by_names, suggest_swap_size
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.communication import hubQ
@@ -54,7 +54,8 @@ from pyanaconda.ui.gui.utils import escape_markup, ignoreEscape
 from pyanaconda.ui.helpers import StorageCheckHandler
 from pyanaconda.ui.lib.format_dasd import DasdFormatting
 from pyanaconda.ui.lib.storage import find_partitioning, apply_partitioning, \
-    select_all_disks_by_default, apply_disk_selection, get_disks_summary, create_partitioning
+    select_all_disks_by_default, apply_disk_selection, get_disks_summary, create_partitioning, \
+    is_local_disk
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -535,7 +536,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
                 self._device_tree.GetDeviceData(device_name)
             )
 
-            if is_local_disk(device_name):
+            if is_local_disk(device_data.type):
                 # Add all available local disks.
                 self._add_disk_overview(device_data, self._local_disks_box)
 
