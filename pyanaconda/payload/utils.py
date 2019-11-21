@@ -35,7 +35,7 @@ def resolve_device(dev_spec):
     """Get the device matching the provided device specification.
 
     :param str dev_spec: a string describing a block device
-    :return: an instance of a device or None
+    :return: a device name or None
     """
     device_tree = STORAGE.get_proxy(DEVICE_TREE)
     return device_tree.ResolveDevice(dev_spec) or None
