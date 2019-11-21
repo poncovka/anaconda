@@ -34,6 +34,19 @@ from pyanaconda.modules.common.task import sync_run_task
 log = get_module_logger(__name__)
 
 
+def create_partitioning(partitioning_method):
+    """Create a partitioning.
+
+    :param partitioning_method: a partitioning method
+    :return: a proxy of a partitioning module
+    """
+    storage_proxy = STORAGE.get_proxy()
+    object_path = storage_proxy.CreatePartitioning(
+        partitioning_method
+    )
+    return STORAGE.get_proxy(object_path)
+
+
 def find_partitioning():
     """Find a partitioning to use or create a new one.
 
