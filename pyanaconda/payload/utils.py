@@ -77,9 +77,20 @@ def mount_device(device_name, mount_point):
 def unmount_device(device_name, mount_point):
     """Unmount a filesystem on the device.
 
+    FIXME: Always specify the mount point.
+
     :param device_name: a device name
     :param str mount_point: a path to the mount point or None
     """
+    if not mount_point:
+        device_path = get_device_path(device_name)
+        mount_paths = get_mount_paths(device_path)
+
+        if not mount_paths:
+            return
+
+        mount_point = mount_paths[-1]
+
     device_tree = STORAGE.get_proxy(DEVICE_TREE)
     device_tree.UnmountDevice(device_name, mount_point)
 
