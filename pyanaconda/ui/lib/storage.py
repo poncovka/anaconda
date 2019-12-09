@@ -29,7 +29,6 @@ from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.errors.configuration import StorageConfigurationError, \
     BootloaderConfigurationError
 from pyanaconda.modules.common.structures.validation import ValidationReport
-from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.modules.common.task import sync_run_task
 
 log = get_module_logger(__name__)
@@ -184,12 +183,8 @@ def get_disks_summary(disks):
     """
     device_tree = STORAGE.get_proxy(DEVICE_TREE)
 
-    data = DeviceData.from_structure_list([
-        device_tree.GetDeviceData(d) for d in disks
-    ])
-
     count = len(disks)
-    capacity = Size(sum((disk.size for disk in data), 0))
+    capacity = Size(device_tree.GetDiskTotalSpace(disks))
     free_space = Size(device_tree.GetDiskFreeSpace(disks))
 
     return P_(
