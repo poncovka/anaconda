@@ -44,7 +44,7 @@ from blivet.size import Size
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.dbus.structure import generate_dictionary_from_data, compare_data
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
-    SIZE_UNITS_DEFAULT, DEFAULT_AUTOPART_TYPE
+    SIZE_UNITS_DEFAULT, DEFAULT_AUTOPART_TYPE, PARTITIONING_METHOD_INTERACTIVE
 from pyanaconda.core.i18n import _, N_, CP_, C_
 from pyanaconda.modules.common.constants.objects import BOOTLOADER, DISK_SELECTION
 from pyanaconda.modules.common.constants.services import STORAGE
@@ -54,23 +54,23 @@ from pyanaconda.modules.common.structures.partitioning import PartitioningReques
     DeviceFactoryRequest
 from pyanaconda.modules.storage.partitioning.interactive_partitioning import \
     InteractiveAutoPartitioningTask
-from pyanaconda.modules.storage.partitioning.interactive_utils import collect_unused_devices, \
-    collect_bootloader_devices, collect_new_devices, collect_selected_disks, collect_roots, \
-    create_new_root, revert_reformat, resize_device, change_encryption, reformat_device, \
-    collect_file_system_types, collect_device_types, \
+from pyanaconda.modules.storage.partitioning.interactive_utils import \
+    collect_roots, create_new_root, revert_reformat, resize_device, change_encryption, \
+    reformat_device, collect_file_system_types, collect_device_types, \
     get_device_raid_level, add_device, destroy_device, rename_container, get_container, \
-    collect_containers, validate_label, suggest_device_name, get_new_root_name, \
-    generate_device_factory_request, validate_device_factory_request, get_supported_raid_levels, \
+    collect_containers, validate_label, suggest_device_name, generate_device_factory_request, \
+    validate_device_factory_request, get_supported_raid_levels, \
     get_device_factory_arguments, get_raid_level_by_name, get_container_size_policy_by_number
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.storage.checker import verify_luks_devices_have_key, storage_checker
 from pyanaconda.storage.execution import configure_storage
-from pyanaconda.ui.lib.storage import reset_bootloader
+from pyanaconda.ui.lib.storage import reset_bootloader, create_partitioning
 from pyanaconda.storage.root import find_existing_installations
 from pyanaconda.storage.utils import DEVICE_TEXT_MAP, MOUNTPOINT_DESCRIPTIONS, NAMED_DEVICE_TYPES, \
     CONTAINER_DEVICE_TYPES, device_type_from_autopart, filter_unsupported_disklabel_devices, \
-    unlock_device, setup_passphrase, find_unconfigured_luks, DEVICE_TYPE_UNSUPPORTED
+    unlock_device, setup_passphrase, find_unconfigured_luks, DEVICE_TYPE_UNSUPPORTED, \
+    filter_disks_by_names
 from pyanaconda.threading import threadMgr
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.communication import hubQ
@@ -124,13 +124,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     def __init__(self, data, storage, payload):
         StorageCheckHandler.__init__(self)
         NormalSpoke.__init__(self, data, storage, payload)
-
         self._back_already_clicked = False
-        self._storage_playground = None
-
-        self.passphrase = ""
+        self._initialized = False
         self._error = None
-        self._partitioning_scheme = DEFAULT_AUTOPART_TYPE
+        self._accordion = None
 
         self._device_disks = []
         self._device_name = ""
@@ -141,20 +138,24 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._device_container_encrypted = False
         self._device_container_size = SIZE_POLICY_AUTO
 
-        self._initialized = False
-        self._accordion = None
+        self._partitioning_scheme = DEFAULT_AUTOPART_TYPE
+        self._selected_disks = []
+        self._passphrase = ""
+        self._os_name = ""
 
-        self._bootloader_module = STORAGE.get_proxy(BOOTLOADER)
-        self._disk_select_module = STORAGE.get_proxy(DISK_SELECTION)
+        self._partitioning = None
+        self._device_tree = None
+
+        self._storage_module = STORAGE.get_proxy()
+        self._boot_loader = STORAGE.get_proxy(BOOTLOADER)
+        self._disk_selection = STORAGE.get_proxy(DISK_SELECTION)
 
     def apply(self):
         self.clear_errors()
 
-        # Make sure that the protected disks are visible again.
-        self._storage_playground.show_protected_disks()
-
+        # FIXME: Do we have to do this?
         # Make sure any device/passphrase pairs we've obtained are remembered.
-        setup_passphrase(self.storage, self.passphrase)
+        # setup_passphrase(self.storage, self._passphrase)
 
         hubQ.send_ready("StorageSpoke", True)
 
@@ -260,43 +261,24 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self.initialize_done()
 
-    @property
-    def _new_root_name(self):
-        return get_new_root_name()
-
-    def _get_selected_disks(self):
-        return collect_selected_disks(
-            storage=self._storage_playground,
-            selection=self._disk_select_module.SelectedDisks
-        )
-
-    def _get_selected_disk_names(self):
-        return [d.name for d in self._get_selected_disks()]
-
     def _get_unused_devices(self):
-        return collect_unused_devices(self._storage_playground)
+        return self._device_tree.CollectUnusedDevices()
 
     @property
-    def _bootloader_drive(self):
-        return self._bootloader_module.Drive
+    def _boot_drive(self):
+        return self._boot_loader.Drive
 
-    def _get_bootloader_devices(self):
-        return collect_bootloader_devices(
-            storage=self._storage_playground,
-            boot_drive=self._bootloader_drive
-        )
+    def _get_boot_loader_devices(self):
+        return self._device_tree.CollectBootLoaderDevices(self._boot_drive)
 
     def _get_new_devices(self):
-        return collect_new_devices(
-            storage=self._storage_playground,
-            boot_drive=self._bootloader_drive
-        )
+        return self._device_tree.CollectNewDevices(self._boot_drive)
 
     def _update_space_display(self):
         # Set up the free space/available space displays in the bottom left.
-        disks = self._get_selected_disks()
-        free_space = self._storage_playground.get_disk_free_space()
-        total_space = sum((d.size for d in disks), Size(0))
+        disks = self._selected_disks
+        free_space = Size(self._device_tree.GetDiskFreeSpace())
+        total_space = Size(self._device_tree.GetDiskTotalSpace(disks))
 
         self._availableSpaceLabel.set_text(str(free_space))
         self._totalSpaceLabel.set_text(str(total_space))
@@ -310,11 +292,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._summaryLabel.set_text(summary)
         self._summaryLabel.set_use_underline(True)
 
-    @ui_storage_logged
-    def _reset_storage(self):
-        self._storage_playground = self.storage.copy()
-        self._storage_playground.hide_protected_disks()
-
     def refresh(self):
         self.clear_errors()
         NormalSpoke.refresh(self)
@@ -324,11 +301,24 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         for thread_name in [THREAD_EXECUTE_STORAGE, THREAD_STORAGE]:
             threadMgr.wait(thread_name)
 
+        if not self._partitioning:
+            # Create the partitioning now. It cannot by done earlier, because
+            # the storage spoke would use it as a default partitioning.
+            self._partitioning = create_partitioning(PARTITIONING_METHOD_INTERACTIVE)
+            self._device_tree = STORAGE.get_proxy(self._partitioning.GetDeviceTree())
+
         self._back_already_clicked = False
 
-        self._reset_storage()
-        self._do_refresh()
+        # Get the name of the new installation.
+        self._os_name = self._device_tree.OSName
 
+        # Initialize the selected disks.
+        selected_disks = self._disk_selection.SelectedDisks
+        partitioned_devices = self._device_tree.PartitionedDevices
+        self._selected_disks = filter_disks_by_names(partitioned_devices, selected_disks)
+
+        # Update the UI elements.
+        self._do_refresh()
         self._update_space_display()
         self._applyButton.set_sensitive(False)
 
@@ -424,7 +414,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if not new_devices:
             self._add_initial_page(reuse_existing=bool(ui_roots or unused_devices))
         else:
-            new_root = create_new_root(self._storage_playground, self._bootloader_drive)
+            new_root = create_new_root(self._storage_playground, self._boot_drive)
             ui_roots.insert(0, new_root)
 
         # Add root pages.
@@ -437,7 +427,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _add_initial_page(self, reuse_existing=False):
         page = CreateNewPage(
-            self._new_root_name,
+            self._os_name,
             self.on_create_clicked,
             self._change_autopart_type,
             partitionsToReuse=reuse_existing
@@ -507,18 +497,18 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     ###
     def add_new_selector(self, device):
         """ Add an entry for device to the new install Page. """
-        page = self._accordion.find_page_by_title(self._new_root_name)
+        page = self._accordion.find_page_by_title(self._os_name)
         devices = [device]
         if not page.members:
             # remove the CreateNewPage and replace it with a regular Page
-            expander = self._accordion.find_page_by_title(self._new_root_name).get_parent()
+            expander = self._accordion.find_page_by_title(self._os_name).get_parent()
             expander.remove(expander.get_child())
 
-            page = Page(self._new_root_name)
+            page = Page(self._os_name)
             expander.add(page)
 
             # also pull in biosboot and prepboot that are on our boot disk
-            devices.extend(self._get_bootloader_devices())
+            devices.extend(self._get_boot_loader_devices())
             devices = list(set(devices))
 
         for _device in devices:
@@ -529,7 +519,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     def _update_selectors(self):
         """ Update all btrfs selectors' size properties. """
         # we're only updating selectors in the new root. problem?
-        page = self._accordion.find_page_by_title(self._new_root_name)
+        page = self._accordion.find_page_by_title(self._os_name)
         for selector in page.members:
             update_selector_from_device(selector, selector.device)
 
@@ -662,7 +652,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             new_selector = None
             for (page, _selector) in self._accordion.all_members:
                 if _selector.device in (device, old_device):
-                    if page.pageTitle == self._new_root_name:
+                    if page.pageTitle == self._os_name:
                         new_selector = _selector
                         continue
 
@@ -1240,7 +1230,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._setup_fstype_combo(request.device_type, request.format_type, format_types)
 
         # Collect the supported device types.
-        device_types = collect_device_types(device, self._get_selected_disks())
+        device_types = collect_device_types(device, self._selected_disks)
 
         # Set up the device type combo.
         self._setup_device_type_combo(request.device_type, device_types)
@@ -1377,7 +1367,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 return
 
             if find_unconfigured_luks(self._storage_playground):
-                dialog = PassphraseDialog(self.data, default_passphrase=self.passphrase)
+                dialog = PassphraseDialog(self.data, default_passphrase=self._passphrase)
                 with self.main_window.enlightbox(dialog.window):
                     rc = dialog.run()
 
@@ -1385,9 +1375,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                     # Cancel. Leave the old passphrase set if there was one.
                     return
 
-                self.passphrase = dialog.passphrase
+                self._passphrase = dialog.passphrase
 
-            setup_passphrase(self._storage_playground, self.passphrase)
+            setup_passphrase(self._storage_playground, self._passphrase)
 
             if not self._do_check():
                 return
@@ -1432,7 +1422,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             request.device_size = dialog.size.get_bytes()
 
         request.device_type = device_type_from_autopart(self._partitioning_scheme)
-        request.disks = self._get_selected_disk_names()
+        request.disks = self._selected_disks
 
         # Clear errors and try to add the mountpoint/device.
         self.clear_errors()
@@ -1532,7 +1522,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
             log.debug("Removing device %s from page %s.", device.name, root_name)
 
-            if root_name == self._new_root_name:
+            if root_name == self._os_name:
                 if is_multiselection and not option_checked:
                     (rc, option_checked) = self._show_confirmation_dialog(
                         root_name, device, protected_types
@@ -1601,7 +1591,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._do_refresh()
 
     def on_summary_clicked(self, button):
-        disks = self._get_selected_disks()
+        disks = self._selected_disks
         dialog = SelectedDisksDialog(self.data, disks, show_remove=False, set_boot=False)
 
         with self.main_window.enlightbox(dialog.window):
@@ -1626,7 +1616,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         dialog = DisksDialog(
             self.data,
             self._storage_playground,
-            disks=self._get_selected_disks(),
+            disks=self._selected_disks,
             selected=self._device_disks
         )
         with self.main_window.enlightbox(dialog.window):
@@ -1683,7 +1673,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             encrypted=self._device_container_encrypted,
             size_policy=size_policy,
             size=size,
-            disks=self._get_selected_disks(),
+            disks=self._selected_disks,
             selected=self._device_disks,
             exists=getattr(container, "exists", False)
         )

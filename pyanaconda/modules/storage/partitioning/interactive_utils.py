@@ -151,21 +151,6 @@ def collect_new_devices(storage, boot_drive):
     return list(set(new_devices))
 
 
-def collect_selected_disks(storage, selection):
-    """Collect selected disks.
-
-    FIXME: Is this method really necessary? Remove it if possible.
-
-    :param storage: an instance of Blivet
-    :param selection: names of selected disks
-    :return: a list of devices
-    """
-    return [
-        d for d in storage.devices
-        if d.name in selection and d.partitioned
-    ]
-
-
 def collect_roots(storage):
     """Collect roots of existing installations.
 
