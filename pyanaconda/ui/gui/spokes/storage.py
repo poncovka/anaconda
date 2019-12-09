@@ -755,13 +755,9 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         return rc
 
     def _check_space_and_get_dialog(self, disks):
-        data = DeviceData.from_structure_list([
-            self._device_tree.GetDeviceData(d) for d in disks
-        ])
-
         disk_free = Size(self._device_tree.GetDiskFreeSpace(disks))
         fs_free = Size(self._device_tree.GetDiskReclaimableSpace(disks))
-        disks_size = Size(sum((disk.size for disk in data), 0))
+        disks_size = Size(self._device_tree.GetDiskTotalSpace(disks))
         sw_space = Size(self.payload.space_required)
         auto_swap = suggest_swap_size()
 
