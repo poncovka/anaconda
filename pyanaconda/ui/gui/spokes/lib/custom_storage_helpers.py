@@ -214,34 +214,6 @@ def get_container_type(device_type):
         "GUI|Custom Partitioning|Configure|Devices", "container")))
 
 
-@contextmanager
-def ui_storage_logger():
-    """Context manager that applies the UIStorageFilter for its block"""
-
-    storage_log = get_blivet_logger()
-    storage_filter = UIStorageFilter()
-    storage_log.addFilter(storage_filter)
-    yield
-    storage_log.removeFilter(storage_filter)
-
-
-def ui_storage_logged(func):
-    @wraps(func)
-    def decorated(*args, **kwargs):
-        with ui_storage_logger():
-            return func(*args, **kwargs)
-
-    return decorated
-
-
-class UIStorageFilter(logging.Filter):
-    """Logging filter for UI storage events"""
-
-    def filter(self, record):
-        record.name = "storage.ui"
-        return True
-
-
 class AddDialog(GUIObject):
     builderObjects = ["addDialog", "mountPointStore", "mountPointCompletion",
                       "mountPointEntryBuffer"]
