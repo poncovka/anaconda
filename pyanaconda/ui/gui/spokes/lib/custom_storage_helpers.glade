@@ -533,7 +533,7 @@ use.  Try something else?</property>
     <data>
       <row>
         <col id="0" translatable="yes">None</col>
-        <col id="1">none</col>
+        <col id="1" />
       </row>
       <row>
         <col id="0" translatable="yes">Single</col>
