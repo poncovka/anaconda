@@ -104,8 +104,6 @@
       <column type="gchararray"/>
       <!-- column-name name_col -->
       <column type="gchararray"/>
-      <!-- column-name id_col -->
-      <column type="gint"/>
     </columns>
   </object>
   <object class="GtkDialog" id="disks_dialog">

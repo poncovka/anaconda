@@ -284,8 +284,15 @@ class ConfirmDeleteDialog(GUIObject):
         self._root_name = root_name
         self._device_name = device_name
         self._is_multiselection = is_multiselection
+
         self._label = self.builder.get_object("confirmLabel")
+        self._label.set_text(self._get_label_text())
+
         self._optional_checkbox = self.builder.get_object("optionalCheckbox")
+        self._optional_checkbox.set_label(self._get_checkbox_text())
+
+        if not self._optional_checkbox.get_label():
+            self._optional_checkbox.hide()
 
     @property
     def option_checked(self):
@@ -297,22 +304,6 @@ class ConfirmDeleteDialog(GUIObject):
 
     def on_delete_confirm_clicked(self, button, *args):
         self.window.destroy()
-
-    # pylint: disable=arguments-differ
-    def refresh(self):
-        """ Show confirmation dialog with the optional checkbox. If the
-            `checkbox_text` for the checkbox is not set then the checkbox
-            will not be showed.
-        """
-        super().refresh()
-        checkbox_text = self._get_checkbox_text()
-
-        if checkbox_text:
-            self._optional_checkbox.set_label(checkbox_text)
-        else:
-            self._optional_checkbox.hide()
-
-        self._label.set_text(self._get_label_text())
 
     def _get_checkbox_text(self):
         root_name = self._root_name
@@ -375,27 +366,47 @@ class DisksDialog(GUIObject):
     mainWidgetName = "disks_dialog"
     uiFile = "spokes/lib/custom_storage_helpers.glade"
 
-    def __init__(self, data, storage, disks, selected):
+    def __init__(self, data, device_tree, disks, selected_disks):
         super().__init__(data)
+        self._device_tree = device_tree
+        self._selected_disks = selected_disks
         self._disks = disks
-        self.selected = selected
         self._store = self.builder.get_object("disk_store")
-        # populate the store
-        for disk in self._disks:
-            self._store.append(["%s (%s)" % (disk.description, disk.serial),
-                                str(disk.size),
-                                str(storage.get_disk_free_space([disk])),
-                                disk.name,
-                                disk.id])
+        self._view = self.builder.get_object("disk_view")
+        self._populate_disks()
+        self._select_disks()
 
-        treeview = self.builder.get_object("disk_view")
-        model = treeview.get_model()
+    @property
+    def selected_disks(self):
+        """Selected disks."""
+        return self._selected_disks
+
+    def _populate_disks(self):
+        for device_name in self._disks:
+            device_data = DeviceData.from_structure(
+                self._device_tree.GetDeviceData(device_name)
+            )
+            device_free_space = self._device_tree.GetDiskFreeSpace(
+                [device_name]
+            )
+            self._store.append([
+                "{} ({})".format(
+                    device_data.description,
+                    device_data.attrs.get("serial", "")
+                ),
+                str(Size(device_data.size)),
+                str(Size(device_free_space)),
+                device_name
+            ])
+
+    def _select_disks(self):
+        model = self._view.get_model()
         itr = model.get_iter_first()
-        selected_ids = [d.id for d in self.selected]
-        selection = treeview.get_selection()
+        selection = self._view.get_selection()
+
         while itr:
-            disk_id = model.get_value(itr, 4)
-            if disk_id in selected_ids:
+            device_name = model.get_value(itr, 3)
+            if device_name in self._selected_disks:
                 selection.select_iter(itr)
 
             itr = model.iter_next(itr)
@@ -403,19 +414,15 @@ class DisksDialog(GUIObject):
     def on_cancel_clicked(self, button):
         self.window.destroy()
 
-    def _get_disk_by_id(self, disk_id):
-        for disk in self._disks:
-            if disk.id == disk_id:
-                return disk
-
     def on_select_clicked(self, button):
         treeview = self.builder.get_object("disk_view")
         model, paths = treeview.get_selection().get_selected_rows()
-        self.selected = []
+        self._selected_disks = []
+
         for path in paths:
             itr = model.get_iter(path)
-            disk_id = model.get_value(itr, 4)
-            self.selected.append(self._get_disk_by_id(disk_id))
+            device_name = model.get_value(itr, 3)
+            self._selected_disks.append(device_name)
 
         self.window.destroy()
 

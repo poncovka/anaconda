@@ -1622,9 +1622,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         dialog = DisksDialog(
             self.data,
-            self._storage_playground,
-            disks=self._selected_disks,
-            selected=self._device_disks
+            self._device_tree,
+            self._selected_disks,
+            self._device_disks
         )
         with self.main_window.enlightbox(dialog.window):
             rc = dialog.run()
@@ -1632,14 +1632,14 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if rc != 1:
             return
 
-        disks = dialog.selected
+        disks = dialog.selected_disks
 
         if not disks:
             self._error = _("No disks selected. Keeping previous disk set.")
             self.set_info(self._error)
             return
 
-        if set(disks) != self._device_disks:
+        if set(disks) != set(self._device_disks):
             self._applyButton.set_sensitive(True)
 
         self._device_disks = disks
