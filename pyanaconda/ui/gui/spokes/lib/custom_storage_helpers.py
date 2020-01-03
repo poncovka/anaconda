@@ -21,13 +21,13 @@ from collections import namedtuple
 from blivet.devicefactory import SIZE_POLICY_AUTO, SIZE_POLICY_MAX, DEVICE_TYPE_LVM, \
     DEVICE_TYPE_BTRFS, DEVICE_TYPE_LVM_THINP, DEVICE_TYPE_MD
 from blivet.size import Size
+from pyanaconda.modules.common.structures.validation import ValidationReport
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import SIZE_UNITS_DEFAULT
 from pyanaconda.core.i18n import _, N_, CN_
 from pyanaconda.core.util import lowerASCII
-from pyanaconda.modules.storage.partitioning.interactive_utils import collect_mount_points, \
-    validate_mount_point, validate_raid_level
+from pyanaconda.modules.storage.partitioning.interactive_utils import validate_raid_level
 from pyanaconda.storage.utils import size_from_input
 from pyanaconda.ui.helpers import InputCheck
 from pyanaconda.ui.gui import GUIObject
@@ -196,53 +196,75 @@ class AddDialog(GUIObject):
     def __init__(self, data, device_tree):
         super().__init__(data)
         self._device_tree = device_tree
-        self.mount_points = storage.mountpoints.keys()
-        self.size = Size(0)
-        self.mount_point = ""
-        self._error = False
+        self._size = Size(0)
+        self._mount_point = ""
+        self._error = ""
+        self._warning_label = self.builder.get_object("mountPointWarningLabel")
+        self._populate_mount_points()
 
-        store = self.builder.get_object("mountPointStore")
-        paths = collect_mount_points()
+    @property
+    def mount_point(self):
+        """The requested mount point."""
+        return self._mount_point
 
-        for path in paths:
-            if path not in self.mount_points:
-                store.append([path])
+    @property
+    def size(self):
+        """The requested size."""
+        return self._size
 
-        self.builder.get_object("addMountPointEntry").set_model(store)
+    def _populate_mount_points(self):
+        mount_points = self._device_tree.CollectUnusedMountPoints()
+        mount_point_store = self.builder.get_object("mountPointStore")
+
+        for path in mount_points:
+            mount_point_store.append([path])
+
+        entry = self.builder.get_object("addMountPointEntry")
+        entry.set_model(mount_point_store)
 
         completion = self.builder.get_object("mountPointCompletion")
         completion.set_text_column(0)
         completion.set_popup_completion(True)
 
-        self._warningLabel = self.builder.get_object("mountPointWarningLabel")
-
     def on_add_confirm_clicked(self, button, *args):
-        self.mount_point = self.builder.get_object("addMountPointEntry").get_active_text()
+        self._error = ""
+        self._set_mount_point()
+        self._set_size()
 
-        if lowerASCII(self.mount_point) in ("swap", "biosboot", "prepboot"):
-            self._error = None
-        else:
-            self._error = validate_mount_point(self.mount_point, self.mount_points)
-
-        self._warningLabel.set_text(self._error or "")
+        self._warning_label.set_text(self._error)
         self.window.show_all()
-        if self._error:
+
+        if not self._error:
+            self.window.destroy()
+
+    def _set_mount_point(self):
+        self._mount_point = self.builder.get_object("addMountPointEntry").get_active_text()
+
+        if lowerASCII(self._mount_point) in ("swap", "biosboot", "prepboot"):
             return
 
-        self.size = get_size_from_entry(
+        report = ValidationReport.from_structure(
+            self._device_tree.ValidateMountPoint(self._mount_point)
+        )
+        self._error = " ".join(report.get_messages())
+
+    def _set_size(self):
+        self._size = get_size_from_entry(
             self.builder.get_object("addSizeEntry"),
             lower_bound=self.MIN_SIZE_ENTRY,
             units=SIZE_UNITS_DEFAULT
         )
-        self.window.destroy()
+
+        if self._size is None or self._size < Size("1 MB"):
+            self._size = Size(0)
 
     def refresh(self):
         super().refresh()
-        self._warningLabel.set_text("")
+        self._warning_label.set_text("")
 
     def run(self):
         while True:
-            self._error = None
+            self._error = ""
             rc = self.window.run()
             if not self._error:
                 return rc
