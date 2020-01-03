@@ -60,7 +60,7 @@ from pyanaconda.modules.storage.partitioning.interactive_partitioning import \
     InteractiveAutoPartitioningTask
 from pyanaconda.modules.storage.partitioning.interactive_utils import revert_reformat, \
     resize_device, change_encryption, reformat_device, collect_file_system_types, \
-    collect_device_types, get_device_raid_level, add_device, destroy_device, rename_container, \
+    collect_device_types, get_device_raid_level, destroy_device, rename_container, \
     get_container, collect_containers, validate_label, suggest_device_name, \
     generate_device_factory_request, validate_device_factory_request, \
     get_device_factory_arguments, get_container_size_policy_by_number
@@ -1501,28 +1501,11 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                     self.on_selector_clicked(None, member)
                     break
 
-    def _show_confirmation_dialog(self, root_name, device, protected_types):
-        dialog = ConfirmDeleteDialog(self.data)
-        bootpart = device.format.type in protected_types
-        snapshots = (device.direct and not device.isleaf)
-        checkbox_text = None
-        if not self._accordion.is_multiselection:
-            if root_name and "_" in root_name:
-                root_name = root_name.replace("_", "__")
+    def _show_confirmation_dialog(self, root_name, device_name):
+        dialog = ConfirmDeleteDialog(self.data, self._device_tree, root_name, device_name,
+                                     self._accordion.is_multiselection)
+        dialog.refresh()
 
-            if root_name:
-                checkbox_text = (C_(
-                    "GUI|Custom Partitioning|Confirm Delete Dialog",
-                    "Delete _all file systems which are only used by %s."
-                ) % root_name)
-        else:
-            checkbox_text = C_(
-                "GUI|Custom Partitioning|Confirm Delete Dialog",
-                "Do _not show this dialog for other selected file systems."
-            )
-        dialog.refresh(getattr(device.format, "mountpoint", ""),
-                       device.name, checkbox_text=checkbox_text,
-                       snapshots=snapshots, bootpart=bootpart)
         with self.main_window.enlightbox(dialog.window):
             rc = dialog.run()
             option_checked = dialog.option_checked
@@ -1538,6 +1521,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         part_removed = False
         is_multiselection = self._accordion.is_multiselection
         protected_types = platform.boot_stage1_constraint_dict["format_types"]
+
         for selector in self._accordion.selected_items:
             page = self._accordion.page_for_selector(selector)
             device = selector.device
@@ -1551,9 +1535,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
             if root_name == self._os_name:
                 if is_multiselection and not option_checked:
-                    (rc, option_checked) = self._show_confirmation_dialog(
-                        root_name, device, protected_types
-                    )
+                    (rc, option_checked) = self._show_confirmation_dialog(root_name, device)
 
                     if rc != 1:
                         if option_checked:
@@ -1576,9 +1558,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 # In multiselection user could confirm once for all next
                 # selections.
                 if not option_checked:
-                    (rc, option_checked) = self._show_confirmation_dialog(
-                        root_name, device, protected_types
-                    )
+                    (rc, option_checked) = self._show_confirmation_dialog(root_name, device)
 
                     if rc != 1:
                         if option_checked:

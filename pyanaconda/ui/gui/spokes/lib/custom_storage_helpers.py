@@ -21,13 +21,16 @@ from collections import namedtuple
 from blivet.devicefactory import SIZE_POLICY_AUTO, SIZE_POLICY_MAX, DEVICE_TYPE_LVM, \
     DEVICE_TYPE_BTRFS, DEVICE_TYPE_LVM_THINP, DEVICE_TYPE_MD
 from blivet.size import Size
+
+from pyanaconda.modules.common.structures.storage import DeviceFormatData, DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import SIZE_UNITS_DEFAULT
-from pyanaconda.core.i18n import _, N_, CN_
+from pyanaconda.core.i18n import _, N_, CN_, C_
 from pyanaconda.core.util import lowerASCII
 from pyanaconda.modules.storage.partitioning.interactive_utils import validate_raid_level
+from pyanaconda.platform import platform
 from pyanaconda.storage.utils import size_from_input
 from pyanaconda.ui.helpers import InputCheck
 from pyanaconda.ui.gui import GUIObject
@@ -275,52 +278,93 @@ class ConfirmDeleteDialog(GUIObject):
     mainWidgetName = "confirmDeleteDialog"
     uiFile = "spokes/lib/custom_storage_helpers.glade"
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, data, device_tree, root_name, device_name, is_multiselection):
+        super().__init__(data)
+        self._device_tree = device_tree
+        self._root_name = root_name
+        self._device_name = device_name
+        self._is_multiselection = is_multiselection
+        self._label = self.builder.get_object("confirmLabel")
         self._optional_checkbox = self.builder.get_object("optionalCheckbox")
 
     @property
     def option_checked(self):
         return self._optional_checkbox.get_active()
 
+    @property
+    def _protected_types(self):
+        return platform.boot_stage1_constraint_dict["format_types"]
+
     def on_delete_confirm_clicked(self, button, *args):
         self.window.destroy()
 
     # pylint: disable=arguments-differ
-    def refresh(self, mountpoint, device, checkbox_text="", snapshots=False, bootpart=False):
+    def refresh(self):
         """ Show confirmation dialog with the optional checkbox. If the
             `checkbox_text` for the checkbox is not set then the checkbox
             will not be showed.
-
-            :param str mountpoint: Mountpoint for device.
-            :param str device: Name of the device.
-            :param str checkbox_text: Text for checkbox. If nothing set do
-                                      not display the checkbox.
-            :param bool snapshots: If true warn user he's going to delete snapshots too.
         """
         super().refresh()
-        label = self.builder.get_object("confirmLabel")
+        checkbox_text = self._get_checkbox_text()
 
         if checkbox_text:
             self._optional_checkbox.set_label(checkbox_text)
         else:
             self._optional_checkbox.hide()
 
-        if mountpoint:
-            txt = "%s (%s)" % (mountpoint, device)
-        else:
-            txt = device
+        self._label.set_text(self._get_label_text())
 
-        if bootpart:
-            label_text = _("%s may be a system boot partition! Deleting it may break other "
-                           "operating systems. Are you sure you want to delete it?") % txt
-        elif not snapshots:
-            label_text = _("Are you sure you want to delete all of the data on %s?") % txt
-        else:
-            label_text = _("Are you sure you want to delete all of the data on %s, including "
-                           "snapshots and/or subvolumes?") % txt
+    def _get_checkbox_text(self):
+        root_name = self._root_name
 
-        label.set_text(label_text)
+        if root_name and "_" in root_name:
+            root_name = root_name.replace("_", "__")
+
+        if self._is_multiselection:
+            return C_(
+                "GUI|Custom Partitioning|Confirm Delete Dialog",
+                "Do _not show this dialog for other selected file systems."
+            )
+
+        if root_name:
+            return C_(
+                "GUI|Custom Partitioning|Confirm Delete Dialog",
+                "Delete _all file systems which are only used by {}."
+            ).format(root_name)
+
+        return None
+
+    def _get_label_text(self):
+        device_data = DeviceData.from_structure(
+            self._device_tree.GetDeviceData(self._device_name)
+        )
+
+        format_data = DeviceFormatData.from_structure(
+            self._device_tree.GetFormatData(self._device_name)
+        )
+        device_name = self._device_name
+        mount_point = format_data.attrs.get("mount-point", "")
+
+        if mount_point:
+            device_name = "{} ({})".format(mount_point, self._device_name)
+
+        if format_data.type in self._protected_types:
+            return _(
+                "{} may be a system boot partition! Deleting it may break "
+                "other operating systems. Are you sure you want to delete it?"
+            ).format(device_name)
+
+        if device_data.type == "btrfs" and device_data.children:
+            return _(
+                "Are you sure you want to delete all of the data on {}, including subvolumes?"
+            ).format(device_name)
+
+        if device_data.type == "lvmthinlv" and device_data.children:
+            return _(
+                "Are you sure you want to delete all of the data on {}, including snapshots?"
+            ).format(device_name)
+
+        return _("Are you sure you want to delete all of the data on {}?").format(device_name)
 
     def run(self):
         return self.window.run()
