@@ -35,7 +35,7 @@ from gi.repository.AnacondaWidgets import MountpointSelector
 
 from blivet import devicefactory
 from blivet.devicefactory import DEVICE_TYPE_BTRFS, DEVICE_TYPE_LVM_THINP, SIZE_POLICY_AUTO
-from blivet.devicelibs import raid, crypto
+from blivet.devicelibs import crypto
 from blivet.devices import MDRaidArrayDevice, LVMVolumeGroupDevice
 from blivet.errors import StorageError
 from blivet.formats import get_format
@@ -62,8 +62,8 @@ from pyanaconda.modules.storage.partitioning.interactive_utils import revert_ref
     resize_device, change_encryption, reformat_device, collect_file_system_types, \
     collect_device_types, get_device_raid_level, add_device, destroy_device, rename_container, \
     get_container, collect_containers, validate_label, suggest_device_name, \
-    generate_device_factory_request, validate_device_factory_request, get_supported_raid_levels, \
-    get_device_factory_arguments, get_raid_level_by_name, get_container_size_policy_by_number
+    generate_device_factory_request, validate_device_factory_request, \
+    get_device_factory_arguments, get_container_size_policy_by_number
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.storage.checker import verify_luks_devices_have_key, storage_checker
@@ -79,13 +79,11 @@ from pyanaconda.ui.gui.spokes.lib.accordion import update_selector_from_device, 
     CreateNewPage, UnknownPage
 from pyanaconda.ui.gui.spokes.lib.cart import SelectedDisksDialog
 from pyanaconda.ui.gui.spokes.lib.custom_storage_helpers import get_size_from_entry, \
-    get_selected_raid_level, \
-    get_raid_level_selection, get_default_raid_level, get_supported_container_raid_levels, \
-    get_container_type, \
-    get_default_container_raid_level, AddDialog, ConfirmDeleteDialog, \
+    get_selected_raid_level, get_default_raid_level, get_supported_container_raid_levels, \
+    get_container_type, get_default_container_raid_level, AddDialog, ConfirmDeleteDialog, \
     DisksDialog, ContainerDialog, NOTEBOOK_LABEL_PAGE, NOTEBOOK_DETAILS_PAGE, NOTEBOOK_LUKS_PAGE, \
     NOTEBOOK_UNEDITABLE_PAGE, NOTEBOOK_INCOMPLETE_PAGE, NEW_CONTAINER_TEXT, CONTAINER_TOOLTIP, \
-    get_selected_raid_level_name
+    get_supported_device_raid_levels
 from pyanaconda.ui.gui.spokes.lib.passphrase import PassphraseDialog
 from pyanaconda.ui.gui.spokes.lib.refresh import RefreshDialog
 from pyanaconda.ui.gui.spokes.lib.summary import ActionSummaryDialog
@@ -134,7 +132,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._device_type = None
         self._device_suggested_name = ""
         self._device_container_name = None
-        self._device_container_raid_level = None
+        self._device_container_raid_level = ""
         self._device_container_encrypted = False
         self._device_container_size = SIZE_POLICY_AUTO
 
@@ -277,6 +275,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _get_all_devices(self):
         return self._device_tree.GetDevices()
+
+    @property
+    def _supported_raid_levels(self):
+        return get_supported_device_raid_levels(
+            self._device_tree, self._get_current_device_type()
+        )
 
     def _update_space_display(self):
         # Set up the free space/available space displays in the bottom left.
@@ -810,7 +814,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             new_request.mount_point = self._mountPointEntry.get_text()
 
     def _get_new_device_raid_level(self, new_request, old_request):
-        new_request.device_raid_level = get_selected_raid_level_name(self._raidLevelCombo)
+        new_request.device_raid_level = get_selected_raid_level(self._raidLevelCombo)
 
     def _get_new_device_for_btrfs(self,  new_request, old_request):
         # FIXME: Move this code to the new methods.
@@ -852,14 +856,19 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         # Raid level
         raid_level = self._device_container_raid_level
-        supported_raid_levels = get_supported_container_raid_levels(new_request.device_type)
-        default_raid_level = get_default_container_raid_level(new_request.device_type)
+        supported_raid_levels = get_supported_container_raid_levels(
+            self._device_tree,
+            new_request.device_type
+        )
+        default_raid_level = get_default_container_raid_level(
+            new_request.device_type
+        )
 
         if raid_level not in supported_raid_levels:
             raid_level = default_raid_level
 
         if raid_level:
-            new_request.container_raid_level = raid_level.name
+            new_request.container_raid_level = raid_level
 
         # Size
         if not self._device_container_size:
@@ -1045,31 +1054,28 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                     update_selector_from_device(selector, device)
 
     def _raid_level_visible(self, model, itr, user_data):
-        device_type = self._get_current_device_type()
-        raid_level = raid.get_raid_level(model[itr][1])
-        return raid_level in get_supported_raid_levels(device_type)
+        raid_level = model[itr][1]
+        return raid_level in self._supported_raid_levels
 
     def _populate_raid(self, raid_level):
-        """ Set up the raid-specific portion of the device details.
+        """Set up the raid-specific portion of the device details.
 
-            :param raid_level: RAID level
-            :type raid_level: instance of blivet.devicelibs.raid.RAIDLevel or None
+        :param str raid_level: RAID level name or an empty string
         """
-        device_type = self._get_current_device_type()
-
-        if not get_supported_raid_levels(device_type):
+        if not self._supported_raid_levels:
             for widget in [self._raidLevelLabel, self._raidLevelCombo]:
                 really_hide(widget)
             return
 
+        device_type = self._get_current_device_type()
         raid_level = raid_level or get_default_raid_level(device_type)
-        raid_level_name = get_raid_level_selection(raid_level)
 
         # Set a default RAID level in the combo.
         for (i, row) in enumerate(self._raidLevelCombo.get_model()):
-            if row[1] == raid_level_name:
+            if row[1] == raid_level:
                 self._raidLevelCombo.set_active(i)
                 break
+
         for widget in [self._raidLevelLabel, self._raidLevelCombo]:
             really_show(widget)
 
@@ -1182,7 +1188,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         ]
 
         self._device_container_name = request.container_name or None
-        self._device_container_raid_level = get_raid_level_by_name(request.container_raid_level)
+        self._device_container_raid_level = request.container_raid_level
         self._device_container_encrypted = request.container_encrypted
         self._device_container_size = get_container_size_policy_by_number(request.container_size_policy)
 
@@ -1281,7 +1287,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 "This file system may not be resized."
             ))
 
-        self._populate_raid(get_raid_level_by_name(request.device_raid_level))
+        self._populate_raid(request.device_raid_level)
         self._populate_container(use_dev)
         self._populate_luks(request.luks_version)
 
@@ -1424,7 +1430,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._save_right_side(self._accordion.current_selector)
 
         # Initialize and run the AddDialog.
-        dialog = AddDialog(self.data, self._storage_playground)
+        dialog = AddDialog(self.data, self._device_tree)
         dialog.refresh()
 
         with self.main_window.enlightbox(dialog.window):
@@ -1865,7 +1871,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._device_container_size = getattr(container, "size_policy",
                                                   container.size)
         else:
-            self._device_container_raid_level = None
+            self._device_container_raid_level = ""
             self._device_container_encrypted = False
             self._device_container_size = SIZE_POLICY_AUTO
 
