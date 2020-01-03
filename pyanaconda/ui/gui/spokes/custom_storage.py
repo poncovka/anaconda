@@ -1446,12 +1446,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         # Gather data about the added mount point.
         request = DeviceFactoryRequest()
         request.mount_point = dialog.mount_point
-
-        if dialog.size is None or dialog.size < Size("1 MB"):
-            request.device_size = 0
-        else:
-            request.device_size = dialog.size.get_bytes()
-
+        request.device_size = dialog.size.get_bytes()
         request.device_type = device_type_from_autopart(self._partitioning_scheme)
         request.disks = self._selected_disks
 
@@ -1459,7 +1454,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self.clear_errors()
 
         try:
-            add_device(self._storage_playground, request)
+            self._device_tree.AddDevice(
+                DeviceFactoryRequest.to_structure(request)
+            )
         except StorageError as e:
             self.set_detailed_error(_("Failed to add new device."), e)
             self._do_refresh()
