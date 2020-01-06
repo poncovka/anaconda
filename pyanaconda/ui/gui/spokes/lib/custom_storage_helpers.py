@@ -26,6 +26,7 @@ from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import SIZE_UNITS_DEFAULT
 from pyanaconda.core.i18n import _, N_, CN_, C_
 from pyanaconda.core.util import lowerASCII
+from pyanaconda.dbus.structure import generate_dictionary_from_data
 from pyanaconda.modules.common.structures.partitioning import DeviceFactoryRequest
 from pyanaconda.modules.common.structures.storage import DeviceFormatData, DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
@@ -63,6 +64,35 @@ CONTAINER_TYPES = {
         N_("Volume"),
         CN_("GUI|Custom Partitioning|Configure|Devices", "_Volume:"))
 }
+
+
+def generate_request_description(request, original=None):
+    """Generate a description of a device factory request.
+
+    :param request: a device factory request
+    :param original: an original device factory request or None
+    :return: a string with the description
+    """
+    new_device_info = generate_dictionary_from_data(request)
+    old_device_info = generate_dictionary_from_data(original or request)
+    attributes = []
+
+    if new_device_info.keys() != old_device_info.keys():
+        raise KeyError
+
+    for key in new_device_info.keys():
+        if new_device_info[key] == old_device_info[key]:
+            attribute = "{} = {}".format(
+                key, repr(new_device_info[key])
+            )
+        else:
+            attribute = "{} = {} -> {}".format(
+                key, repr(old_device_info[key]), repr(new_device_info[key])
+            )
+
+        attributes.append(attribute)
+
+    return "\n".join(["{"] + attributes + ["}"])
 
 
 def get_size_from_entry(entry, lower_bound=None, units=None):

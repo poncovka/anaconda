@@ -32,15 +32,13 @@ from gi.repository import Gdk, Gtk
 
 from blivet import devicefactory
 from blivet.devicefactory import DEVICE_TYPE_BTRFS, DEVICE_TYPE_LVM_THINP, SIZE_POLICY_AUTO
-from blivet.devicelibs import crypto
 from blivet.devices import MDRaidArrayDevice, LVMVolumeGroupDevice
 from blivet.errors import StorageError
-from blivet.formats import get_format
 from blivet.size import Size
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.dbus.proxy import get_object_path
-from pyanaconda.dbus.structure import generate_dictionary_from_data, compare_data
+from pyanaconda.dbus.structure import compare_data
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
     SIZE_UNITS_DEFAULT, DEFAULT_AUTOPART_TYPE, PARTITIONING_METHOD_INTERACTIVE
 from pyanaconda.core.i18n import _, N_, CP_, C_
@@ -58,9 +56,8 @@ from pyanaconda.modules.storage.partitioning.interactive_partitioning import \
 from pyanaconda.modules.storage.partitioning.interactive_utils import revert_reformat, \
     resize_device, change_encryption, reformat_device, collect_file_system_types, \
     collect_device_types, get_device_raid_level, destroy_device, rename_container, \
-    get_container, collect_containers, validate_label, suggest_device_name, \
-    generate_device_factory_request, validate_device_factory_request, \
-    get_device_factory_arguments, get_container_size_policy_by_number
+    get_container, collect_containers, validate_label, validate_device_factory_request, \
+    get_device_factory_arguments
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.storage.checker import verify_luks_devices_have_key, storage_checker
@@ -80,7 +77,7 @@ from pyanaconda.ui.gui.spokes.lib.custom_storage_helpers import get_size_from_en
     get_container_type, get_default_container_raid_level, AddDialog, ConfirmDeleteDialog, \
     DisksDialog, ContainerDialog, NOTEBOOK_LABEL_PAGE, NOTEBOOK_DETAILS_PAGE, NOTEBOOK_LUKS_PAGE, \
     NOTEBOOK_UNEDITABLE_PAGE, NOTEBOOK_INCOMPLETE_PAGE, NEW_CONTAINER_TEXT, CONTAINER_TOOLTIP, \
-    get_supported_device_raid_levels
+    get_supported_device_raid_levels, generate_request_description
 from pyanaconda.ui.gui.spokes.lib.passphrase import PassphraseDialog
 from pyanaconda.ui.gui.spokes.lib.refresh import RefreshDialog
 from pyanaconda.ui.gui.spokes.lib.summary import ActionSummaryDialog
@@ -124,15 +121,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._error = None
         self._accordion = None
 
-        self._device_disks = []
-        self._device_name = ""
-        self._device_type = None
-        self._device_suggested_name = ""
-        self._device_container_name = None
-        self._device_container_raid_level = ""
-        self._device_container_encrypted = False
-        self._device_container_size = SIZE_POLICY_AUTO
-
         self._partitioning_scheme = DEFAULT_AUTOPART_TYPE
         self._default_file_system = ""
         self._selected_disks = []
@@ -141,6 +129,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self._partitioning = None
         self._device_tree = None
+        self._request = DeviceFactoryRequest()
 
         self._storage_module = STORAGE.get_proxy()
         self._boot_loader = STORAGE.get_proxy(BOOTLOADER)
@@ -705,22 +694,23 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 not self._applyButton.get_sensitive():
             return
 
-        device = selector.device
-        if device not in self._storage_playground.devices:
+        device_name = selector.device_name
+        if device_name not in self._device_tree.GetDevices():
             # just-removed device
             return
 
         self._back_already_clicked = False
 
-        log.debug("Saving the right side for device: %s", device.name)
+        log.debug("Saving the right side for device: %s", device_name)
 
         # Get the device factory request.
-        reformat = self._reformatCheckbox.get_active()
-        old_request = generate_device_factory_request(self._storage_playground, device)
-        new_request = self._get_new_device_factory_request(device, old_request)
+        old_request = DeviceFactoryRequest.from_structure(
+            self._device_tree.GenerateDeviceFactoryRequest(device_name)
+        )
+        new_request = self._get_new_device_factory_request(device_name, old_request)
 
         # Log the results.
-        description = self._get_new_request_description(new_request, old_request)
+        description = generate_request_description(new_request, old_request)
         log.debug("Device request: %s (reformat %s)", description, reformat)
 
         # Validate the device info.
@@ -757,6 +747,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._get_new_device_name(new_request, old_request)
         self._get_new_device_size(new_request, old_request)
         self._get_new_device_type(new_request, old_request)
+        self._get_new_device_reformat(new_request, old_request)
         self._get_new_device_fstype(new_request, old_request)
         self._get_new_device_enctyption(new_request, old_request)
         self._get_new_device_luks_version(new_request, old_request)
@@ -799,6 +790,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _get_new_device_type(self, new_request, old_request):
         new_request.device_type = self._get_current_device_type()
+
+    def _get_new_device_reformat(self, new_request, old_request):
+        new_request.reformat = self._reformatCheckbox.get_active()
 
     def _get_new_device_fstype(self, new_request, old_request):
         fs_type_index = self._fsCombo.get_active()
@@ -845,7 +839,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             old_request.device_raid_level = ""
 
     def _get_new_device_disks(self, new_request, old_request):
-        new_request.disks = [d.name for d in self._device_disks]
+        new_request.disks = list(self._request.disks)
 
     def _get_new_device_container(self, new_request, old_request):
         # create a new factory using the appropriate size and type
@@ -858,15 +852,15 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         )
 
         # Name
-        if self._device_container_name:
-            new_request.container_name = self._device_container_name
+        if self._request.container_name:
+            new_request.container_name = self._request.container_name
 
         # Encryption
-        if self._device_container_encrypted:
+        if self._request.container_encrypted:
             new_request.container_encrypted = True
 
         # Raid level
-        raid_level = self._device_container_raid_level
+        raid_level = self._request.container_raid_level
         supported_raid_levels = get_supported_container_raid_levels(
             self._device_tree,
             new_request.device_type
@@ -882,12 +876,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             new_request.container_raid_level = raid_level
 
         # Size
-        if not self._device_container_size:
-            new_request.container_size_policy = 0
-        elif self._device_container_size < 0:
-            new_request.container_size_policy = self._device_container_size
-        elif self._device_container_size > 0:
-            new_request.container_size_policy = self._device_container_size.get_bytes()
+        new_request.container_size_policy = self._request.container_size_policy
 
         # Disks
         container = factory.get_container()
@@ -895,28 +884,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if container and old_request.device_type != new_request.device_type:
             log.debug("Overriding disk set with container's.")
             new_request.disks = [d.name for d in container.disks]
-
-    def _get_new_request_description(self, new_request, old_request):
-        new_device_info = generate_dictionary_from_data(new_request)
-        old_device_info = generate_dictionary_from_data(old_request)
-        attributes = []
-
-        if new_device_info.keys() != old_device_info.keys():
-            raise KeyError
-
-        for key in new_device_info.keys():
-            if new_device_info[key] == old_device_info[key]:
-                attribute = "{} = {}".format(
-                    key, repr(new_device_info[key])
-                )
-            else:
-                attribute = "{} = {} -> {}".format(
-                    key, repr(old_device_info[key]), repr(new_device_info[key])
-                )
-
-            attributes.append(attribute)
-
-        return "\n".join(["{"] + attributes + ["}"])
 
     def _change_device(self, selector, new_request, old_request):
         log.debug("Changing device: %s", old_request.device_name)
@@ -1097,11 +1064,11 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         """
         # Add the values.
         self._luksStore.clear()
-        for version in crypto.LUKS_VERSIONS:
+        for version in ["luks1", "luks2"]:
             self._luksStore.append([version])
 
         # Get the selected value.
-        luks_version = luks_version or self.storage.default_luks_version
+        luks_version = luks_version or self._device_tree.GetDefaultLUKSVersion()
 
         # Set the selected value.
         idx = next(
@@ -1130,7 +1097,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _setup_fstype_combo(self, device_type, device_format_type, format_types):
         """Setup the filesystem combo box."""
-        default = get_format(device_format_type).name
+        format_data = DeviceFormatData.from_structure(
+            self._device_tree.GetFormatTypeData(device_format_type)
+        )
+        default = format_data.description
 
         # Add all desired fileystem type names to the box, sorted alphabetically
         self._fsStore.clear()
@@ -1166,67 +1136,74 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _get_device_name(self, device_type):
         """Update the dictionary of device names."""
-        if device_type == self._device_type:
-            return self._device_name
+        if device_type == self._request.device_type:
+            return self._request.device_name
         elif device_type in NAMED_DEVICE_TYPES:
-            return self._device_suggested_name
+            return self._device_tree.GenerateDeviceName(
+                self._request.mount_point,
+                self._request.format_type
+            )
         else:
             return ""
 
     def _set_devices_label(self):
-        device_disks = self._device_disks
-        if not device_disks:
-            devices_desc = _("No disks assigned")
+        disks = self._request.disks
+
+        if not disks:
+            description = _("No disks assigned")
         else:
-            devices_desc = "%s (%s)" % (device_disks[0].description, device_disks[0].name)
-            num_disks = len(device_disks)
+            device_data = DeviceData.from_structure(
+                self._device_tree.GetDeviceData(disks[0])
+            )
+            description = "{} ({})".format(
+                device_data.description,
+                device_data.name
+            )
+            num_disks = len(disks)
+
             if num_disks > 1:
-                devices_desc += CP_("GUI|Custom Partitioning|Devices",
-                                    " and %d other", " and %d others",
-                                    num_disks - 1) % (num_disks - 1)
-        self._deviceDescLabel.set_text(devices_desc)
+                description += CP_(
+                    "GUI|Custom Partitioning|Devices",
+                    " and {} other", " and {} others",
+                    num_disks - 1
+                ).format(num_disks - 1)
+
+        self._deviceDescLabel.set_text(description)
 
     def _populate_right_side(self, selector):
-        device = selector.device
-        use_dev = device.raw_device
+        device_name = selector.device_name
+        #use_dev = device.raw_device
 
-        request = generate_device_factory_request(self._storage_playground, device)
-        description = self._get_new_request_description(request, request)
-        log.debug("Populating the right side for device %s: %s", device.name, description)
+        request = DeviceFactoryRequest.from_structure(
+            self._device_tree.GenerateDeviceFactoryRequest(device_name)
+        )
+        format_data = DeviceData.from_structure(
+            self._device_tree.GetDeviceData(device_name)
+        )
 
-        self._device_disks = [
-            self._storage_playground.devicetree.resolve_device(d) for d in request.disks
-        ]
+        description = generate_request_description(request)
+        log.debug("Populating the right side for device %s: %s", device_name, description)
 
-        self._device_container_name = request.container_name or None
-        self._device_container_raid_level = request.container_raid_level
-        self._device_container_encrypted = request.container_encrypted
-        self._device_container_size = get_container_size_policy_by_number(request.container_size_policy)
-
-        self._device_container_raid_level = \
-            self._device_container_raid_level or \
-            get_default_container_raid_level(request.device_type)
-
-        self._selectedDeviceLabel.set_text(selector.device_name)
-        desc = _(MOUNTPOINT_DESCRIPTIONS.get(selector.device_name, ""))
-        self._selectedDeviceDescLabel.set_text(desc)
+        self._request = request
+        self._selectedDeviceLabel.set_text(device_name)
+        self._selectedDeviceDescLabel.set_text(
+            _(MOUNTPOINT_DESCRIPTIONS.get(device_name, ""))
+        )
 
         self._set_devices_label()
 
-        self._device_name = request.device_name
-        self._device_suggested_name = suggest_device_name(self._storage_playground, device)
-        self._nameEntry.set_text(self._device_name)
-
+        self._nameEntry.set_text(request.device_name)
         self._mountPointEntry.set_text(request.mount_point)
-        fancy_set_sensitive(self._mountPointEntry, device.format.mountable)
+        fancy_set_sensitive(self._mountPointEntry, format_data.mountable)
 
         self._labelEntry.set_text(request.label)
         fancy_set_sensitive(self._labelEntry, True)
 
         self._sizeEntry.set_text(
-            Size(request.device_size).human_readable(max_places=self.MAX_SIZE_PLACES))
+            Size(request.device_size).human_readable(max_places=self.MAX_SIZE_PLACES)
+        )
 
-        self._reformatCheckbox.set_active(not device.format.exists)
+        self._reformatCheckbox.set_active(request.reformat)
         fancy_set_sensitive(self._reformatCheckbox,
                             use_dev.exists and not use_dev.format_immutable)
 
@@ -1243,13 +1220,13 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._encryptCheckbox.set_tooltip_text("")
 
         # Collect the supported file system types.
-        format_types = collect_file_system_types(device)
+        format_types = collect_file_system_types(device_name)
 
         # Set up the filesystem type combo.
         self._setup_fstype_combo(request.device_type, request.format_type, format_types)
 
         # Collect the supported device types.
-        device_types = collect_device_types(device, self._selected_disks)
+        device_types = collect_device_types(device_name, self._selected_disks)
 
         # Set up the device type combo.
         self._setup_device_type_combo(request.device_type, device_types)
@@ -1631,7 +1608,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self.data,
             self._device_tree,
             self._selected_disks,
-            self._device_disks
+            self._request.disks
         )
         with self.main_window.enlightbox(dialog.window):
             rc = dialog.run()
@@ -1646,10 +1623,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self.set_info(self._error)
             return
 
-        if set(disks) != set(self._device_disks):
+        if set(disks) != set(self._request.disks):
             self._applyButton.set_sensitive(True)
 
-        self._device_disks = disks
+        self._request.disks = disks
         self._set_devices_label()
         self._populate_raid(get_selected_raid_level(self._raidLevelCombo))
 
@@ -1667,14 +1644,14 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     def run_container_editor(self, container=None, name=None, new_container=False):
         """ Run container edit dialog and return True if changes were made. """
         size = Size(0)
-        size_policy = self._device_container_size
+        size_policy = self._request.container_size_policy
         if container:
             container_name = container.name
             size = container.size
             size_policy = container.size_policy
         elif name:
             container_name = name
-            if name != self._device_container_name:
+            if name != self._request.container_name:
                 # creating a new container -- switch to the default
                 size_policy = SIZE_POLICY_AUTO
 
@@ -1683,12 +1660,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._storage_playground,
             device_type=self._get_current_device_type(),
             name=container_name,
-            raid_level=self._device_container_raid_level,
-            encrypted=self._device_container_encrypted,
+            raid_level=self._request.container_raid_level,
+            encrypted=self._request.container_encrypted,
             size_policy=size_policy,
             size=size,
             disks=self._selected_disks,
-            selected=self._device_disks,
+            selected=self._request.disks,
             exists=getattr(container, "exists", False)
         )
 
@@ -1717,21 +1694,21 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             return
 
         if (new_container or
-                set(disks) != set(self._device_disks) or
+                set(disks) != set(self._request.disks) or
                 name != container_name or
-                dialog.raid_level != self._device_container_raid_level or
-                dialog.encrypted != self._device_container_encrypted or
-                dialog.size_policy != self._device_container_size):
+                dialog.raid_level != self._request.container_raid_level or
+                dialog.encrypted != self._request.container_encrypted or
+                dialog.size_policy != self._request.container_size_policy):
             self._applyButton.set_sensitive(True)
 
         if dialog.encrypted:
-            self._container_encryption_change(self._device_container_encrypted,
+            self._container_encryption_change(self._request.container_encrypted,
                                               dialog.encrypted)
-        self._device_disks = disks
-        self._device_container_name = name
-        self._device_container_raid_level = dialog.raid_level
-        self._device_container_encrypted = dialog.encrypted
-        self._device_container_size = dialog.size_policy
+        self._request.disks = disks
+        self._request.container_name = name
+        self._request.container_raid_level = dialog.raid_level
+        self._request.container_encrypted = dialog.encrypted
+        self._request.container_size_policy = dialog.size_policy
         self._set_devices_label()
 
         return True
@@ -1754,7 +1731,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if not self.run_container_editor(container=container, name=container_name):
             return
 
-        if container_name == self._device_container_name:
+        if container_name == self._request.container_name:
             self.on_update_settings_clicked(None)
             return
 
@@ -1764,11 +1741,11 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 rename_container(
                     storage=self._storage_playground,
                     container=container,
-                    name=self._device_container_name
+                    name=self._request.container_name
                 )
             except StorageError as e:
                 self.set_detailed_error(_("Invalid device name."), e)
-                self._device_container_name = container_name
+                self._request.container_name = container_name
                 self.on_update_settings_clicked(None)
                 return
 
@@ -1782,7 +1759,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         if idx:
             container = self._storage_playground.devicetree.get_device_by_name(
-                self._device_container_name
+                self._request.container_name
             )
 
             row = self._get_container_store_row(container)
@@ -1808,7 +1785,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if container_name is None:
             return
 
-        if self._device_container_name == container_name:
+        if self._request.container_name == container_name:
             return
 
         device_type = self._get_current_device_type()
@@ -1824,40 +1801,40 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             for idx, data in enumerate(self._containerStore):
                 if user_changed_container and data[0] == new_text:
                     container = self._storage_playground.devicetree.get_device_by_name(
-                        self._device_container_name
+                        self._request.container_name
                     )
 
                     if container:
                         row = self._get_container_store_row(container)
                     else:
-                        row = [self._device_container_name, ""]
+                        row = [self._request.container_name, ""]
 
                     self._containerStore.insert(idx, row)
                     combo.set_active(idx)  # triggers a call to this method
                     return
-                elif not user_changed_container and data[0] == self._device_container_name:
+                elif not user_changed_container and data[0] == self._request.container_name:
                     combo.set_active(idx)
                     return
         # else clause runs if an already existing container is picked
         else:
-            self._device_container_name = container_name
+            self._request.container_name = container_name
 
         if user_changed_container:
             self._applyButton.set_sensitive(True)
 
         container = self._storage_playground.devicetree.get_device_by_name(
-            self._device_container_name)
+            self._request.container_name)
         container_exists = getattr(container, "exists", False)  # might not be in the tree
 
         if container:
-            self._device_container_raid_level = get_device_raid_level(container)
-            self._device_container_encrypted = container.encrypted
-            self._device_container_size = getattr(container, "size_policy",
+            self._request.container_raid_level = get_device_raid_level(container)
+            self._request.container_encrypted = container.encrypted
+            self._request.container_size_policy = getattr(container, "size_policy",
                                                   container.size)
         else:
-            self._device_container_raid_level = ""
-            self._device_container_encrypted = False
-            self._device_container_size = SIZE_POLICY_AUTO
+            self._request.container_raid_level = ""
+            self._request.container_encrypted = False
+            self._request.container_size_policy = SIZE_POLICY_AUTO
 
         self._modifyContainerButton.set_sensitive(not container_exists)
 
@@ -2104,8 +2081,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if default_container_name is None:
             default_container_name = self._storage_playground.suggest_container_name()
 
-        self._device_container_name = default_container_name
-        self._device_container_size = container_size_policy
+        self._request.container_name = default_container_name
+        self._request.container_size_policy = container_size_policy
 
         if not default_seen:
             self._containerStore.append([default_container_name, ""])
