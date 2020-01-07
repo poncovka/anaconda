@@ -54,9 +54,8 @@ from pyanaconda.modules.common.structures.partitioning import PartitioningReques
 from pyanaconda.modules.storage.partitioning.interactive_partitioning import \
     InteractiveAutoPartitioningTask
 from pyanaconda.modules.storage.partitioning.interactive_utils import revert_reformat, \
-    resize_device, change_encryption, reformat_device, collect_file_system_types, \
-    collect_device_types, get_device_raid_level, destroy_device, rename_container, \
-    get_container, collect_containers, validate_label, validate_device_factory_request, \
+    resize_device, change_encryption, reformat_device, get_device_raid_level, destroy_device, \
+    rename_container, get_container, collect_containers, validate_label,\
     get_device_factory_arguments
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
@@ -483,14 +482,18 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         device_data = DeviceData.from_structure(
             self._device_tree.GetDeviceData(device_name)
         )
+
         format_data = DeviceFormatData.from_structure(
             self._device_tree.GetFormatData(device_name)
         )
+
         mount_point = \
             format_data.attrs.get("mount_point", "") or \
             mount_point or \
             format_data.description or \
             _("Unknown")
+
+        raw_device = self._device_tree.GetRawDevice(device_name)
 
         selector.props.name = device_name
         selector.props.size = str(Size(device_data.size))
@@ -711,14 +714,18 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         # Log the results.
         description = generate_request_description(new_request, old_request)
-        log.debug("Device request: %s (reformat %s)", description, reformat)
+        log.debug("Device request: %s", description)
 
         # Validate the device info.
-        error = validate_device_factory_request(self._storage_playground, new_request, reformat)
-        log.debug("Validation result: %s", error)
+        report = ValidationReport.from_structure(
+            self._device_tree.ValidateDeviceFactoryRequest(
+                DeviceFactoryRequest.to_structure(new_request)
+            )
+        )
+        log.debug("Validation result: %s", report)
 
-        if error:
-            self.set_warning(error)
+        if not report.is_valid():
+            self.set_warning(" ".join(report.get_messages()))
             self._populate_right_side(selector)
             return
 
@@ -728,9 +735,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if not device.raw_device.exists:
             self._change_device(selector, new_request, old_request)
         else:
-            self._revert_device_reformat(selector, reformat)
+            self._revert_device_reformat(selector, new_request.reformat)
             self._change_device_size(selector, old_request, new_request)
-            self._change_device_format(selector, old_request, new_request, reformat)
+            self._change_device_format(selector, old_request, new_request)
             self._change_device_name(selector, old_request, new_request)
 
         log.debug("The device request changes are applied.")
@@ -960,13 +967,14 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 # update size props of all btrfs devices' selectors
                 self._update_size_props()
 
-    def _change_device_format(self, selector, old_request, new_request, reformat):
+    def _change_device_format(self, selector, old_request, new_request):
         log.debug("Changing device format: %s", new_request.format_type)
 
         # it's possible that reformat is active but fstype is unchanged, in
         # which case we're not going to schedule another reformat unless
         # encryption got toggled
         device = selector.device
+        reformat = new_request.reformat
         changed_encryption = (old_request.device_encrypted != new_request.device_encrypted)
         changed_luks_version = (old_request.luks_version != new_request.luks_version)
         changed_fs_type = (old_request.format_type != new_request.format_type)
@@ -1116,6 +1124,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _setup_device_type_combo(self, device_type, device_types):
         """Set up device type combo."""
+        # Include md only if there are two or more disks.
+        if len(self._selected_disks) <= 1:
+            device_types.remove(devicefactory.DEVICE_TYPE_MD)
+
         # For existing unsupported device add the information in the UI.
         if device_type not in device_types:
             log.debug("Existing device with unsupported type %s found.", device_type)
@@ -1172,7 +1184,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _populate_right_side(self, selector):
         device_name = selector.device_name
-        #use_dev = device.raw_device
 
         request = DeviceFactoryRequest.from_structure(
             self._device_tree.GenerateDeviceFactoryRequest(device_name)
@@ -1219,16 +1230,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         else:
             self._encryptCheckbox.set_tooltip_text("")
 
-        # Collect the supported file system types.
-        format_types = collect_file_system_types(device_name)
-
         # Set up the filesystem type combo.
+        format_types = self._device_tree.GetFileSystemsForDevice(device_name)
         self._setup_fstype_combo(request.device_type, request.format_type, format_types)
 
-        # Collect the supported device types.
-        device_types = collect_device_types(device_name, self._selected_disks)
-
         # Set up the device type combo.
+        device_types = self._device_tree.GetDeviceTypesForDevice(device_name)
         self._setup_device_type_combo(request.device_type, device_types)
 
         # Get the current device type.
@@ -1265,7 +1272,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         if self._sizeEntry.get_sensitive():
             self._sizeEntry.props.has_tooltip = False
-        elif device.format.type == "btrfs":
+        elif format_data.type == "btrfs":
             self._sizeEntry.set_tooltip_text(_(
                 "The space available to this mount point can "
                 "be changed by modifying the volume below."
