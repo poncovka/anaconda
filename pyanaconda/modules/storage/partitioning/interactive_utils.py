@@ -151,21 +151,6 @@ def collect_new_devices(storage, boot_drive):
     return list(set(new_devices))
 
 
-def collect_selected_disks(storage, selection):
-    """Collect selected disks.
-
-    FIXME: Is this method really necessary? Remove it if possible.
-
-    :param storage: an instance of Blivet
-    :param selection: names of selected disks
-    :return: a list of devices
-    """
-    return [
-        d for d in storage.devices
-        if d.name in selection and d.partitioned
-    ]
-
-
 def collect_roots(storage):
     """Collect roots of existing installations.
 
@@ -667,22 +652,18 @@ def collect_file_system_types(device):
     return list(supported_types)
 
 
-def collect_device_types(device, disks):
+def collect_device_types(device):
     """Collect supported device types for the given device.
 
     :param device: a device
-    :param disks: a list of selected disks
     :return: a list of device types
     """
     # Collect the supported device types.
     supported_types = set(SUPPORTED_DEVICE_TYPES)
+    supported_types.add(devicefactory.DEVICE_TYPE_MD)
 
     # Include the type of the given device.
     supported_types.add(devicefactory.get_device_type(device))
-
-    # Include md only if there are two or more disks.
-    if len(disks) > 1:
-        supported_types.add(devicefactory.DEVICE_TYPE_MD)
 
     # Include btrfs if it is both allowed and supported.
     fmt = get_format("btrfs")
