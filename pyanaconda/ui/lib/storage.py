@@ -30,6 +30,7 @@ from pyanaconda.modules.common.errors.configuration import StorageConfigurationE
     BootloaderConfigurationError
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.modules.common.task import sync_run_task
+from pyanaconda.storage.utils import filter_disks_by_names
 
 log = get_module_logger(__name__)
 
@@ -145,25 +146,15 @@ def apply_disk_selection(selected_names, reset_boot_drive=False):
 
     # Get disks.
     disks = set(device_tree.GetDisks())
+    selected_disks = filter_disks_by_names(disks, selected_names)
 
     # Get ancestors.
-    ancestor_names = []
-
-    for device in selected_names:
-        if device not in disks:
-            continue
-
-        ancestors = device_tree.GetDeviceAncestors(device)
-
-        for ancestor in ancestors:
-            if ancestor not in disks:
-                continue
-
-            ancestor_names.append(ancestor)
+    ancestors_names = device_tree.GetAncestors(selected_disks)
+    ancestors_disks = filter_disks_by_names(disks, ancestors_names)
 
     # Set the disks to select.
     disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
-    disk_select_proxy.SetSelectedDisks(selected_names + ancestor_names)
+    disk_select_proxy.SetSelectedDisks(selected_names + ancestors_disks)
 
     # Set the drives to clear.
     disk_init_proxy = STORAGE.get_proxy(DISK_INITIALIZATION)
