@@ -271,11 +271,11 @@ def apply_partitioning(partitioning, show_message):
             task_proxy.GetResult()
         )
 
-    if report.is_valid():
-        storage_proxy = STORAGE.get_proxy()
-        storage_proxy.ApplyPartitioning(
-            get_object_path(partitioning)
-        )
+        if report.is_valid():
+            storage_proxy = STORAGE.get_proxy()
+            storage_proxy.ApplyPartitioning(
+                get_object_path(partitioning)
+            )
 
     return report
 
