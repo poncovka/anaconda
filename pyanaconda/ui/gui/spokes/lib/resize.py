@@ -63,7 +63,6 @@ class ResizeDialog(GUIObject):
 
     def __init__(self, data, payload, partitioning, disks):
         super().__init__(data)
-        self._partitioning = partitioning
         self._disks = disks
 
         # Get the device tree.
@@ -528,9 +527,9 @@ class ResizeDialog(GUIObject):
         if obj.action == _(PRESERVE):
             pass
         elif obj.action == _(SHRINK):
-            self._partitioning.ShrinkDevice(obj.name, obj.target)
+            self._device_tree.ShrinkDevice(obj.name, obj.target)
         elif obj.action == _(DELETE):
-            self._partitioning.RemoveDevice(obj.name)
+            self._device_tree.RemoveDevice(obj.name)
 
         return False
 
