@@ -27,6 +27,7 @@ from blivetgui.communication.client import BlivetGUIClient
 from blivetgui.config import config
 
 from dasbus.client.proxy import get_object_path
+from dasbus.typing import unwrap_variant
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.modules.common.structures.validation import ValidationReport
@@ -223,9 +224,9 @@ class BlivetGuiSpoke(NormalSpoke, StorageCheckHandler):
             task_path = self._partitioning.ValidateWithTask()
             task_proxy = STORAGE.get_proxy(task_path)
             sync_run_task(task_proxy)
-            report = ValidationReport.from_structure(
-                task_proxy.GetResult()
-            )
+
+            result = unwrap_variant(task_proxy.GetResult())
+            report = ValidationReport.from_structure(result)
 
             log.error("\n".join(report.get_messages()))
             StorageCheckHandler.errors = report.error_messages
