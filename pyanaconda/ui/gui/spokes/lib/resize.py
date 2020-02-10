@@ -20,7 +20,6 @@ from collections import namedtuple
 from blivet.size import Size
 
 from pyanaconda.core.i18n import _, C_, N_, P_
-from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.structures.storage import OSData, DeviceData, DeviceFormatData
 from pyanaconda.ui.gui import GUIObject
@@ -64,9 +63,13 @@ class ResizeDialog(GUIObject):
 
     def __init__(self, data, payload, partitioning, disks):
         super().__init__(data)
-        self._device_tree = STORAGE.get_proxy(DEVICE_TREE)
         self._partitioning = partitioning
         self._disks = disks
+
+        # Get the device tree.
+        self._device_tree = STORAGE.get_proxy(
+            partitioning.GetDeviceTree()
+        )
 
         # Get roots of existing systems.
         self._roots = OSData.from_structure_list(
