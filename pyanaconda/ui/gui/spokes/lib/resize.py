@@ -20,7 +20,7 @@ from collections import namedtuple
 from blivet.size import Size
 
 from pyanaconda.core.i18n import _, C_, N_, P_
-from pyanaconda.modules.common.constants.objects import DEVICE_TREE, DISK_SELECTION
+from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.structures.storage import OSData, DeviceData, DeviceFormatData
 from pyanaconda.ui.gui import GUIObject
@@ -73,10 +73,6 @@ class ResizeDialog(GUIObject):
             self._device_tree.GetExistingSystems()
         )
 
-        # Get protected devices.
-        disk_selection = STORAGE.get_proxy(DISK_SELECTION)
-        self._protected_devices = set(disk_selection.ProtectedDevices)
-
         # Get the required device size.
         required_space = payload.space_required.get_bytes()
         required_size = self._device_tree.GetRequiredDeviceSize(required_space)
@@ -106,9 +102,6 @@ class ResizeDialog(GUIObject):
         self._delete_button = self.builder.get_object("deleteButton")
         self._resize_slider = self.builder.get_object("resizeSlider")
 
-    def _is_protected(self, device_name):
-        return device_name in self._protected_devices
-
     def _get_partition_description(self, device_data, format_data):
         # First, try to find the partition in some known root.
         # If we find it, return the mount point as the description.
@@ -128,8 +121,8 @@ class ResizeDialog(GUIObject):
 
         return format_data.description
 
-    def _get_tooltip(self, device_name):
-        if self._is_protected(device_name):
+    def _get_tooltip(self, device_data):
+        if device_data.protected:
             return _("This device contains the installation source.")
         else:
             return None
@@ -175,11 +168,13 @@ class ResizeDialog(GUIObject):
         )
 
         # First add the disk itself.
-        if device_data.partitioned and format_data.supported:
-            fstype = ""
+        is_partitioned = self._device_tree.IsDevicePartitioned(device_name)
+
+        if is_partitioned:
+            fs_type = ""
             disk_reclaimable_space = Size(0)
         else:
-            fstype = format_data.description
+            fs_type = format_data.description
             disk_reclaimable_space = Size(device_data.size)
 
         description = "{} {}".format(
@@ -190,46 +185,25 @@ class ResizeDialog(GUIObject):
         itr = self._disk_store.append(None, [
             device_name,
             description,
-            fstype,
+            fs_type,
             "<span foreground='grey' style='italic'>%s total</span>",
             _(PRESERVE),
-            not self._is_protected(device_name),
+            not device_data.protected,
             TY_NORMAL,
-            self._get_tooltip(device_name),
+            self._get_tooltip(device_data),
             int(device_data.size),
         ])
 
         # Then add all its partitions.
-        if device_data.partitioned and format_data.supported:
-            for child_name in device_data.children:
-                free_size = self._add_partition(itr, child_name)
-                disk_reclaimable_space += free_size
+        partitions = self._device_tree.GetDevicePartitions(device_name)
+
+        for child_name in partitions:
+            free_size = self._add_partition(itr, child_name)
+            disk_reclaimable_space += free_size
 
         # And then add another uneditable line that lists how much space is
         # already free in the disk.
-        disk_free = Size(self._device_tree.GetDiskFreeSpace([device_name]))
-
-        if disk_free >= Size("1MiB"):
-            free_space_string = "<span foreground='grey' style='italic'>{}</span>".format(
-                escape_markup(_("Free space"))
-            )
-
-            disk_free_string = "<span foreground='grey' style='italic'>{}</span>".format(
-                escape_markup(disk_free.human_readable(max_places=1))
-            )
-
-            self._disk_store.append(itr, [
-                "",
-                free_space_string,
-                "",
-                disk_free_string,
-                NOTHING,
-                False,
-                TY_FREE_SPACE,
-                self._get_tooltip(device_name),
-                disk_free,
-            ])
-            self._initial_free_space += disk_free
+        self._add_free_space(itr, device_name)
 
         # And then go back and fill in the total reclaimable space for the
         # disk, now that we know what each partition has reclaimable.
@@ -246,45 +220,83 @@ class ResizeDialog(GUIObject):
         format_data = DeviceFormatData.from_structure(
             self._device_tree.GetFormatData(device_name)
         )
-        device_size = Size(device_data.size)
-        description = self._get_partition_description(device_data, format_data)
 
-        if device_data.is_extended and format_data.logical_partitions:
-            return 0
-
+        # Calculate the free size.
         # Devices that are not resizable are still deletable.
-        if device_data.resizable:
-            free_size = device_size - Size(device_data.min_size)
-            resize_string = _("{free_size} of {device_size}") % {
-                "free_size": free_size.human_readable(max_places=1),
-                "device_size": device_size.human_readable(max_places=1)
+        is_resizable = self._device_tree.IsDeviceResizable(device_name)
+        size_limits = self._device_tree.GetDeviceSizeLimits(device_name)
+
+        min_size = Size(size_limits[0])
+        device_size = Size(device_data.size)
+
+        if is_resizable:
+            free_size = device_size - min_size
+            resize_string = _("%(freeSize)s of %(devSize)s") % {
+                "freeSize": free_size.human_readable(max_places=1),
+                "devSize": device_size.human_readable(max_places=1)
             }
 
-            if not self._is_protected(device_name):
+            if not device_data.protected:
                 self._can_shrink_something = True
         else:
             free_size = device_size
             resize_string = "<span foreground='grey'>%s</span>" % \
                             escape_markup(_("Not resizeable"))
 
-        if self._is_protected(device_name):
+        # Choose the type.
+        if device_data.protected:
             ty = TY_PROTECTED
         else:
             ty = TY_NORMAL
 
+        # Generate the description.
+        description = self._get_partition_description(device_data, format_data)
+
+        # Add a new row.
         self._disk_store.append(itr, [
             device_name,
             description,
             format_data.description,
             resize_string,
             _(PRESERVE),
-            not self._is_protected(device_name),
+            not device_data.protected,
             ty,
-            self._get_tooltip(device_name),
+            self._get_tooltip(device_data),
             int(device_size),
         ])
 
         return free_size
+
+    def _add_free_space(self, itr, device_name):
+        # Calculate the free space.
+        disk_free = Size(self._device_tree.GetDiskFreeSpace([device_name]))
+
+        if disk_free < Size("1MiB"):
+            return
+
+        # Add a new row.
+        free_space_string = "<span foreground='grey' style='italic'>{}</span>".format(
+            escape_markup(_("Free space"))
+        )
+
+        disk_free_string = "<span foreground='grey' style='italic'>{}</span>".format(
+            escape_markup(disk_free.human_readable(max_places=1))
+        )
+
+        self._disk_store.append(itr, [
+            "",
+            free_space_string,
+            "",
+            disk_free_string,
+            NOTHING,
+            False,
+            TY_FREE_SPACE,
+            None,
+            disk_free,
+        ])
+
+        # Update the total free space.
+        self._initial_free_space += disk_free
 
     def _update_labels(self, num_disks=None, total_reclaimable=None, selected_reclaimable=None):
         if num_disks is not None and total_reclaimable is not None:
@@ -371,10 +383,12 @@ class ResizeDialog(GUIObject):
 
         # If the selected filesystem does not support shrinking, make that
         # button insensitive.
-        self._shrink_button.set_sensitive(device_data.resizable)
+        is_resizable = self._device_tree.IsDeviceResizable(device_name)
+        self._shrink_button.set_sensitive(is_resizable)
 
-        if device_data.resizable:
-            self._setup_slider(device_data.min_size, device_data.size, Size(obj.target))
+        if is_resizable:
+            min_size = self._device_tree.GetDeviceSizeLimits(device_name)[0]
+            self._setup_slider(min_size, device_data.size, Size(obj.target))
 
         # Then, disable the button for whatever action is currently selected.
         # It doesn't make a lot of sense to allow clicking that.
@@ -421,16 +435,14 @@ class ResizeDialog(GUIObject):
             return False
 
         device_name = obj.name
+        is_partitioned = self._device_tree.IsDevicePartitioned(device_name)
+
+        if is_partitioned:
+            return False
+
         device_data = DeviceData.from_structure(
             self._device_tree.GetDeviceData(device_name)
         )
-
-        format_data = DeviceFormatData.from_structure(
-            self._device_tree.GetFormatData(device_name)
-        )
-
-        if device_data.is_disk and device_data.partitioned and format_data.supported:
-            return False
 
         if obj.action == _(PRESERVE):
             return False
@@ -464,14 +476,9 @@ class ResizeDialog(GUIObject):
         # If that row is a disk header, we need to process all the partitions
         # it contains.
         device_name = selected_row[DEVICE_NAME_COL]
-        device_data = DeviceData.from_structure(
-            self._device_tree.GetDeviceData(device_name)
-        )
-        format_data = DeviceFormatData.from_structure(
-            self._device_tree.GetFormatData(device_name)
-        )
+        is_partitioned = self._device_tree.IsDevicePartitioned(device_name)
 
-        if device_data.is_disk and device_data.partitioned and format_data.supported:
+        if is_partitioned:
             part_itr = self._disk_store.iter_children(itr)
 
             while part_itr:
@@ -491,7 +498,10 @@ class ResizeDialog(GUIObject):
                     self._disk_store[part_itr][EDITABLE_COL] = False
                 elif new_action == PRESERVE:
                     part_name = self._disk_store[part_itr][DEVICE_NAME_COL]
-                    self._disk_store[part_itr][EDITABLE_COL] = not self._is_protected(part_name)
+                    part_data = DeviceData.from_structure(
+                        self._device_tree.GetDeviceData(part_name)
+                    )
+                    self._disk_store[part_itr][EDITABLE_COL] = not part_data.protected
 
                 part_itr = self._disk_store.iter_next(part_itr)
 
