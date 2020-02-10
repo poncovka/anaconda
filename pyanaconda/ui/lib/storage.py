@@ -18,8 +18,10 @@
 from blivet.errors import StorageError
 from blivet.size import Size
 
-from pyanaconda.anaconda_loggers import get_module_logger
+from dasbus.typing import unwrap_variant
 from dasbus.client.proxy import get_object_path
+
+from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, BOOTLOADER_DRIVE_UNSET
 from pyanaconda.core.i18n import P_, _
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
@@ -267,9 +269,9 @@ def apply_partitioning(partitioning, show_message):
         task_path = partitioning.ValidateWithTask()
         task_proxy = STORAGE.get_proxy(task_path)
         sync_run_task(task_proxy)
-        report = ValidationReport.from_structure(
-            task_proxy.GetResult()
-        )
+
+        result = unwrap_variant(task_proxy.GetResult())
+        report = ValidationReport.from_structure(result)
 
         if report.is_valid():
             storage_proxy = STORAGE.get_proxy()
