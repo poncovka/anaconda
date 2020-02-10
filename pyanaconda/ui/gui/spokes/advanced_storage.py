@@ -565,7 +565,7 @@ class FilterSpoke(NormalSpoke):
         self._disks = self._disk_selection.GetUsableDisks()
         self._selected_disks = self._disk_selection.SelectedDisks
         self._protected_disks = self._disk_selection.ProtectedDevices
-        self._ancestors = self._device_tree.GetDeviceAncestors(self._disks)
+        self._ancestors = self._device_tree.GetAncestors(self._disks)
 
         # Now all all the non-local disks to the store.  Everything has been set up
         # ahead of time, so there's no need to configure anything.  We first make
