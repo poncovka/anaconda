@@ -25,19 +25,16 @@
 # - Tabbing behavior in the accordion is weird.
 # - Implement striping and mirroring for LVM.
 # - Activating reformat should always enable resize for existing devices.
-import gi
-gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, Gtk
-
 from blivet.devicefactory import DEVICE_TYPE_BTRFS, SIZE_POLICY_AUTO, DEVICE_TYPE_MD
 from blivet.devices import MDRaidArrayDevice, LVMVolumeGroupDevice
 from blivet.errors import StorageError
 from blivet.size import Size
 
-from pyanaconda.anaconda_loggers import get_module_logger
-from dasbus.structure import compare_data
 from dasbus.client.proxy import get_object_path
+from dasbus.structure import compare_data
+from dasbus.typing import unwrap_variant
+
+from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
     SIZE_UNITS_DEFAULT, DEFAULT_AUTOPART_TYPE, PARTITIONING_METHOD_INTERACTIVE
 from pyanaconda.core.i18n import _, N_, CP_, C_
@@ -82,6 +79,11 @@ from pyanaconda.ui.gui.spokes.lib.summary import ActionSummaryDialog
 from pyanaconda.ui.gui.utils import setViewportBackground, fancy_set_sensitive, ignoreEscape, \
     really_hide, really_show, timed_action, escape_markup
 from pyanaconda.ui.helpers import StorageCheckHandler
+
+import gi
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, Gtk
 
 log = get_module_logger(__name__)
 
@@ -1038,9 +1040,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             task_path = self._partitioning.ValidateWithTask()
             task_proxy = STORAGE.get_proxy(task_path)
             sync_run_task(task_proxy)
-            report = ValidationReport.from_structure(
-                task_proxy.GetResult()
-            )
+
+            result = unwrap_variant(task_proxy.GetResult())
+            report = ValidationReport.from_structure(result)
 
             log.error("\n".join(report.get_messages()))
             StorageCheckHandler.errors = report.error_messages
