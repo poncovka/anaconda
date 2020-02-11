@@ -49,8 +49,7 @@ from pyanaconda.modules.common.structures.partitioning import PartitioningReques
 from pyanaconda.modules.common.structures.device_factory import DeviceFactoryRequest, \
     DeviceFactoryPermissions
 from pyanaconda.modules.storage.partitioning.interactive.utils import get_device_raid_level,\
-    destroy_device, rename_container, get_container, collect_containers, \
-    get_device_factory_arguments
+    rename_container, get_container, collect_containers, get_device_factory_arguments
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.ui.lib.storage import reset_bootloader, create_partitioning
@@ -1148,17 +1147,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self._update_space_display()
 
-    def _destroy_device(self, device):
-        self.clear_errors()
-
-        try:
-            destroy_device(self._storage_playground, device)
-            return True
-        except StorageError as e:
-            log.error("The device removal has failed: %s", e)
-            self.set_detailed_warning(_("Device removal request failed."), e)
-            return False
-
     def _show_mountpoint(self, page, mountpoint=None):
         if not self._initialized:
             return
@@ -1200,6 +1188,15 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if not self._accordion.is_current_selected and not self._accordion.is_multiselection:
             return
 
+        self.clear_errors()
+
+        try:
+            self._remove_selected_devices()
+        except StorageError as e:
+            log.error("The device removal has failed: %s", e)
+            self.set_detailed_warning(_("Device removal request failed."), e)
+
+    def _remove_selected_devices(self):
         option_checked = False
         part_removed = False
         is_multiselection = self._accordion.is_multiselection
@@ -1221,15 +1218,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                             break  # skip evaluation of all other mountpoints
                         continue
 
-                if device.exists:
-                    # This is an existing device that was added to the new page.
-                    # All we want to do is revert any changes to the device and
-                    # it will end up back in whatever old pages it came from.
-                    self._storage_playground.reset_device(device_name)
-                else:
-                    # Destroying a non-existing device doesn't require any
-                    # confirmation.
-                    self._destroy_device(device_name)
+                self._device_tree.ResetDevice(device_name)
             else:
                 # This is a device that exists on disk and most likely has data
                 # on it.  Thus, we first need to confirm with the user and then
@@ -1252,17 +1241,22 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                     # We never want to delete known-shared devs here.
                     # The same rule applies for selected device. If it's shared do not
                     # remove it in other pages when Delete all option is checked.
-                    for device in (s.device_name for s in page.members
-                                   if s.device_name not in otherdevs):
+                    for other_name in (s.device_name for s in page.members
+                                       if s.device_name not in otherdevs):
                         # we only want to delete boot partitions if they're not
                         # shared *and* we have no unknown partitions
-                        if not self._get_unused_devices() or device.format.type not in \
-                                protected_types:
-                            self._destroy_device(device)
+                        other_format = DeviceFormatData.from_structure(
+                            self._device_tree.GetFormatTypeData
+                        )
+
+                        if not self._get_unused_devices() \
+                                or other_format.type not in protected_types:
+
+                            self._device_tree.DestroyDevice(device_name)
                         else:
-                            log.debug("Device %s cannot be removed.", d)
+                            log.debug("Device %s cannot be removed.", other_name)
                 else:
-                    self._destroy_device(device_name)
+                    self._device_tree.DestroyDevice(device_name)
 
             part_removed = True
 
