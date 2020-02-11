@@ -248,6 +248,13 @@ class DeviceTreeSchedulerInterface(DeviceTreeInterface):
             DeviceFactoryRequest.from_structure(original_request)
         )
 
+    def DestroyDevice(self, device_name: Str):
+        """Destroy the specified device in the storage model.
+
+        :param device_name: a name of the device
+        """
+        self.implementation.destroy_device(device_name)
+
     def SchedulePartitionsWithTask(self, request: Structure) -> ObjPath:
         """Schedule the partitioning actions.
 
