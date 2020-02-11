@@ -248,6 +248,15 @@ class DeviceTreeSchedulerInterface(DeviceTreeInterface):
             DeviceFactoryRequest.from_structure(original_request)
         )
 
+    def ResetDevice(self, device_name: Str):
+        """Reset the specified device in the storage model.
+
+        FIXME: Merge with DestroyDevice.
+
+        :param device_name: a name of the device
+        """
+        self.implementation.reset_device(device_name)
+
     def DestroyDevice(self, device_name: Str):
         """Destroy the specified device in the storage model.
 
