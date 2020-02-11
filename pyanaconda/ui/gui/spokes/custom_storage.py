@@ -1283,10 +1283,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if not selector:
             return
 
-        device = selector.device
-        if device.exists:
-            return
-
         if self._get_current_device_type() in CONTAINER_DEVICE_TYPES:
             # disk set management happens through container edit on RHS
             return
