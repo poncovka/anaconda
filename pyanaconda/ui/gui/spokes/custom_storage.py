@@ -48,14 +48,11 @@ from pyanaconda.modules.common.errors.configuration import BootloaderConfigurati
 from pyanaconda.modules.common.structures.partitioning import PartitioningRequest
 from pyanaconda.modules.common.structures.device_factory import DeviceFactoryRequest, \
     DeviceFactoryPermissions
-from pyanaconda.modules.storage.partitioning.interactive.interactive_partitioning import \
-    InteractiveAutoPartitioningTask
 from pyanaconda.modules.storage.partitioning.interactive.utils import get_device_raid_level,\
     destroy_device, rename_container, get_container, collect_containers, \
     get_device_factory_arguments
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
-from pyanaconda.storage.checker import verify_luks_devices_have_key, storage_checker
 from pyanaconda.ui.lib.storage import reset_bootloader, create_partitioning
 from pyanaconda.storage.utils import DEVICE_TEXT_MAP, MOUNTPOINT_DESCRIPTIONS, NAMED_DEVICE_TYPES, \
     CONTAINER_DEVICE_TYPES, device_type_from_autopart, filter_unsupported_disklabel_devices, \
@@ -130,6 +127,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._partitioning = None
         self._device_tree = None
         self._request = DeviceFactoryRequest()
+        self._permissions = DeviceFactoryPermissions()
 
         self._storage_module = STORAGE.get_proxy()
         self._boot_loader = STORAGE.get_proxy(BOOTLOADER)
@@ -276,6 +274,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self._summaryLabel.set_text(summary)
         self._summaryLabel.set_use_underline(True)
+
+    def _reset_storage(self):
+        self._storage_playground = self.storage.copy()
+        self._storage_playground.hide_protected_disks()
 
     def refresh(self):
         self.clear_errors()
@@ -1647,32 +1649,24 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
            Note: There are never any non-existent devices around when this runs.
         """
-        log.debug("Running automatic partitioning.")
         self.clear_errors()
 
+        # Create the partitioning request.
         request = PartitioningRequest()
         request.partitioning_scheme = scheme
 
         try:
-
-            task = InteractiveAutoPartitioningTask(self._storage_playground, request)
-            task.run()
+            # Schedule the partitioning.
+            log.debug("Running automatic partitioning.")
+            task_path = self._device_tree.SchedulePartitionsWithTask(
+                PartitioningRequest.to_structure(request)
+            )
+            task_proxy = STORAGE.get_proxy(task_path)
+            sync_run_task(task_proxy)
         except (StorageConfigurationError, BootloaderConfigurationError) as e:
+            # Reset the partitioning.
             self._reset_storage()
             self.set_detailed_error(_("Automatic partitioning failed."), e)
-
-        if self._error:
-            return
-
-        report = storage_checker.check(self._storage_playground,
-                                       skip=(verify_luks_devices_have_key,))
-        report.log(log)
-
-        if report.errors:
-            messages = "\n".join(report.errors)
-            log.error("The partitioning is not valid: %s", messages)
-            self._reset_storage()
-            self.set_detailed_error(_("Automatic partitioning failed."), messages)
 
     def on_create_clicked(self, button, autopart_type_combo):
         # Then do autopartitioning.  We do not do any clearpart first.  This is
