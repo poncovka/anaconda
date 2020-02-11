@@ -276,8 +276,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._summaryLabel.set_use_underline(True)
 
     def _reset_storage(self):
-        self._storage_playground = self.storage.copy()
-        self._storage_playground.hide_protected_disks()
+        # FIXME: Reset only the current partitioning module.
+        self._storage_module.ResetPartitioning()
 
     def refresh(self):
         self.clear_errors()
