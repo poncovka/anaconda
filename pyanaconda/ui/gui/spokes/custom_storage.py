@@ -28,13 +28,16 @@
 import copy
 
 from blivet.devicefactory import DEVICE_TYPE_BTRFS, SIZE_POLICY_AUTO, DEVICE_TYPE_MD
-from blivet.devices import MDRaidArrayDevice, LVMVolumeGroupDevice
 from blivet.errors import StorageError
 from blivet.size import Size
 
 from dasbus.client.proxy import get_object_path
 from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
+
+from pyanaconda.modules.storage.partitioning.interactive.utils import get_device_raid_level,\
+    rename_container, get_container, collect_containers
+from pyanaconda.storage.utils import filter_unsupported_disklabel_devices
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -50,14 +53,12 @@ from pyanaconda.modules.common.errors.configuration import BootloaderConfigurati
 from pyanaconda.modules.common.structures.partitioning import PartitioningRequest
 from pyanaconda.modules.common.structures.device_factory import DeviceFactoryRequest, \
     DeviceFactoryPermissions
-from pyanaconda.modules.storage.partitioning.interactive.utils import get_device_raid_level,\
-    rename_container, get_container, collect_containers, get_device_factory_arguments
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.ui.lib.storage import reset_bootloader, create_partitioning
 from pyanaconda.storage.utils import DEVICE_TEXT_MAP, MOUNTPOINT_DESCRIPTIONS, NAMED_DEVICE_TYPES, \
-    CONTAINER_DEVICE_TYPES, device_type_from_autopart, filter_unsupported_disklabel_devices, \
-    DEVICE_TYPE_UNSUPPORTED, filter_disks_by_names
+    CONTAINER_DEVICE_TYPES, device_type_from_autopart, DEVICE_TYPE_UNSUPPORTED, \
+    filter_disks_by_names
 from pyanaconda.threading import threadMgr
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.communication import hubQ
@@ -66,11 +67,10 @@ from pyanaconda.ui.gui.spokes.lib.accordion import MountPointSelector, Accordion
     CreateNewPage, UnknownPage
 from pyanaconda.ui.gui.spokes.lib.cart import SelectedDisksDialog
 from pyanaconda.ui.gui.spokes.lib.custom_storage_helpers import get_size_from_entry, \
-    get_selected_raid_level, get_default_raid_level, get_supported_container_raid_levels, \
-    get_container_type, get_default_container_raid_level, AddDialog, ConfirmDeleteDialog, \
-    DisksDialog, ContainerDialog, NOTEBOOK_LABEL_PAGE, NOTEBOOK_DETAILS_PAGE, NOTEBOOK_LUKS_PAGE, \
-    NOTEBOOK_UNEDITABLE_PAGE, NOTEBOOK_INCOMPLETE_PAGE, NEW_CONTAINER_TEXT, CONTAINER_TOOLTIP, \
-    get_supported_device_raid_levels, generate_request_description
+    get_selected_raid_level, get_default_raid_level, get_container_type, AddDialog,\
+    ConfirmDeleteDialog, DisksDialog, ContainerDialog, NOTEBOOK_LABEL_PAGE, NOTEBOOK_DETAILS_PAGE,\
+    NOTEBOOK_LUKS_PAGE, NOTEBOOK_UNEDITABLE_PAGE, NOTEBOOK_INCOMPLETE_PAGE, NEW_CONTAINER_TEXT,\
+    CONTAINER_TOOLTIP, get_supported_device_raid_levels, generate_request_description
 from pyanaconda.ui.gui.spokes.lib.passphrase import PassphraseDialog
 from pyanaconda.ui.gui.spokes.lib.refresh import RefreshDialog
 from pyanaconda.ui.gui.spokes.lib.summary import ActionSummaryDialog
@@ -1393,68 +1393,36 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if old_selector:
             self._save_current_page(old_selector)
 
-        curr_selector = self._accordion.current_selector
-        no_edit = False
-        current_page_type = None
-        if self._accordion.is_multiselection or not curr_selector:
-            current_page_type = NOTEBOOK_LABEL_PAGE
+        device_name = self._accordion.current_selector.device_name
+        device_data = DeviceData.from_structure(
+            self._device_tree.GetDeviceData(device_name)
+        )
+        completeness = ValidationReport.from_structure(
+            self._device_tree.CheckCompleteness(device_name)
+        )
+        description = _(MOUNTPOINT_DESCRIPTIONS.get(device_data.type, ""))
+
+        if self._accordion.is_multiselection or not self._accordion.current_selector:
+            self._partitionsNotebook.set_current_page(NOTEBOOK_LABEL_PAGE)
             self._set_page_label_text()
-            no_edit = True
-        elif curr_selector.device.format.type == "luks" and \
-                curr_selector.device.format.exists:
-            current_page_type = NOTEBOOK_LUKS_PAGE
-            selected_device_label = self._encryptedDeviceLabel
-            selected_device_desc_label = self._encryptedDeviceDescLabel
-            no_edit = True
-        elif not getattr(curr_selector.device, "complete", True):
-            current_page_type = NOTEBOOK_INCOMPLETE_PAGE
-            selected_device_label = self._incompleteDeviceLabel
-            selected_device_desc_label = self._incompleteDeviceDescLabel
-
-            if isinstance(curr_selector.device, MDRaidArrayDevice):
-                total = curr_selector.device.member_devices
-                missing = total - len(curr_selector.device.parents)
-                txt = _("This Software RAID array is missing %(missing)d of %(total)d "
-                        "member partitions. You can remove it or select a different "
-                        "device.") % {"missing": missing, "total": total}
-            elif isinstance(curr_selector.device, LVMVolumeGroupDevice):
-                total = curr_selector.device.pv_count
-                missing = total - len(curr_selector.device.parents)
-                txt = _("This LVM Volume Group is missing %(missingPVs)d of %(totalPVs)d "
-                        "physical volumes. You can remove it or select a different "
-                        "device.") % {"missingPVs": missing, "totalPVs": total}
-            else:
-                txt = _("This %(type)s device is missing member devices. You can remove "
-                        "it or select a different device.") % curr_selector.device.type
-
-            self._incompleteDeviceOptionsLabel.set_text(txt)
-            no_edit = True
-        elif devicefactory.get_device_type(curr_selector.device) is None:
-            current_page_type = NOTEBOOK_UNEDITABLE_PAGE
-            selected_device_label = self._uneditableDeviceLabel
-            selected_device_desc_label = self._uneditableDeviceDescLabel
-            no_edit = True
-
-        if no_edit:
-            self._partitionsNotebook.set_current_page(current_page_type)
-            if current_page_type != NOTEBOOK_LABEL_PAGE:
-                selected_device_label.set_text(curr_selector.device.name)
-                desc = _(MOUNTPOINT_DESCRIPTIONS.get(curr_selector.device.type, ""))
-                selected_device_desc_label.set_text(desc)
-
-            self._configButton.set_sensitive(False)
-            self._removeButton.set_sensitive(True)
-            return
-
-        # Make sure we're showing details instead of the "here's how you create
-        # a new OS" label.
-        self._partitionsNotebook.set_current_page(NOTEBOOK_DETAILS_PAGE)
-
-        # Set up the newly chosen selector.
-        self._populate_right_side(curr_selector)
-
-        self._applyButton.set_sensitive(False)
-        self._removeButton.set_sensitive(not curr_selector.device.protected)
+        elif self._device_tree.IsDeviceLocked(device_name):
+            self._partitionsNotebook.set_current_page(NOTEBOOK_LUKS_PAGE)
+            self._encryptedDeviceLabel.set_text(device_name)
+            self._encryptedDeviceDescLabel.set_text(description)
+        elif not completeness.is_valid():
+            self._partitionsNotebook.set_current_page(NOTEBOOK_INCOMPLETE_PAGE)
+            self._incompleteDeviceLabel.set_text(device_name)
+            self._incompleteDeviceDescLabel.set_text(description)
+            self._incompleteDeviceOptionsLabel.set_text(" ".join(completeness.get_messages()))
+        elif not self._device_tree.IsDeviceEditable(device_name):
+            self._partitionsNotebook.set_current_page(NOTEBOOK_UNEDITABLE_PAGE)
+            self._uneditableDeviceLabel.set_text(device_name)
+            self._uneditableDeviceDescLabel.set_text(description)
+        else:
+            self._partitionsNotebook.set_current_page(NOTEBOOK_DETAILS_PAGE)
+            self._populate_right_side(self._accordion.current_selector)
+            self._applyButton.set_sensitive(False)
+            self._removeButton.set_sensitive(not device_data.protected)
 
     def on_page_clicked(self, page, mountpoint_to_show=None):
         if not self._initialized:
@@ -1548,12 +1516,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._request.format_type = fs_type
         self._update_permissions()
 
-        # FIXME: Use permissions to set up UI.
-        format_data = DeviceFormatData.from_structure(
-            self._device_tree.GetFormatTypeData(fs_type)
-        )
-
-        fancy_set_sensitive(self._mountPointEntry, format_data.mountable)
+        # Update UI.
+        fancy_set_sensitive(self._mountPointEntry, self._permissions.mount_point)
         self.on_value_changed()
 
     def on_encrypt_toggled(self, widget):
