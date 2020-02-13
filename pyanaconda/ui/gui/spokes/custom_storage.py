@@ -1313,12 +1313,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self.set_info(self._error)
             return
 
-        if set(disks) != set(self._request.disks):
-            self._applyButton.set_sensitive(True)
-
         self._request.disks = disks
         self._set_devices_label()
         self._populate_raid(get_selected_raid_level(self._raidLevelCombo))
+        self.on_value_changed()
 
     def _container_encryption_change(self, old_encrypted, new_encrypted):
         if not old_encrypted and new_encrypted:
@@ -1383,14 +1381,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             log.error("Volume group name %s already in use.", name)
             return
 
-        if (new_container or
-                set(disks) != set(self._request.disks) or
-                name != container_name or
-                dialog.raid_level != self._request.container_raid_level or
-                dialog.encrypted != self._request.container_encrypted or
-                dialog.size_policy != self._request.container_size_policy):
-            self._applyButton.set_sensitive(True)
-
         if dialog.encrypted:
             self._container_encryption_change(self._request.container_encrypted,
                                               dialog.encrypted)
@@ -1399,8 +1389,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._request.container_raid_level = dialog.raid_level
         self._request.container_encrypted = dialog.encrypted
         self._request.container_size_policy = dialog.size_policy
-        self._set_devices_label()
 
+        self._set_devices_label()
+        self.on_value_changed()
         return True
 
     def _get_container_store_row(self, container):
@@ -1482,7 +1473,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         container_type_name = _(get_container_type(device_type).name).lower()
         new_text = _(NEW_CONTAINER_TEXT) % {"container_type": container_type_name}
         create_new_container = container_name == new_text
-        user_changed_container = True
         if create_new_container:
             # run the vg editor dialog with a default name and disk set
             name = self._storage_playground.suggest_container_name()
@@ -1509,9 +1499,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         else:
             self._request.container_name = container_name
 
-        if user_changed_container:
-            self._applyButton.set_sensitive(True)
-
         container = self._storage_playground.devicetree.get_device_by_name(
             self._request.container_name)
         container_exists = getattr(container, "exists", False)  # might not be in the tree
@@ -1527,6 +1514,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._request.container_size_policy = SIZE_POLICY_AUTO
 
         self._modifyContainerButton.set_sensitive(not container_exists)
+        self.on_value_changed()
 
     def _save_current_page(self, selector=None):
         if selector is None:
