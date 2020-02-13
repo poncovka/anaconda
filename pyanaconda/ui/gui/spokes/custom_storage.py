@@ -838,6 +838,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._nameEntry.set_text(self._request.device_name)
         fancy_set_sensitive(self._nameEntry, self._permissions.device_name)
 
+        self._configButton.set_sensitive(self._permissions.disks)
+
     ###
     ### SIGNAL HANDLERS
     ###
@@ -1452,11 +1454,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._populate_right_side(curr_selector)
 
         self._applyButton.set_sensitive(False)
-        container_device = devicefactory.get_device_type(
-            curr_selector.device) in CONTAINER_DEVICE_TYPES
-        self._configButton.set_sensitive(not curr_selector.device.exists and
-                                         not curr_selector.device.protected and
-                                         not container_device)
         self._removeButton.set_sensitive(not curr_selector.device.protected)
 
     def on_page_clicked(self, page, mountpoint_to_show=None):
@@ -1527,28 +1524,11 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._request.reformat = widget.get_active()
         self._update_permissions()
 
-        # FIXME: Use permissions to set up UI.
-        encrypt_sensitive = reformat
-        if self._accordion.current_selector:
-            device = self._accordion.current_selector.device.raw_device
-
-            ancestors = device.ancestors
-            ancestors.remove(device)
-            if any(a.format.type == "luks" and a.format.exists for a in ancestors):
-                # The encryption checkbutton should not be sensitive if there is
-                # existing encryption below the leaf layer.
-                encrypt_sensitive = False
-
-        # you can't encrypt a btrfs subvolume -- only the volume/container
-        device_type = self._get_current_device_type()
-        if device_type == DEVICE_TYPE_BTRFS:
-            self._encryptCheckbox.set_active(False)
-            encrypt_sensitive = False
-
-        fancy_set_sensitive(self._encryptCheckbox, encrypt_sensitive)
+        # Update the UI.
+        fancy_set_sensitive(self._encryptCheckbox, self._permissions.device_encrypted)
         self.on_encrypt_toggled(self._encryptCheckbox)
 
-        fancy_set_sensitive(self._fsCombo, reformat)
+        fancy_set_sensitive(self._fsCombo, self._permissions.format_type)
         self.on_value_changed()
 
     def on_fs_type_changed(self, combo):
@@ -1795,29 +1775,21 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._request.device_type = new_type
         self._update_permissions()
 
-        # FIXME: Use permissions set up the UI.
         # lvm uses the RHS to set disk set. no foolish minds here.
-        exists = \
-            self._accordion.current_selector and \
-            self._accordion.current_selector.device.exists
-
-        self._configButton.set_sensitive(
-            not exists and new_type not in CONTAINER_DEVICE_TYPES
-        )
+        self._configButton.set_sensitive(self._permissions.disks)
 
         # this has to be done before calling populate_raid since it will need
         # the raid level combo to contain the relevant raid levels for the new
         # device type
         self._raidStoreFilter.refilter()
-
         self._populate_raid(get_default_raid_level(new_type))
 
-        if self._accordion.current_selector:
-            self._populate_container(self._accordion.current_selector.device)
+        self._populate_container()
 
-        fancy_set_sensitive(self._nameEntry, new_type in NAMED_DEVICE_TYPES)
+        fancy_set_sensitive(self._nameEntry, self._permissions.device_name)
         self._nameEntry.set_text(self._get_device_name(new_type))
-        fancy_set_sensitive(self._sizeEntry, new_type != DEVICE_TYPE_BTRFS)
+
+        fancy_set_sensitive(self._sizeEntry, self._permissions.device_size)
 
         self._update_fstype_combo(new_type)
         self.on_value_changed()
