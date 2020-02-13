@@ -37,7 +37,6 @@ from dasbus.typing import unwrap_variant
 
 from pyanaconda.modules.storage.partitioning.interactive.utils import get_device_raid_level,\
     rename_container, get_container, collect_containers
-from pyanaconda.storage.utils import filter_unsupported_disklabel_devices
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -394,9 +393,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         # Make sure we start with a clean state.
         self._accordion.remove_all_pages()
 
-        new_devices = filter_unsupported_disklabel_devices(self._get_new_devices())
-        all_devices = filter_unsupported_disklabel_devices(self._get_all_devices())
-        unused_devices = filter_unsupported_disklabel_devices(self._get_unused_devices())
+        new_devices = self._get_new_devices()
+        all_devices = self._get_all_devices()
+        unused_devices = self._get_unused_devices()
 
         # Collect the existing roots.
         ui_roots = OSData.from_structure_list(
