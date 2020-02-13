@@ -1549,6 +1549,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self.on_encrypt_toggled(self._encryptCheckbox)
 
         fancy_set_sensitive(self._fsCombo, reformat)
+        self.on_value_changed()
 
     def on_fs_type_changed(self, combo):
         if not self._initialized:
@@ -1573,6 +1574,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         )
 
         fancy_set_sensitive(self._mountPointEntry, format_data.mountable)
+        self.on_value_changed()
 
     def on_encrypt_toggled(self, widget):
         self._request.device_encrypted = self._encryptCheckbox.get_active()
@@ -1588,6 +1590,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._encryptCheckbox.get_active() and self._encryptCheckbox.get_sensitive()
         )
 
+        self.on_value_changed()
+
     def on_luks_version_changed(self, widget):
         luks_version_index = self._luksCombo.get_active()
         luks_version_str = self._luksCombo.get_model()[luks_version_index][0]
@@ -1597,17 +1601,23 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         else:
             self._request.luks_version = ""
 
+        self.on_value_changed()
+
     def on_mount_point_changed(self, widget):
         self._request.mount_point = self._mountPointEntry.get_text()
+        self.on_value_changed()
 
     def on_label_changed(self, widget):
         self._request.label = self._labelEntry.get_text()
+        self.on_value_changed()
 
     def on_name_changed(self, widget):
         self._request.device_name = self._nameEntry.get_text()
+        self.on_value_changed()
 
     def on_raid_level_changed(self, widget):
         self._request.device_raid_level = get_selected_raid_level(self._raidLevelCombo)
+        self.on_value_changed()
 
     def on_size_changed(self, widget):
         if not self._sizeEntry.get_sensitive():
@@ -1629,6 +1639,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             return
 
         self._request.device_size = size.get_bytes()
+        self.on_value_changed()
 
     def _populate_container(self):
         """ Set up the vg widgets for lvm or hide them for other types. """
@@ -1809,6 +1820,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         fancy_set_sensitive(self._sizeEntry, new_type != DEVICE_TYPE_BTRFS)
 
         self._update_fstype_combo(new_type)
+        self.on_value_changed()
 
     def set_detailed_warning(self, msg, detailed_msg):
         self._error = detailed_msg
