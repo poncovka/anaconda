@@ -367,6 +367,7 @@
                                                     <property name="halign">start</property>
                                                     <property name="width_chars">10</property>
                                                     <property name="completion">mountPointCompletion</property>
+                                                    <signal name="changed" handler="on_mount_point_changed" swapped="no"/>
                                                     <signal name="changed" handler="on_value_changed" swapped="no"/>
                                                   </object>
                                                   <packing>
@@ -413,6 +414,7 @@
                                                     <property name="can_focus">True</property>
                                                     <property name="halign">start</property>
                                                     <property name="width_chars">10</property>
+                                                    <signal name="changed" handler="on_size_changed" swapped="no"/>
                                                     <signal name="changed" handler="on_value_changed" swapped="no"/>
                                                   </object>
                                                   <packing>
@@ -464,6 +466,7 @@
                                                 <property name="can_focus">True</property>
                                                 <property name="halign">start</property>
                                                 <property name="max_length">20</property>
+                                                <signal name="changed" handler="on_label_changed" swapped="no"/>
                                                 <signal name="changed" handler="on_value_changed" swapped="no"/>
                                               </object>
                                               <packing>
@@ -572,6 +575,7 @@
                                                 <property name="can_focus">True</property>
                                                 <property name="halign">start</property>
                                                 <property name="width_chars">20</property>
+                                                <signal name="changed" handler="on_name_changed" swapped="no"/>
                                                 <signal name="changed" handler="on_value_changed" swapped="no"/>
                                               </object>
                                               <packing>
@@ -897,6 +901,7 @@
                                                     <property name="visible">True</property>
                                                     <property name="can_focus">False</property>
                                                     <property name="model">raidStoreFiltered</property>
+                                                    <signal name="changed" handler="on_raid_level_changed" swapped="no"/>
                                                     <signal name="changed" handler="on_value_changed" swapped="no"/>
                                                     <child>
                                                       <object class="GtkCellRendererText" id="raidLevelRenderer">
@@ -954,6 +959,7 @@
                                                         <property name="visible">True</property>
                                                         <property name="can_focus">False</property>
                                                         <property name="model">luksVersionStore</property>
+                                                        <signal name="changed" handler="on_luks_version_changed" swapped="no"/>
                                                         <signal name="changed" handler="on_value_changed" swapped="no"/>
                                                         <child>
                                                           <object class="GtkCellRendererText" id="luksVersionRenderer">

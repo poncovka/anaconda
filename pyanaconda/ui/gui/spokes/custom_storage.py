@@ -603,150 +603,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         log.debug("The device request changes are applied.")
         self._do_refresh(mountpoint_to_show=new_request.mount_point)
 
-    def _get_new_device_factory_request(self, device, old_request):
-        log.info("Getting a new device factory request for %s", device.name)
-
-        new_request = DeviceFactoryRequest()
-        new_request.device_spec = device.name
-
-        self._get_new_device_name(new_request, old_request)
-        self._get_new_device_size(new_request, old_request)
-        self._get_new_device_type(new_request, old_request)
-        self._get_new_device_reformat(new_request, old_request)
-        self._get_new_device_fstype(new_request, old_request)
-        self._get_new_device_enctyption(new_request, old_request)
-        self._get_new_device_luks_version(new_request, old_request)
-        self._get_new_device_label(new_request, old_request)
-        self._get_new_device_mount_point(new_request, old_request)
-        self._get_new_device_raid_level(new_request, old_request)
-        self._get_new_device_for_btrfs(new_request, old_request)
-        self._get_new_device_disks(new_request, old_request)
-        self._get_new_device_container(new_request, old_request)
-
-        return new_request
-
-    def _get_new_device_name(self, new_request, old_request):
-        if self._nameEntry.get_sensitive():
-            new_request.device_name = self._nameEntry.get_text()
-        else:
-            # name entry insensitive means we don't control the name
-            new_request.device_name = ""
-            old_request.device_name = ""
-
-    def _get_new_device_size(self, new_request, old_request):
-        # If the size text hasn't changed at all from that displayed,
-        # assume no change intended.
-        device = self._storage_playground.devicetree.resolve_device(new_request.device_spec)
-        use_dev = device.raw_device
-
-        size = Size(old_request.device_size)
-        displayed_size = size.human_readable(max_places=self.MAX_SIZE_PLACES)
-
-        if (displayed_size != self._sizeEntry.get_text()) \
-                and (use_dev.resizable or not use_dev.exists):
-            size = get_size_from_entry(
-                self._sizeEntry,
-                lower_bound=self.MIN_SIZE_ENTRY,
-                units=SIZE_UNITS_DEFAULT
-            )
-
-        if size:
-            new_request.device_size = size.get_bytes()
-
-    def _get_new_device_type(self, new_request, old_request):
-        new_request.device_type = self._get_current_device_type()
-
-    def _get_new_device_reformat(self, new_request, old_request):
-        new_request.reformat = self._reformatCheckbox.get_active()
-
-    def _get_new_device_fstype(self, new_request, old_request):
-        new_request.format_type = self._get_file_system_type()
-
-    def _get_new_device_enctyption(self, new_request, old_request):
-        new_request.device_encrypted = (self._encryptCheckbox.get_active()
-                                        and self._encryptCheckbox.is_sensitive())
-
-    def _get_new_device_luks_version(self, new_request, old_request):
-        luks_version_index = self._luksCombo.get_active()
-        luks_version_str = self._luksCombo.get_model()[luks_version_index][0]
-
-        if new_request.device_encrypted:
-            new_request.luks_version = luks_version_str
-
-    def _get_new_device_label(self, new_request, old_request):
-        new_request.label = self._labelEntry.get_text()
-
-    def _get_new_device_mount_point(self, new_request, old_request):
-        if self._mountPointEntry.get_sensitive():
-            new_request.mount_point = self._mountPointEntry.get_text()
-
-    def _get_new_device_raid_level(self, new_request, old_request):
-        new_request.device_raid_level = get_selected_raid_level(self._raidLevelCombo)
-
-    def _get_new_device_for_btrfs(self,  new_request, old_request):
-        # FIXME: Move this code to the new methods.
-        device = self._storage_playground.devicetree.resolve_device(new_request.device_spec)
-        use_dev = device.raw_device
-
-        # If the device is a btrfs volume, the only things we can set/update
-        # are mountpoint and container-wide settings.
-        if new_request.device_type == DEVICE_TYPE_BTRFS and hasattr(use_dev, "subvolumes"):
-            new_request.device_size = 0
-            old_request.device_size = 0
-
-            new_request.device_encrypted = False
-            old_request.device_encrypted = False
-
-            new_request.device_raid_level = ""
-            old_request.device_raid_level = ""
-
-    def _get_new_device_disks(self, new_request, old_request):
-        new_request.disks = list(self._request.disks)
-
-    def _get_new_device_container(self, new_request, old_request):
-        # create a new factory using the appropriate size and type
-        names = ("device_type", "size", "disks", "encrypted", "luks_version", "raid_level")
-        arguments = get_device_factory_arguments(self._storage_playground, new_request, names)
-
-        factory = devicefactory.get_device_factory(
-            self._storage_playground,
-            **arguments
-        )
-
-        # Name
-        if self._request.container_name:
-            new_request.container_name = self._request.container_name
-
-        # Encryption
-        if self._request.container_encrypted:
-            new_request.container_encrypted = True
-
-        # Raid level
-        raid_level = self._request.container_raid_level
-        supported_raid_levels = get_supported_container_raid_levels(
-            self._device_tree,
-            new_request.device_type
-        )
-        default_raid_level = get_default_container_raid_level(
-            new_request.device_type
-        )
-
-        if raid_level not in supported_raid_levels:
-            raid_level = default_raid_level
-
-        if raid_level:
-            new_request.container_raid_level = raid_level
-
-        # Size
-        new_request.container_size_policy = self._request.container_size_policy
-
-        # Disks
-        container = factory.get_container()
-
-        if container and old_request.device_type != new_request.device_type:
-            log.debug("Overriding disk set with container's.")
-            new_request.disks = [d.name for d in container.disks]
-
     def _raid_level_visible(self, model, itr, user_data):
         raid_level = model[itr][1]
         return raid_level in self._supported_raid_levels
@@ -1661,9 +1517,18 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._update_space_display()
 
     def on_reformat_toggled(self, widget):
-        active = widget.get_active()
+        reformat = widget.get_active()
 
-        encrypt_sensitive = active
+        # Skip if the value is the same.
+        if self._request.reformat == reformat:
+            return
+
+        # Set the reformat flag.
+        self._request.reformat = widget.get_active()
+        self._update_permissions()
+
+        # FIXME: Use permissions to set up UI.
+        encrypt_sensitive = reformat
         if self._accordion.current_selector:
             device = self._accordion.current_selector.device.raw_device
 
@@ -1683,32 +1548,87 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         fancy_set_sensitive(self._encryptCheckbox, encrypt_sensitive)
         self.on_encrypt_toggled(self._encryptCheckbox)
 
-        fancy_set_sensitive(self._fsCombo, active)
+        fancy_set_sensitive(self._fsCombo, reformat)
 
     def on_fs_type_changed(self, combo):
         if not self._initialized:
             return
 
+        # Skip if no file system type is set.
         fs_type = self._get_file_system_type()
         if fs_type is None:
             return
 
+        # Skip if the file system type is the same.
+        if self._request.format_type == fs_type:
+            return
+
+        # Set the new file system type.
+        self._request.format_type = fs_type
+        self._update_permissions()
+
+        # FIXME: Use permissions to set up UI.
         format_data = DeviceFormatData.from_structure(
             self._device_tree.GetFormatTypeData(fs_type)
         )
 
         fancy_set_sensitive(self._mountPointEntry, format_data.mountable)
 
-    def on_encrypt_toggled(self, encrypted):
-        hide_or_show = really_show if encrypted.get_active() else really_hide
+    def on_encrypt_toggled(self, widget):
+        self._request.device_encrypted = self._encryptCheckbox.get_active()
+        self.on_luks_version_changed(self._luksCombo)
+
+        hide_or_show = really_show if self._encryptCheckbox.get_active() else really_hide
 
         for widget in [self._luksLabel, self._luksCombo]:
             hide_or_show(widget)
 
         fancy_set_sensitive(
             self._luksCombo,
-            encrypted.get_active() and encrypted.get_sensitive()
+            self._encryptCheckbox.get_active() and self._encryptCheckbox.get_sensitive()
         )
+
+    def on_luks_version_changed(self, widget):
+        luks_version_index = self._luksCombo.get_active()
+        luks_version_str = self._luksCombo.get_model()[luks_version_index][0]
+
+        if self._request.device_encrypted:
+            self._request.luks_version = luks_version_str
+        else:
+            self._request.luks_version = ""
+
+    def on_mount_point_changed(self, widget):
+        self._request.mount_point = self._mountPointEntry.get_text()
+
+    def on_label_changed(self, widget):
+        self._request.label = self._labelEntry.get_text()
+
+    def on_name_changed(self, widget):
+        self._request.device_name = self._nameEntry.get_text()
+
+    def on_raid_level_changed(self, widget):
+        self._request.device_raid_level = get_selected_raid_level(self._raidLevelCombo)
+
+    def on_size_changed(self, widget):
+        if not self._sizeEntry.get_sensitive():
+            return
+
+        current_size = Size(self._request.device_size)
+        displayed_size = current_size.human_readable(max_places=self.MAX_SIZE_PLACES)
+
+        if displayed_size == self._sizeEntry.get_text():
+            return
+
+        size = get_size_from_entry(
+            self._sizeEntry,
+            lower_bound=self.MIN_SIZE_ENTRY,
+            units=SIZE_UNITS_DEFAULT
+        )
+
+        if size is None:
+            return
+
+        self._request.device_size = size.get_bytes()
 
     def _populate_container(self):
         """ Set up the vg widgets for lvm or hide them for other types. """
@@ -1850,13 +1770,21 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if not self._initialized:
             return
 
-        # The name of the device type is more informative than the numeric id
+        # Skip if no device type is selected.
         new_type = self._get_current_device_type()
 
-        # Quit if no device type is selected.
         if new_type is None:
             return
 
+        # Skip if the device type is the same.
+        if self._request.device_type == new_type:
+            return
+
+        # Set the new device type.
+        self._request.device_type = new_type
+        self._update_permissions()
+
+        # FIXME: Use permissions set up the UI.
         # lvm uses the RHS to set disk set. no foolish minds here.
         exists = \
             self._accordion.current_selector and \
