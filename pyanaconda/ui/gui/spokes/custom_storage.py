@@ -25,6 +25,8 @@
 # - Tabbing behavior in the accordion is weird.
 # - Implement striping and mirroring for LVM.
 # - Activating reformat should always enable resize for existing devices.
+import copy
+
 from blivet.devicefactory import DEVICE_TYPE_BTRFS, SIZE_POLICY_AUTO, DEVICE_TYPE_MD
 from blivet.devices import MDRaidArrayDevice, LVMVolumeGroupDevice
 from blivet.errors import StorageError
@@ -126,6 +128,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._partitioning = None
         self._device_tree = None
         self._request = DeviceFactoryRequest()
+        self._original_request = DeviceFactoryRequest()
         self._permissions = DeviceFactoryPermissions()
 
         self._storage_module = STORAGE.get_proxy()
@@ -254,6 +257,13 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     def _supported_raid_levels(self):
         return get_supported_device_raid_levels(
             self._device_tree, self._get_current_device_type()
+        )
+
+    def _update_permissions(self):
+        self._permissions = DeviceFactoryPermissions.from_structure(
+            self._device_tree.GenerateDeviceFactoryPermissions(
+                DeviceFactoryRequest.to_structure(self._request)
+            )
         )
 
     def _update_space_display(self):
@@ -550,10 +560,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         log.debug("Saving the right side for device: %s", device_name)
 
         # Get the device factory request.
-        old_request = DeviceFactoryRequest.from_structure(
-            self._device_tree.GenerateDeviceFactoryRequest(device_name)
-        )
-        new_request = self._get_new_device_factory_request(device_name, old_request)
+        old_request = self._original_request
+        new_request = self._request
 
         if compare_data(old_request, new_request):
             log.debug("Nothing to do.")
@@ -889,19 +897,16 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     def _populate_right_side(self, selector):
         device_name = selector.device_name
 
-        request = DeviceFactoryRequest.from_structure(
+        self._request = DeviceFactoryRequest.from_structure(
             self._device_tree.GenerateDeviceFactoryRequest(device_name)
         )
-        permissions = DeviceFactoryPermissions.from_structure(
-            self._device_tree.GenerateDeviceFactoryPermissions(
-                DeviceFactoryRequest.to_structure(request)
-            )
-        )
 
-        description = generate_request_description(request)
+        self._original_request = copy.deepcopy(self._request)
+        self._update_permissions()
+
+        description = generate_request_description(self._request)
         log.debug("Populating the right side for device %s: %s", device_name, description)
 
-        self._request = request
         self._selectedDeviceLabel.set_text(device_name)
         self._selectedDeviceDescLabel.set_text(
             _(MOUNTPOINT_DESCRIPTIONS.get(device_name, ""))
@@ -909,24 +914,24 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self._set_devices_label()
 
-        self._nameEntry.set_text(request.device_name)
-        self._mountPointEntry.set_text(request.mount_point)
-        fancy_set_sensitive(self._mountPointEntry, permissions.mount_point)
+        self._nameEntry.set_text(self._request.device_name)
+        self._mountPointEntry.set_text(self._request.mount_point)
+        fancy_set_sensitive(self._mountPointEntry, self._permissions.mount_point)
 
-        self._labelEntry.set_text(request.label)
-        fancy_set_sensitive(self._labelEntry, permissions.label)
+        self._labelEntry.set_text(self._request.label)
+        fancy_set_sensitive(self._labelEntry, self._permissions.label)
 
         self._sizeEntry.set_text(
-            Size(request.device_size).human_readable(max_places=self.MAX_SIZE_PLACES)
+            Size(self._request.device_size).human_readable(max_places=self.MAX_SIZE_PLACES)
         )
 
-        self._reformatCheckbox.set_active(request.reformat)
-        fancy_set_sensitive(self._reformatCheckbox, permissions.reformat)
+        self._reformatCheckbox.set_active(self._request.reformat)
+        fancy_set_sensitive(self._reformatCheckbox, self._permissions.reformat)
 
-        self._encryptCheckbox.set_active(request.device_encrypted)
-        fancy_set_sensitive(self._encryptCheckbox, permissions.device_encrypted)
+        self._encryptCheckbox.set_active(self._request.device_encrypted)
+        fancy_set_sensitive(self._encryptCheckbox, self._permissions.device_encrypted)
 
-        if request.container_encrypted:
+        if self._request.container_encrypted:
             # The encryption checkbutton should not be sensitive if there is
             # existing encryption below the leaf layer.
             fancy_set_sensitive(self._encryptCheckbox, False)
@@ -937,13 +942,13 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         # Set up the filesystem type combo.
         format_types = self._device_tree.GetFileSystemsForDevice(device_name)
-        self._setup_fstype_combo(request.device_type, request.format_type, format_types)
-        fancy_set_sensitive(self._fsCombo, permissions.format_type)
+        self._setup_fstype_combo(self._request.device_type, self._request.format_type, format_types)
+        fancy_set_sensitive(self._fsCombo, self._permissions.format_type)
 
         # Set up the device type combo.
         device_types = self._device_tree.GetDeviceTypesForDevice(device_name)
-        self._setup_device_type_combo(request.device_type, device_types)
-        fancy_set_sensitive(self._typeCombo, permissions.device_type)
+        self._setup_device_type_combo(self._request.device_type, device_types)
+        fancy_set_sensitive(self._typeCombo, self._permissions.device_type)
 
         # FIXME: device encryption should be mutually exclusive with container
         # encryption
@@ -954,11 +959,11 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         # new devices that are not btrfs subvolumes.
         # Do this after the device type combo is set since
         # on_device_type_changed doesn't account for device existence.
-        fancy_set_sensitive(self._sizeEntry, permissions.device_size)
+        fancy_set_sensitive(self._sizeEntry, self._permissions.device_size)
 
-        if permissions.device_size:
+        if self._permissions.device_size:
             self._sizeEntry.props.has_tooltip = False
-        elif request.format_type == "btrfs":
+        elif self._request.format_type == "btrfs":
             self._sizeEntry.set_tooltip_text(_(
                 "The space available to this mount point can "
                 "be changed by modifying the volume below."
@@ -968,14 +973,14 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 "This file system may not be resized."
             ))
 
-        self._populate_raid(request.device_raid_level)
-        fancy_set_sensitive(self._raidLevelCombo, permissions.device_raid_level)
+        self._populate_raid(self._request.device_raid_level)
+        fancy_set_sensitive(self._raidLevelCombo, self._permissions.device_raid_level)
 
         self._populate_container()
-        self._populate_luks(request.luks_version)
+        self._populate_luks(self._request.luks_version)
 
-        self._nameEntry.set_text(request.device_name)
-        fancy_set_sensitive(self._nameEntry, permissions.device_name)
+        self._nameEntry.set_text(self._request.device_name)
+        fancy_set_sensitive(self._nameEntry, self._permissions.device_name)
 
     ###
     ### SIGNAL HANDLERS
