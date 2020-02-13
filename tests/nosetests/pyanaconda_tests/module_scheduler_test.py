@@ -748,4 +748,4 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
         self._add_device(dev2)
 
         self.assertEqual(self.interface.IsDeviceEditable("dev1"), False)
-        self.assertEqual(self.interface.IsDeviceEditable("dev1"), True)
+        self.assertEqual(self.interface.IsDeviceEditable("dev2"), True)
