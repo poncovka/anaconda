@@ -27,7 +27,8 @@ from pyanaconda.core.constants import SIZE_UNITS_DEFAULT
 from pyanaconda.core.i18n import _, N_, CN_, C_
 from pyanaconda.core.util import lowerASCII
 from dasbus.structure import generate_dictionary_from_data
-from pyanaconda.modules.common.structures.device_factory import DeviceFactoryRequest
+from pyanaconda.modules.common.structures.device_factory import DeviceFactoryRequest, \
+    DeviceFactoryPermissions
 from pyanaconda.modules.common.structures.storage import DeviceFormatData, DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.platform import platform
@@ -471,12 +472,13 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
     # If the user enters a smaller size, the GUI changes it to this value
     MIN_SIZE_ENTRY = Size("1 MiB")
 
-    def __init__(self, data, device_tree, disks, request: DeviceFactoryRequest, exists=False):
+    def __init__(self, data, device_tree, disks, request: DeviceFactoryRequest,
+                 permissions: DeviceFactoryPermissions):
         GUIObject.__init__(self, data)
         self._device_tree = device_tree
         self._disks = disks
         self._request = request
-        self._exists = exists
+        self._permissions = permissions
         self._error = ""
 
         self._title_label = self.builder.get_object("container_dialog_title_label")
@@ -545,7 +547,7 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
 
             itr = model.iter_next(itr)
 
-        if self._exists:
+        if not self._permissions.can_modify_container():
             self._treeview.set_sensitive(False)
 
     def _populate_raid(self):
@@ -573,7 +575,7 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
         for widget in [self._raidLevelLabel, self._raidLevelCombo]:
             really_show(widget)
 
-        fancy_set_sensitive(self._raidLevelCombo, not self._exists)
+        fancy_set_sensitive(self._raidLevelCombo, self._permissions.container_raid_level)
 
     def _raid_level_visible(self, model, itr, user_data):
         raid_level = model[itr][1]
@@ -589,7 +591,7 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
         self._name_entry.set_text(self._request.container_name)
         self.add_check(self._name_entry, self._check_name_entry)
 
-        if self._exists:
+        if not self._permissions.container_name:
             fancy_set_sensitive(self._name_entry, False)
 
     def _check_name_entry(self, inputcheck):
@@ -615,14 +617,14 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
             size = Size(self._request.container_size_policy)
             self._sizeEntry.set_text(size.human_readable(max_places=2))
 
-        if self._exists:
+        if not self._permissions.container_size_policy:
             fancy_set_sensitive(self._sizeCombo, False)
             self._sizeEntry.set_sensitive(False)
 
     def _set_encryption(self):
         self._encryptCheckbutton.set_active(self._request.container_encrypted)
 
-        if self._exists:
+        if not self._permissions.container_encrypted:
             fancy_set_sensitive(self._encryptCheckbutton, False)
 
     def run(self):
@@ -650,7 +652,7 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
         return rc
 
     def _save_clicked(self):
-        if self._exists:
+        if not self._permissions.can_modify_container():
             return
 
         if not self._validate_raid_level():
