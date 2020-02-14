@@ -22,7 +22,7 @@ import copy
 from unittest.mock import patch, Mock
 
 from blivet.devicefactory import DEVICE_TYPE_LVM, SIZE_POLICY_AUTO, DEVICE_TYPE_PARTITION, \
-    DEVICE_TYPE_LVM_THINP, DEVICE_TYPE_DISK, DEVICE_TYPE_MD
+    DEVICE_TYPE_LVM_THINP, DEVICE_TYPE_DISK, DEVICE_TYPE_MD, DEVICE_TYPE_BTRFS
 from blivet.devices import StorageDevice, DiskDevice, PartitionDevice, LUKSDevice, \
     BTRFSVolumeDevice, MDRaidArrayDevice, LVMVolumeGroupDevice, BTRFSDevice
 from blivet.formats import get_format
@@ -776,3 +776,21 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
         self.interface.RenameContainer("dev2", "mycontainer")
         self.assertEqual(dev2.name, "mycontainer")
         self.assertEqual(dev2.format.label, "mycontainer")
+
+    def collect_containers_test(self):
+        """Test CollectContainers."""
+        dev1 = StorageDevice(
+            "dev1",
+            fmt=get_format("btrfs"),
+            size=Size("10 GiB")
+        )
+        dev2 = BTRFSVolumeDevice(
+            "dev2",
+            parents=[dev1]
+        )
+
+        self._add_device(dev1)
+        self._add_device(dev2)
+
+        self.assertEqual(self.interface.CollectContainers(DEVICE_TYPE_BTRFS), [dev2.name])
+        self.assertEqual(self.interface.CollectContainers(DEVICE_TYPE_LVM), [])
