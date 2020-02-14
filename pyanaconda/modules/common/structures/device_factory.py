@@ -273,16 +273,22 @@ class DeviceFactoryPermissions(DBusData):
     def __init__(self):
         self._device_type = False
         self._disks = False
+
         self._mount_point = False
         self._reformat = False
         self._format_type = False
         self._label = False
+
         self._device_name = False
         self._device_size = False
         self._device_raid_level = False
         self._device_encrypted = False
-        self._container = False
-        self._container_configuration = False
+
+        self._container_name = False
+        self._container_size_policy = False
+        self._container_raid_level = False
+        self._container_encrypted = False
+        self._container_replacement = False
 
     @property
     def device_type(self) -> Bool:
@@ -402,25 +408,72 @@ class DeviceFactoryPermissions(DBusData):
         self._device_encrypted = permission
 
     @property
-    def container(self) -> Bool:
-        """Can we choose a different container?
+    def container_name(self) -> Bool:
+        """Can the container name be changed?
 
         :return: True or False
         """
-        return self._container
+        return self._container_name
 
-    @container.setter
-    def container(self, permission):
-        self._container = permission
+    @container_name.setter
+    def container_name(self, permission):
+        self._container_name = permission
 
     @property
-    def container_configuration(self) -> Bool:
-        """Can we change the current container?
+    def container_size_policy(self) -> Bool:
+        """"Can the container size policy be changed?
 
         :return: True or False
         """
-        return self._container_configuration
+        return self._container_size_policy
 
-    @container_configuration.setter
-    def container_configuration(self, permission):
-        self._container_configuration = permission
+    @container_size_policy.setter
+    def container_size_policy(self, permission):
+        self._container_size_policy = permission
+
+    @property
+    def container_raid_level(self):
+        """Can the container RAID level be changed?
+
+        :return: True or False
+        """
+        return self._container_raid_level
+
+    @container_raid_level.setter
+    def container_raid_level(self, permission):
+        self._container_raid_level = permission
+
+    @property
+    def container_encrypted(self) -> Bool:
+        """Can the container encryption be changed?
+
+        :return: True or False
+        """
+        return self._container_encrypted
+
+    @container_encrypted.setter
+    def container_encrypted(self, permission):
+        self._container_encrypted = permission
+
+    @property
+    def container_replacement(self) -> Bool:
+        """Can the container be replaced?
+
+        :return: True or False
+        """
+        return self._container_replacement
+
+    @container_replacement.setter
+    def container_replacement(self, permission):
+        self._container_replacement = permission
+
+    def can_replace_container(self):
+        """Can we use a different container?"""
+        return self.container_replacement
+
+    def can_modify_container(self):
+        """Can we modify the current container?"""
+        return self.container_name \
+            or self.container_size_policy \
+            or self.container_raid_level \
+            or self.container_encrypted
