@@ -1185,7 +1185,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self.on_encrypt_toggled(self._encryptCheckbox)
 
-    def run_container_editor(self, container=None, name=None, new_container=False):
+    def _run_container_editor(self, container=None, name=None, new_container=False):
         """ Run container edit dialog and return True if changes were made. """
         size = Size(0)
         size_policy = self._request.container_size_policy
@@ -1201,16 +1201,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         dialog = ContainerDialog(
             self.data,
-            self._storage_playground,
-            device_type=self._get_current_device_type(),
-            name=container_name,
-            raid_level=self._request.container_raid_level,
-            encrypted=self._request.container_encrypted,
-            size_policy=size_policy,
-            size=size,
+            self._device_tree,
             disks=self._selected_disks,
-            selected=self._request.disks,
-            exists=getattr(container, "exists", False)
+            request=self._request,
+            permissions=self._permissions
         )
 
         with self.main_window.enlightbox(dialog.window):
@@ -1250,8 +1244,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self.on_value_changed()
         return True
 
-    def _get_container_store_row(self, container):
-        name = container.name
+    def _get_container_store_row(self, container_name):
+        name = container_name
         free_space = getattr(container, "free_space", None)
 
         if free_space is not None:
@@ -1313,6 +1307,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self.on_update_settings_clicked(None)
 
     def on_container_changed(self, combo):
+        """Choose a different container or create a new one."""
         ndx = combo.get_active()
         if ndx == -1:
             return
@@ -1355,7 +1350,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         load_container_configuration(self._storage_playground, self._request)
         self._update_permissions()
 
-        self._modifyContainerButton.set_sensitive(self._permissions.container_configuration)
+        self._modifyContainerButton.set_sensitive(self._permissions.can_modify_container())
         self.on_value_changed()
 
     def _save_current_page(self, selector=None):
@@ -1633,8 +1628,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             really_show(widget)
 
         # make the combo and button insensitive for existing LVs
-        fancy_set_sensitive(self._containerCombo, self._permissions.container)
-        self._modifyContainerButton.set_sensitive(self._permissions.container_configuration)
+        fancy_set_sensitive(self._containerCombo, self._permissions.can_replace_container())
+        self._modifyContainerButton.set_sensitive(self._permissions.can_modify_container())
 
     def _update_fstype_combo(self, device_type):
         """ Set up device type dependent portion of filesystem combo.
