@@ -290,6 +290,14 @@ class DeviceTreeSchedulerInterface(DeviceTreeInterface):
         """
         self.implementation.destroy_device(device_name)
 
+    def RenameContainer(self, container_name: Str, new_name: Str):
+        """Rename the specified container.
+
+        :param container_name: a name of the container
+        :param new_name: a new name of the container
+        """
+        self.implementation.rename_container(container_name, new_name)
+
     def SchedulePartitionsWithTask(self, request: Structure) -> ObjPath:
         """Schedule the partitioning actions.
 

@@ -328,6 +328,15 @@ class DeviceTreeSchedulerModule(DeviceTreeModule):
         device = self._get_device(device_name)
         utils.destroy_device(self.storage, device)
 
+    def rename_container(self, container_name, new_name):
+        """Rename the specified container.
+
+        :param container_name: a name of the container
+        :param new_name: a new name of the container
+        """
+        container = self._get_device(container_name)
+        utils.rename_container(self.storage, container, new_name)
+
     def schedule_partitions_with_task(self, request):
         """Schedule the partitioning actions.
 
