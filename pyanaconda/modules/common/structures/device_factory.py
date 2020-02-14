@@ -281,6 +281,8 @@ class DeviceFactoryPermissions(DBusData):
         self._device_size = False
         self._device_raid_level = False
         self._device_encrypted = False
+        self._container = False
+        self._container_configuration = False
 
     @property
     def device_type(self) -> Bool:
@@ -398,3 +400,27 @@ class DeviceFactoryPermissions(DBusData):
     @device_encrypted.setter
     def device_encrypted(self, permission):
         self._device_encrypted = permission
+
+    @property
+    def container(self) -> Bool:
+        """Can we choose a different container?
+
+        :return: True or False
+        """
+        return self._container
+
+    @container.setter
+    def container(self, permission):
+        self._container = permission
+
+    @property
+    def container_configuration(self) -> Bool:
+        """Can we change the current container?
+
+        :return: True or False
+        """
+        return self._container_configuration
+
+    @container_configuration.setter
+    def container_configuration(self, permission):
+        self._container_configuration = permission
