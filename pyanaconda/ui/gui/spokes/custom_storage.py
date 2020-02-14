@@ -36,7 +36,7 @@ from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
 
 from pyanaconda.modules.storage.partitioning.interactive.utils import get_device_raid_level,\
-    rename_container, get_container, collect_containers
+    get_container
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -1276,10 +1276,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         # Rename the container.
         if container:
             try:
-                rename_container(
-                    storage=self._storage_playground,
-                    container=container,
-                    name=self._request.container_name
+                self._device_tree.RenameContainer(
+                    container_name,
+                    self._request.container_name
                 )
             except StorageError as e:
                 self.set_detailed_error(_("Invalid device name."), e)
@@ -1358,7 +1357,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         container = self._storage_playground.devicetree.get_device_by_name(
             self._request.container_name)
-        container_exists = getattr(container, "exists", False)  # might not be in the tree
 
         if container:
             self._request.container_raid_level = get_device_raid_level(container)
@@ -1370,7 +1368,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._request.container_encrypted = False
             self._request.container_size_policy = SIZE_POLICY_AUTO
 
-        self._modifyContainerButton.set_sensitive(not container_exists)
+        self._update_permissions()
+        self._modifyContainerButton.set_sensitive(self._permissions.container_configuration)
         self.on_value_changed()
 
     def _save_current_page(self, selector=None):
@@ -1600,7 +1599,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         # set up the vg widgets and then bail out
         container = get_container(self._storage_playground, device_type, device.raw_device)
         default_container_name = getattr(container, "name", None)
-        container_exists = getattr(container, "exists", False)
         container_size_policy = getattr(container, "size_policy", SIZE_POLICY_AUTO)
         container_type = get_container_type(device_type)
 
@@ -1610,7 +1608,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._containerLabel.set_use_underline(True)
         self._containerStore.clear()
 
-        containers = collect_containers(self._storage_playground, device_type)
+        containers = self._device_tree.CollectContainers(device_type)
         default_seen = False
 
         for c in containers:
@@ -1649,10 +1647,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             really_show(widget)
 
         # make the combo and button insensitive for existing LVs
-        can_change_container = (device.raw_device is not None and not device.raw_device.exists and
-                                device.raw_device != container)
-        fancy_set_sensitive(self._containerCombo, can_change_container)
-        self._modifyContainerButton.set_sensitive(not container_exists)
+        fancy_set_sensitive(self._containerCombo, self._permissions.container)
+        self._modifyContainerButton.set_sensitive(self._permissions.container_configuration)
 
     def _update_fstype_combo(self, device_type):
         """ Set up device type dependent portion of filesystem combo.
