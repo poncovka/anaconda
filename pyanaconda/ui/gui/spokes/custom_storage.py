@@ -35,8 +35,7 @@ from dasbus.client.proxy import get_object_path
 from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
 
-from pyanaconda.modules.storage.partitioning.interactive.utils import get_device_raid_level,\
-    get_container
+from pyanaconda.modules.storage.partitioning.interactive.utils import get_container, load_container_configuration
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -1256,9 +1255,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         free_space = getattr(container, "free_space", None)
 
         if free_space is not None:
-            return [name, _("(%s free)") % free_space]
+            return [name, name, _("(%s free)") % free_space]
         else:
-            return [name, ""]
+            return [name, name, ""]
 
     def on_modify_container_clicked(self, button):
         container_name = self._containerStore[self._containerCombo.get_active()][0]
@@ -1322,20 +1321,21 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if container_name is None:
             return
 
-        if self._request.container_name == container_name:
+        if container_name != "" and self._request.container_name == container_name:
             return
 
-        device_type = self._get_current_device_type()
-        container_type_name = _(get_container_type(device_type).name).lower()
-        new_text = _(NEW_CONTAINER_TEXT) % {"container_type": container_type_name}
-        create_new_container = container_name == new_text
-        if create_new_container:
+        if container_name:
+            # an already existing container is picked
+            self._request.container_name = container_name
+        else:
             # run the vg editor dialog with a default name and disk set
             name = self._storage_playground.suggest_container_name()
+
             # user_changed_container flips to False if "cancel" picked
             user_changed_container = self.run_container_editor(name=name, new_container=True)
+
             for idx, data in enumerate(self._containerStore):
-                if user_changed_container and data[0] == new_text:
+                if user_changed_container and data[0] == "":
                     container = self._storage_playground.devicetree.get_device_by_name(
                         self._request.container_name
                     )
@@ -1351,24 +1351,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 elif not user_changed_container and data[0] == self._request.container_name:
                     combo.set_active(idx)
                     return
-        # else clause runs if an already existing container is picked
-        else:
-            self._request.container_name = container_name
 
-        container = self._storage_playground.devicetree.get_device_by_name(
-            self._request.container_name)
-
-        if container:
-            self._request.container_raid_level = get_device_raid_level(container)
-            self._request.container_encrypted = container.encrypted
-            self._request.container_size_policy = getattr(container, "size_policy",
-                                                  container.size)
-        else:
-            self._request.container_raid_level = ""
-            self._request.container_encrypted = False
-            self._request.container_size_policy = SIZE_POLICY_AUTO
-
+        load_container_configuration(self._storage_playground, self._request)
         self._update_permissions()
+
         self._modifyContainerButton.set_sensitive(self._permissions.container_configuration)
         self.on_value_changed()
 
@@ -1626,13 +1612,13 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._request.container_size_policy = container_size_policy
 
         if not default_seen:
-            self._containerStore.append([default_container_name, ""])
+            self._containerStore.append([default_container_name, default_container_name, ""])
             self._containerCombo.set_active(len(self._containerStore) - 1)
 
         container_type_name = _(container_type.name).lower()
 
         self._containerStore.append([
-            _(NEW_CONTAINER_TEXT) % {"container_type": container_type_name}, ""
+            "", _(NEW_CONTAINER_TEXT) % {"container_type": container_type_name}, ""
         ])
         self._containerCombo.set_tooltip_text(
             _(CONTAINER_TOOLTIP) % {"container_type": container_type_name}
