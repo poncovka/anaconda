@@ -24,7 +24,7 @@ from unittest.mock import patch, Mock
 from blivet.devicefactory import DEVICE_TYPE_LVM, SIZE_POLICY_AUTO, DEVICE_TYPE_PARTITION, \
     DEVICE_TYPE_LVM_THINP, DEVICE_TYPE_DISK, DEVICE_TYPE_MD
 from blivet.devices import StorageDevice, DiskDevice, PartitionDevice, LUKSDevice, \
-    BTRFSVolumeDevice, MDRaidArrayDevice, LVMVolumeGroupDevice
+    BTRFSVolumeDevice, MDRaidArrayDevice, LVMVolumeGroupDevice, BTRFSDevice
 from blivet.formats import get_format
 from blivet.formats.fs import FS
 from blivet.size import Size
@@ -749,3 +749,24 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
 
         self.assertEqual(self.interface.IsDeviceEditable("dev1"), False)
         self.assertEqual(self.interface.IsDeviceEditable("dev2"), True)
+
+    def rename_container_test(self):
+        """Test RenameContainer."""
+        dev1 = DiskDevice(
+            "dev1",
+            fmt=get_format("disklabel"),
+            size=Size("10 GiB")
+        )
+        dev2 = BTRFSDevice(
+            "dev2",
+            fmt=get_format("btrfs"),
+            size=Size("5 GiB"),
+            parents=[dev1]
+        )
+
+        self._add_device(dev1)
+        self._add_device(dev2)
+
+        self.interface.RenameContainer("dev2", "mycontainer")
+        self.assertEqual(dev2.name, "mycontainer")
+        self.assertEqual(dev2.format.label, "mycontainer")
