@@ -806,6 +806,18 @@ def generate_container_configuration(storage, request: DeviceFactoryRequest):
         request.container_name = storage.suggest_container_name()
 
 
+def generate_new_container_configuration(storage, request: DeviceFactoryRequest):
+    """Generate the container configuration for the device factory request.
+
+    :param storage: an instance of Blivet
+    :param request: a device factory request
+    """
+    request.container_name = storage.suggest_container_name()
+    request.container_raid_level = ""
+    request.container_encrypted = False
+    request.container_size_policy = devicefactory.SIZE_POLICY_AUTO
+
+
 def generate_device_factory_permissions(storage, request: DeviceFactoryRequest):
     """Generate permissions for the requested device.
 
