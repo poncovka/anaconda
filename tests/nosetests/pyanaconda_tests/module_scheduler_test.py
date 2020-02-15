@@ -990,3 +990,26 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
         self.assertEqual(request.container_raid_level, "")
         self.assertEqual(request.container_size_policy, Size("1.5 GiB").get_bytes())
         self.assertEqual(request.disks, [])
+
+    def get_names_test(self):
+        """Test GetNames."""
+        pv1 = StorageDevice(
+            "pv1",
+            size=Size("1025 MiB"),
+            fmt=get_format("lvmpv")
+        )
+        pv2 = StorageDevice(
+            "pv2",
+            size=Size("513 MiB"),
+            fmt=get_format("lvmpv")
+        )
+        vg = LVMVolumeGroupDevice(
+            "testvg",
+            parents=[pv1, pv2]
+        )
+
+        self._add_device(pv1)
+        self._add_device(pv2)
+        self._add_device(vg)
+
+        self.assertEqual(self.interface.GetNames(), ["pv1", "pv2", "testvg"])
