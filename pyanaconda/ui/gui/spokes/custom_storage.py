@@ -36,7 +36,7 @@ from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
 
 from pyanaconda.modules.storage.partitioning.interactive.utils import \
-    load_container_configuration, generate_container_configuration
+    update_container_configuration, generate_container_configuration
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -525,13 +525,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     ###
     ### RIGHT HAND SIDE METHODS
     ###
-    def _update_selectors(self):
-        """ Update all btrfs selectors' size properties. """
-        # we're only updating selectors in the new root. problem?
-        page = self._accordion.find_page_by_title(self._os_name)
-        for selector in page.members:
-            self._update_selector(selector)
-
     def _save_right_side(self, selector):
         """ Save settings from RHS and apply changes to the device.
 
@@ -1188,6 +1181,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _run_container_editor(self, container=None, name=None, new_container=False):
         """ Run container edit dialog and return True if changes were made. """
+        container = self._storage_playground.devicetree.get_device_by_name(container)
+
         size = Size(0)
         size_policy = self._request.container_size_policy
         if container:
@@ -1256,12 +1251,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         return [container_name, description, free_space_text]
 
     def on_modify_container_clicked(self, button):
+        # Get the selected container name.
         container_name = self._containerStore[self._containerCombo.get_active()][0]
-        container = self._storage_playground.devicetree.get_device_by_name(container_name)
 
         # pass the name along with any found vg since we could be modifying a
         # vg that hasn't been instantiated yet
-        if not self.run_container_editor(container=container, name=container_name):
+        if not self._run_container_editor(container=container_name, name=container_name):
             return
 
         if container_name == self._request.container_name:
@@ -1269,7 +1264,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             return
 
         # Rename the container.
-        if container:
+        if container_name in self._device_tree.GetDevices():
             try:
                 self._device_tree.RenameContainer(
                     container_name,
@@ -1280,9 +1275,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 self._request.container_name = container_name
                 self.on_update_settings_clicked(None)
                 return
-
-        # Update permissions.
-        self._update_permissions()
 
         # Update the UI.
         idx = None
@@ -1304,11 +1296,13 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             )
             self._containerStore.remove(next_idx)
 
-            self._modifyContainerButton.set_sensitive(
-                self._permissions.can_modify_container()
-            )
+        # Update permissions.
+        self._update_permissions()
 
-        self._update_selectors()
+        # Enable widgets.
+        self._modifyContainerButton.set_sensitive(self._permissions.can_modify_container())
+
+        # Save the right side.
         self.on_update_settings_clicked(None)
 
     def on_container_changed(self, combo):
@@ -1332,7 +1326,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             name = self._storage_playground.suggest_container_name()
 
             # user_changed_container flips to False if "cancel" picked
-            user_changed_container = self.run_container_editor(name=name, new_container=True)
+            user_changed_container = self._run_container_editor(name=name, new_container=True)
 
             for idx, data in enumerate(self._containerStore):
                 if user_changed_container and data[0] == "":
@@ -1344,16 +1338,20 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                     combo.set_active(idx)  # triggers a call to this method
                     return
 
+        # Update the container configuration.
+        # FIXME: The container name should be always set.
         container_name = self._request.container_name
         container = storage.devicetree.get_device_by_name(
             self._request.container_name
         )
 
-        load_container_configuration(self._request, container)
+        update_container_configuration(self._request, container)
         self._request.container_name = container_name
 
+        # Update permissions.
         self._update_permissions()
 
+        # Update UI.
         self._modifyContainerButton.set_sensitive(self._permissions.can_modify_container())
         self.on_value_changed()
 
