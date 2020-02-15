@@ -321,17 +321,21 @@ def validate_mount_point(path, mount_points):
     return None
 
 
-def validate_container_name(storage, name):
+def validate_container_name(storage, container_name, device_names):
     """Validate the given container name.
 
     :param storage: an instance of Blivet
-    :param name: a container name
+    :param container_name: a container name to check
+    :param device_names: a list of used device names
     :return: an error message or None
     """
-    safe_name = storage.safe_device_name(name)
+    safe_name = storage.safe_device_name(container_name)
 
-    if name != safe_name:
+    if container_name != safe_name:
         return _("Invalid container name.")
+
+    if container_name in device_names:
+        return _("Name is already in use.")
 
     return None
 
