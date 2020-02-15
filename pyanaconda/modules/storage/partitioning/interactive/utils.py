@@ -774,24 +774,6 @@ def generate_device_factory_request(storage, device) -> DeviceFactoryRequest:
     return request
 
 
-def update_container_configuration(request: DeviceFactoryRequest, container):
-    """Update the container configuration in the device factory request.
-
-    :param container: a container to use
-    :param request: a device factory request
-    """
-    if container:
-        request.container_name = container.name
-        request.container_encrypted = container.encrypted
-        request.container_raid_level = get_device_raid_level_name(container)
-        request.container_size_policy = get_container_size_policy(container)
-    else:
-        request.container_name = ""
-        request.container_raid_level = ""
-        request.container_encrypted = False
-        request.container_size_policy = devicefactory.SIZE_POLICY_AUTO
-
-
 def generate_container_data(storage, request: DeviceFactoryRequest):
     """Generate the container data for the device factory request.
 
@@ -818,6 +800,30 @@ def generate_container_data(storage, request: DeviceFactoryRequest):
     else:
         # Set the request from a new container.
         request.container_name = storage.suggest_container_name()
+
+
+def update_container_data(storage, request: DeviceFactoryRequest, container_name):
+    """Update the container data in the device factory request.
+
+    :param storage: an instance of Blivet
+    :param request: a device factory request
+    :param container_name: a container name to apply
+    """
+    # Find the container in the device tree if any.
+    container = storage.devicetree.get_device_by_name(container_name)
+
+    # Reset all container data.
+    request.reset_container_data()
+
+    if container:
+        # Set the request from the found container.
+        request.container_name = container.name
+        request.container_encrypted = container.encrypted
+        request.container_raid_level = get_device_raid_level_name(container)
+        request.container_size_policy = get_container_size_policy(container)
+    else:
+        # Set the request from the new container.
+        request.container_name = container_name
 
 
 def generate_device_factory_permissions(storage, request: DeviceFactoryRequest):
