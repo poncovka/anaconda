@@ -764,7 +764,12 @@ def generate_device_factory_request(storage, device) -> DeviceFactoryRequest:
         device=device.raw_device
     )
     container = factory.get_container()
-    update_container_configuration(request, container)
+
+    if container:
+        request.container_name = container.name
+        request.container_encrypted = container.encrypted
+        request.container_raid_level = get_device_raid_level_name(container)
+        request.container_size_policy = get_container_size_policy(container)
 
     return request
 
