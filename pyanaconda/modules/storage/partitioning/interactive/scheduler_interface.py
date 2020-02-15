@@ -163,6 +163,13 @@ class DeviceTreeSchedulerInterface(DeviceTreeInterface):
         self.implementation.update_container_data(request, container_name)
         return DeviceFactoryRequest.to_structure(request)
 
+    def GetNames(self) -> List[Str]:
+        """Get all known device names.
+
+        :return: a list of device names
+        """
+        return self.implementation.get_names()
+
     def GetPartitioned(self) -> List[Str]:
         """Get all partitioned devices in the device tree.
 
