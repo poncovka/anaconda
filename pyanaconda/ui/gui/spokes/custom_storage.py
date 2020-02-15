@@ -1245,13 +1245,14 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         return True
 
     def _get_container_store_row(self, container_name):
-        name = container_name
-        free_space = getattr(container, "free_space", None)
+        description = container_name
+        free_space_text = ""
 
-        if free_space is not None:
-            return [name, name, _("(%s free)") % free_space]
-        else:
-            return [name, name, ""]
+        if container_name in self._device_tree.GetDevices():
+            free_space = self._device_tree.GetContainerFreeSpace(container_name)
+            free_space_text = _("({} free)").format(Size(free_space))
+
+        return [container_name, description, free_space_text]
 
     def on_modify_container_clicked(self, button):
         container_name = self._containerStore[self._containerCombo.get_active()][0]
@@ -1279,6 +1280,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 self.on_update_settings_clicked(None)
                 return
 
+        # Update permissions.
+        self._update_permissions()
+
         # Update the UI.
         idx = None
 
@@ -1288,19 +1292,19 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 break
 
         if idx:
-            container = self._storage_playground.devicetree.get_device_by_name(
+            row = self._get_container_store_row(
                 self._request.container_name
             )
-
-            row = self._get_container_store_row(container)
             self._containerStore.insert(idx, row)
             self._containerCombo.set_active(idx)
 
-            next_idx = self._containerStore.get_iter_from_string("%s" % (idx + 1))
+            next_idx = self._containerStore.get_iter_from_string(
+                "%s" % (idx + 1)
+            )
             self._containerStore.remove(next_idx)
 
             self._modifyContainerButton.set_sensitive(
-                not getattr(container, "exists", False)
+                self._permissions.can_modify_container()
             )
 
         self._update_selectors()
@@ -1331,20 +1335,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
             for idx, data in enumerate(self._containerStore):
                 if user_changed_container and data[0] == "":
-                    container = self._storage_playground.devicetree.get_device_by_name(
-                        self._request.container_name
-                    )
-
-                    if container:
-                        row = self._get_container_store_row(container)
-                    else:
-                        row = [self._request.container_name, ""]
-
+                    row = self._get_container_store_row(self._request.container_name)
                     self._containerStore.insert(idx, row)
                     combo.set_active(idx)  # triggers a call to this method
                     return
                 elif not user_changed_container and data[0] == self._request.container_name:
-                    combo.set_active(idx)
+                    combo.set_active(idx)  # triggers a call to this method
                     return
 
         load_container_configuration(self._storage_playground, self._request)
@@ -1589,16 +1585,15 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._containerLabel.set_use_underline(True)
         self._containerStore.clear()
 
-        containers = self._device_tree.CollectContainers(device_type)
         default_seen = False
 
-        for c in containers:
-            row = self._get_container_store_row(c)
+        for i, name in enumerate(self._device_tree.CollectContainers(device_type)):
+            row = self._get_container_store_row(name)
             self._containerStore.append(row)
 
-            if default_container_name and c.name == default_container_name:
+            if default_container_name and name == default_container_name:
                 default_seen = True
-                self._containerCombo.set_active(containers.index(c))
+                self._containerCombo.set_active(i)
 
         if default_container_name is None:
             default_container_name = self._storage_playground.suggest_container_name()
