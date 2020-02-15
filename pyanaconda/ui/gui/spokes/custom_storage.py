@@ -35,9 +35,6 @@ from dasbus.client.proxy import get_object_path
 from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
 
-from pyanaconda.modules.storage.partitioning.interactive.utils import \
-    update_container_configuration, generate_container_configuration
-
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
     SIZE_UNITS_DEFAULT, DEFAULT_AUTOPART_TYPE, PARTITIONING_METHOD_INTERACTIVE
@@ -1171,20 +1168,23 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._populate_raid(get_selected_raid_level(self._raidLevelCombo))
         self.on_value_changed()
 
-    def _run_container_editor(self, container_name=None, new_container=False):
+    def _run_container_editor(self, container_name=None):
         """ Run container edit dialog and return True if changes were made. """
-        # Generate the request.
-        request = copy.deepcopy(self._request)
-        request.reset_container_data()
+        # Do we create a new container?
+        new_container = not container_name
 
-        if new_container:
-            # run the vg editor dialog with a default name and disk set
-            request.container_name = self._device_tree.GenerateContainerName()
-        else:
-            _container = self._storage_playground.devicetree.get_device_by_name(container_name)
-            update_container_configuration(self._storage_playground, request, container)
+        # Generate a new container name if necessary.
+        container_name = container_name or self._device_tree.GenerateContainerName()
 
-        # Generate the permissions.
+        # Generate a new request.
+        request = DeviceFactoryRequest.from_structure(
+            self._device_tree.UpdateContainerData(
+                DeviceFactoryRequest.to_structure(self._request),
+                container_name
+            )
+        )
+
+        # Generate new permissions.
         permissions = self._get_permissions(request)
 
         # Run the dialog.
@@ -1201,7 +1201,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             dialog.window.destroy()
 
         if rc != 1:
-            return
+            return False
 
         # Validate the disks.
         if not request.disks:
@@ -1320,19 +1320,15 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         if container_name:
             # an already existing container is picked
-            self._request.container_name = container_name
-
-            # Update the container configuration.
-            # FIXME: The container name should be always set.
-            container_name = self._request.container_name
-            container = storage.devicetree.get_device_by_name(
-                self._request.container_name
+            self._request = DeviceFactoryRequest.from_structure(
+                self._device_tree.UpdateContainerData(
+                    DeviceFactoryRequest.to_structure(self._request),
+                    container_name
+                )
             )
-
-            update_container_configuration(self._request, container)
         else:
             # user_changed_container flips to False if "cancel" picked
-            user_changed_container = self._run_container_editor(new_container=True)
+            user_changed_container = self._run_container_editor()
 
             for idx, data in enumerate(self._containerStore):
                 if user_changed_container and data[0] == "":
@@ -1716,7 +1712,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._populate_raid(get_default_raid_level(new_type))
 
         # Generate a new container configuration for the new type.
-        generate_container_configuration(self._storage_playground, self._request)
+        self._request = DeviceFactoryRequest.from_structure(
+            self._device_tree.GenerateContainerData(
+                DeviceFactoryRequest.to_structure(self._request)
+            )
+        )
+
         self._populate_container()
 
         # Set up the device name.
