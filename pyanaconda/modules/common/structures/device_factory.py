@@ -432,7 +432,7 @@ class DeviceFactoryPermissions(DBusData):
         self._container_size_policy = permission
 
     @property
-    def container_raid_level(self):
+    def container_raid_level(self) -> Bool:
         """Can the container RAID level be changed?
 
         :return: True or False

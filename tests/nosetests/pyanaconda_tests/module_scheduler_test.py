@@ -487,8 +487,11 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
             'device-encrypted': True,
             'device-raid-level': False,
             'disks': False,
-            'container': False,
-            'container-configuration': False,
+            'container-name': False,
+            'container-size-policy': False,
+            'container-encrypted': False,
+            'container-raid-level': False,
+            'container-replacement': False,
         })
 
         request = self.interface.GenerateDeviceFactoryRequest("dev2")
@@ -504,8 +507,11 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
             'device-encrypted': True,
             'device-raid-level': True,
             'disks': True,
-            'container': False,
-            'container-configuration': False,
+            'container-name': False,
+            'container-size-policy': False,
+            'container-encrypted': False,
+            'container-raid-level': False,
+            'container-replacement': False,
         })
 
         dev2.protected = True
@@ -542,8 +548,11 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
             'device-encrypted': False,
             'device-raid-level': True,
             'disks': False,
-            'container': False,
-            'container-configuration': True,
+            'container-name': True,
+            'container-size-policy': True,
+            'container-encrypted': True,
+            'container-raid-level': True,
+            'container-replacement': False,
         })
 
     @patch_dbus_publish_object

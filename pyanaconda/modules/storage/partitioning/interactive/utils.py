@@ -855,14 +855,20 @@ def generate_device_factory_permissions(storage, request: DeviceFactoryRequest):
         not device.exists \
         and request.device_type not in CONTAINER_DEVICE_TYPES
 
-    permissions.container = \
+    can_change_container = \
+        request.device_type in CONTAINER_DEVICE_TYPES \
+        and not getattr(container, "exists", False)
+
+    can_replace_container = \
         request.device_type in CONTAINER_DEVICE_TYPES \
         and not device.raw_device.exists \
         and device.raw_device != container
 
-    permissions.container_configuration = \
-        request.device_type in CONTAINER_DEVICE_TYPES \
-        and not getattr(container, "exists", False)
+    permissions.container_name = can_change_container
+    permissions.container_encrypted = can_change_container
+    permissions.container_raid_level = can_change_container
+    permissions.container_size_policy = can_change_container
+    permissions.container_replacement = can_replace_container
 
     return permissions
 
