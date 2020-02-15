@@ -348,6 +348,9 @@ def validate_container_name(storage, name):
     if name != safe_name:
         return _("Invalid container name.")
 
+    if name in storage.names:
+        return _("Name is already in use.")
+
     return None
 
 
