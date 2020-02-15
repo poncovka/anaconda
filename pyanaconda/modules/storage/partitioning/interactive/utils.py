@@ -787,22 +787,31 @@ def update_container_configuration(request: DeviceFactoryRequest, container):
         request.container_size_policy = devicefactory.SIZE_POLICY_AUTO
 
 
-def generate_container_configuration(storage, request: DeviceFactoryRequest):
-    """Generate the container configuration for the device factory request.
+def generate_container_data(storage, request: DeviceFactoryRequest):
+    """Generate the container data for the device factory request.
 
     :param storage: an instance of Blivet
     :param request: a device factory request
     """
+    # Reset all container data.
+    request.reset_container_data()
+
+    # Check the device type.
+    if request.device_type not in CONTAINER_DEVICE_TYPES:
+        return
+
+    # Find a container of the requested type.
     device = storage.devicetree.resolve_device(request.device_spec)
-    is_container_type = request.device_type in CONTAINER_DEVICE_TYPES
-    container = None
+    container = get_container(storage, request.device_type, device.raw_device)
 
-    if is_container_type:
-        container = get_container(storage, request.device_type, device.raw_device)
-
-    update_container_configuration(request, container)
-
-    if is_container_type and not container:
+    if container:
+        # Set the request from the found container.
+        request.container_name = container.name
+        request.container_encrypted = container.encrypted
+        request.container_raid_level = get_device_raid_level_name(container)
+        request.container_size_policy = get_container_size_policy(container)
+    else:
+        # Set the request from a new container.
         request.container_name = storage.suggest_container_name()
 
 
