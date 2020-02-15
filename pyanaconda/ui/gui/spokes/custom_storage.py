@@ -36,8 +36,7 @@ from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
 
 from pyanaconda.modules.storage.partitioning.interactive.utils import \
-    update_container_configuration, generate_container_configuration, \
-    generate_new_container_configuration
+    update_container_configuration, generate_container_configuration
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -260,9 +259,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         )
 
     def _update_permissions(self):
-        self._permissions = DeviceFactoryPermissions.from_structure(
+        self._permissions = self._get_permissions(self._request)
+
+    def _get_permissions(self, request):
+        return DeviceFactoryPermissions.from_structure(
             self._device_tree.GenerateDeviceFactoryPermissions(
-                DeviceFactoryRequest.to_structure(self._request)
+                DeviceFactoryRequest.to_structure(request)
             )
         )
 
@@ -1173,16 +1175,17 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         """ Run container edit dialog and return True if changes were made. """
         # Generate the request.
         request = copy.deepcopy(self._request)
+        request.reset_container_data()
 
         if new_container:
             # run the vg editor dialog with a default name and disk set
-            generate_new_container_configuration(self._storage_playground, request)
+            request.container_name = self._device_tree.GenerateContainerName()
         else:
             _container = self._storage_playground.devicetree.get_device_by_name(container_name)
             update_container_configuration(self._storage_playground, request, container)
 
         # Generate the permissions.
-        permissions = generate_oermissions(request)
+        permissions = self._get_permissions(request)
 
         # Run the dialog.
         dialog = ContainerDialog(
@@ -1318,6 +1321,15 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if container_name:
             # an already existing container is picked
             self._request.container_name = container_name
+
+            # Update the container configuration.
+            # FIXME: The container name should be always set.
+            container_name = self._request.container_name
+            container = storage.devicetree.get_device_by_name(
+                self._request.container_name
+            )
+
+            update_container_configuration(self._request, container)
         else:
             # user_changed_container flips to False if "cancel" picked
             user_changed_container = self._run_container_editor(new_container=True)
@@ -1331,16 +1343,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                 elif not user_changed_container and data[0] == self._request.container_name:
                     combo.set_active(idx)  # triggers a call to this method
                     return
-
-        # Update the container configuration.
-        # FIXME: The container name should be always set.
-        container_name = self._request.container_name
-        container = storage.devicetree.get_device_by_name(
-            self._request.container_name
-        )
-
-        update_container_configuration(self._request, container)
-        self._request.container_name = container_name
 
         # Update permissions.
         self._update_permissions()
