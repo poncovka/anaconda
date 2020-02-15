@@ -27,7 +27,7 @@
 # - Activating reformat should always enable resize for existing devices.
 import copy
 
-from blivet.devicefactory import DEVICE_TYPE_BTRFS, SIZE_POLICY_AUTO, DEVICE_TYPE_MD
+from blivet.devicefactory import DEVICE_TYPE_BTRFS, DEVICE_TYPE_MD
 from blivet.errors import StorageError
 from blivet.size import Size
 
@@ -36,7 +36,8 @@ from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
 
 from pyanaconda.modules.storage.partitioning.interactive.utils import \
-    update_container_configuration, generate_container_configuration
+    update_container_configuration, generate_container_configuration, \
+    generate_new_container_configuration
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -1168,39 +1169,28 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._populate_raid(get_selected_raid_level(self._raidLevelCombo))
         self.on_value_changed()
 
-    def _container_encryption_change(self, old_encrypted, new_encrypted):
-        if not old_encrypted and new_encrypted:
-            # container set to be encrypted, we should make sure the leaf device
-            # is not encrypted and make the encryption checkbox insensitive
-            self._encryptCheckbox.set_active(False)
-            fancy_set_sensitive(self._encryptCheckbox, False)
-        elif old_encrypted and not new_encrypted:
-            fancy_set_sensitive(self._encryptCheckbox, True)
-
-        self.on_encrypt_toggled(self._encryptCheckbox)
-
-    def _run_container_editor(self, container=None, name=None, new_container=False):
+    def _run_container_editor(self, container_name=None, new_container=False):
         """ Run container edit dialog and return True if changes were made. """
-        container = self._storage_playground.devicetree.get_device_by_name(container)
+        # Generate the request.
+        request = copy.deepcopy(self._request)
 
-        size = Size(0)
-        size_policy = self._request.container_size_policy
-        if container:
-            container_name = container.name
-            size = container.size
-            size_policy = container.size_policy
-        elif name:
-            container_name = name
-            if name != self._request.container_name:
-                # creating a new container -- switch to the default
-                size_policy = SIZE_POLICY_AUTO
+        if new_container:
+            # run the vg editor dialog with a default name and disk set
+            generate_new_container_configuration(self._storage_playground, request)
+        else:
+            _container = self._storage_playground.devicetree.get_device_by_name(container_name)
+            update_container_configuration(self._storage_playground, request, container)
 
+        # Generate the permissions.
+        permissions = generate_oermissions(request)
+
+        # Run the dialog.
         dialog = ContainerDialog(
             self.data,
             self._device_tree,
             disks=self._selected_disks,
-            request=self._request,
-            permissions=self._permissions
+            request=request,
+            permissions=permissions
         )
 
         with self.main_window.enlightbox(dialog.window):
@@ -1210,32 +1200,39 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if rc != 1:
             return
 
-        disks = dialog.selected
-        name = dialog.name
-
-        if not disks:
+        # Validate the disks.
+        if not request.disks:
             self._error = _("No disks selected. Not saving changes.")
             self.set_info(self._error)
             log.error("No disks selected. Not saving changes.")
-            return
+            return False
 
-        if (name != container_name and name in self._storage_playground.names or
-                name in self._get_container_names() and new_container):
+        # Validate the name.
+        if (request.container_name != self._request.container_name and request.container_name in
+                self._storage_playground.names) or (new_container and request.container_name in
+                                                    self._get_container_names()):
             self._error = _("Volume Group name %s is already in use. Not "
-                            "saving changes.") % name
+                            "saving changes.") % request.container_name
             self.set_info(self._error)
-            log.error("Volume group name %s already in use.", name)
-            return
+            log.error("Volume group name %s already in use.", request.container_name)
+            return False
 
-        if dialog.encrypted:
-            self._container_encryption_change(self._request.container_encrypted,
-                                              dialog.encrypted)
-        self._request.disks = disks
-        self._request.container_name = name
-        self._request.container_raid_level = dialog.raid_level
-        self._request.container_encrypted = dialog.encrypted
-        self._request.container_size_policy = dialog.size_policy
+        # Set the request.
+        encryption_changed = self._request.container_encrypted != request.container_encrypted
+        self._request = request
+        self._update_permissions()
 
+        # Update device encryption.
+        if encryption_changed:
+            # container set to be encrypted, we should make sure the leaf device
+            # is not encrypted and make the encryption checkbox insensitive
+            if request.container_encrypted:
+                self._encryptCheckbox.set_active(False)
+
+            fancy_set_sensitive(self._encryptCheckbox, self._permissions.device_encrypted)
+            self.on_encrypt_toggled(self._encryptCheckbox)
+
+        # Update the UI.
         self._set_devices_label()
         self.on_value_changed()
         return True
@@ -1256,7 +1253,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         # pass the name along with any found vg since we could be modifying a
         # vg that hasn't been instantiated yet
-        if not self._run_container_editor(container=container_name, name=container_name):
+        if not self._run_container_editor(container_name):
             return
 
         if container_name == self._request.container_name:
@@ -1322,11 +1319,8 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             # an already existing container is picked
             self._request.container_name = container_name
         else:
-            # run the vg editor dialog with a default name and disk set
-            name = self._storage_playground.suggest_container_name()
-
             # user_changed_container flips to False if "cancel" picked
-            user_changed_container = self._run_container_editor(name=name, new_container=True)
+            user_changed_container = self._run_container_editor(new_container=True)
 
             for idx, data in enumerate(self._containerStore):
                 if user_changed_container and data[0] == "":
