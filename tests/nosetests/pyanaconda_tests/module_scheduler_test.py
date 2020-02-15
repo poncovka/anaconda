@@ -314,10 +314,13 @@ class DeviceTreeSchedulerTestCase(unittest.TestCase):
 
     def validate_container_name_test(self):
         """Test ValidateContainerName."""
-        report = self.interface.ValidateContainerName("_my/contain$er")
+        report = self.interface.ValidateContainerName("_my/contain$er", [])
         self._check_report(report, "Invalid container name.")
 
-        report = self.interface.ValidateContainerName("my_container")
+        report = self.interface.ValidateContainerName("my_container", ["my_container"])
+        self._check_report(report, "Name is already in use.")
+
+        report = self.interface.ValidateContainerName("my_container", [])
         self._check_report(report, None)
 
     def validate_raid_level_test(self):

@@ -281,14 +281,18 @@ class DeviceTreeSchedulerInterface(DeviceTreeInterface):
             self.implementation.validate_raid_level(raid_level, num_members)
         )
 
-    def ValidateContainerName(self, name: Str) -> Structure:
+    def ValidateContainerName(self, container_name: Str, device_names: List[Str]) -> Structure:
         """Validate the given container name.
 
-        :param name: a container name
+        :param container_name: a container name to check
+        :param device_names: a list of used device names
         :return: a validation report
         """
         return ValidationReport.to_structure(
-            self.implementation.validate_container_name(name)
+            self.implementation.validate_container_name(
+                container_name,
+                device_names
+            )
         )
 
     def ValidateDeviceFactoryRequest(self, request: Structure) -> Structure:

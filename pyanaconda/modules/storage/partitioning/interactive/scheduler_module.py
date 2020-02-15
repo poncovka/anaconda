@@ -301,14 +301,19 @@ class DeviceTreeSchedulerModule(DeviceTreeModule):
 
         return report
 
-    def validate_container_name(self, name):
+    def validate_container_name(self, container_name, device_names):
         """Validate the given container name.
 
-        :param name: a container name
+        :param container_name: a container name to check
+        :param device_names: a list of used device names
         :return: a validation report
         """
         report = ValidationReport()
-        error = utils.validate_container_name(self.storage, name)
+        error = utils.validate_container_name(
+            self.storage,
+            container_name,
+            device_names
+        )
 
         if error:
             report.error_messages.append(error)
