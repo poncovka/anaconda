@@ -35,7 +35,8 @@ from dasbus.client.proxy import get_object_path
 from dasbus.structure import compare_data
 from dasbus.typing import unwrap_variant
 
-from pyanaconda.modules.storage.partitioning.interactive.utils import get_container, load_container_configuration
+from pyanaconda.modules.storage.partitioning.interactive.utils import \
+    load_container_configuration, generate_container_configuration
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import THREAD_EXECUTE_STORAGE, THREAD_STORAGE, \
@@ -1343,7 +1344,14 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                     combo.set_active(idx)  # triggers a call to this method
                     return
 
-        load_container_configuration(self._storage_playground, self._request)
+        container_name = self._request.container_name
+        container = storage.devicetree.get_device_by_name(
+            self._request.container_name
+        )
+
+        load_container_configuration(self._request, container)
+        self._request.container_name = container_name
+
         self._update_permissions()
 
         self._modifyContainerButton.set_sensitive(self._permissions.can_modify_container())
@@ -1564,65 +1572,59 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         """ Set up the vg widgets for lvm or hide them for other types. """
         device_type = self._get_current_device_type()
 
+        container_widgets = [
+            self._containerLabel,
+            self._containerCombo,
+            self._modifyContainerButton
+        ]
+
+        # Hide all container widgets and quit.
         if device_type not in CONTAINER_DEVICE_TYPES:
-            # just hide the buttons with no meaning for non-container devices
-            for widget in [self._containerLabel,
-                           self._containerCombo,
-                           self._modifyContainerButton]:
+            for widget in container_widgets:
                 really_hide(widget)
             return
 
-        # else really populate the container
-        # set up the vg widgets and then bail out
-        container = get_container(self._storage_playground, device_type, device.raw_device)
-        default_container_name = getattr(container, "name", None)
-        container_size_policy = getattr(container, "size_policy", SIZE_POLICY_AUTO)
-        container_type = get_container_type(device_type)
+        # Collect the containers.
+        container_name = self._request.container_name
+        containers = self._device_tree.CollectContainers(device_type)
 
-        self._containerLabel.set_text(
-            C_("GUI|Custom Partitioning|Configure|Devices", container_type.label).title()
-        )
-        self._containerLabel.set_use_underline(True)
+        if container_name and container_name not in containers:
+            containers.append(container_name)
+
+        # Add all containers to the store.
         self._containerStore.clear()
 
-        default_seen = False
-
-        for i, name in enumerate(self._device_tree.CollectContainers(device_type)):
+        for i, name in enumerate(containers):
             row = self._get_container_store_row(name)
             self._containerStore.append(row)
 
-            if default_container_name and name == default_container_name:
-                default_seen = True
+            if name == container_name:
                 self._containerCombo.set_active(i)
 
-        if default_container_name is None:
-            default_container_name = self._storage_playground.suggest_container_name()
-
-        self._request.container_name = default_container_name
-        self._request.container_size_policy = container_size_policy
-
-        if not default_seen:
-            self._containerStore.append([default_container_name, default_container_name, ""])
-            self._containerCombo.set_active(len(self._containerStore) - 1)
-
+        # Add an item for creating a new container.
+        container_type = get_container_type(device_type)
         container_type_name = _(container_type.name).lower()
+        description = _(NEW_CONTAINER_TEXT) % {"container_type": container_type_name}
+        self._containerStore.append(["", description, ""])
 
-        self._containerStore.append([
-            "", _(NEW_CONTAINER_TEXT) % {"container_type": container_type_name}, ""
-        ])
-        self._containerCombo.set_tooltip_text(
-            _(CONTAINER_TOOLTIP) % {"container_type": container_type_name}
-        )
+        # Set up the tooltip.
+        tooltip = _(CONTAINER_TOOLTIP) % {"container_type": container_type_name}
+        self._containerCombo.set_tooltip_text(tooltip)
 
-        if default_container_name is None:
+        if not container_name:
             self._containerCombo.set_active(len(self._containerStore) - 1)
 
-        for widget in [self._containerLabel,
-                       self._containerCombo,
-                       self._modifyContainerButton]:
+        # Set up the label.
+        label = C_("GUI|Custom Partitioning|Configure|Devices", container_type.label).title()
+        self._containerLabel.set_text(label)
+        self._containerLabel.set_use_underline(True)
+
+        # Show all container widgets.
+        for widget in container_widgets:
             really_show(widget)
 
-        # make the combo and button insensitive for existing LVs
+        # Enable container widgets.
+        # Make the combo and button insensitive for existing LVs
         fancy_set_sensitive(self._containerCombo, self._permissions.can_replace_container())
         self._modifyContainerButton.set_sensitive(self._permissions.can_modify_container())
 
@@ -1719,13 +1721,18 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._raidStoreFilter.refilter()
         self._populate_raid(get_default_raid_level(new_type))
 
+        # Generate a new container configuration for the new type.
+        generate_container_configuration(self._storage_playground, self._request)
         self._populate_container()
 
+        # Set up the device name.
         fancy_set_sensitive(self._nameEntry, self._permissions.device_name)
         self._nameEntry.set_text(self._get_device_name(new_type))
 
+        # Set up the device size.
         fancy_set_sensitive(self._sizeEntry, self._permissions.device_size)
 
+        # Set up the file system type.
         self._update_fstype_combo(new_type)
         self.on_value_changed()
 
