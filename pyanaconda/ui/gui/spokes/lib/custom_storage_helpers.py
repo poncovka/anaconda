@@ -472,13 +472,14 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
     # If the user enters a smaller size, the GUI changes it to this value
     MIN_SIZE_ENTRY = Size("1 MiB")
 
-    def __init__(self, data, device_tree, disks, request: DeviceFactoryRequest,
-                 permissions: DeviceFactoryPermissions):
+    def __init__(self, data, device_tree, request: DeviceFactoryRequest,
+                 permissions: DeviceFactoryPermissions, disks, invalid_names):
         GUIObject.__init__(self, data)
         self._device_tree = device_tree
         self._disks = disks
         self._request = request
         self._permissions = permissions
+        self._invalid_names = invalid_names
         self._error = ""
 
         self._title_label = self.builder.get_object("container_dialog_title_label")
@@ -597,7 +598,10 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
     def _check_name_entry(self, inputcheck):
         container_name = self.get_input(inputcheck.input_obj).strip()
         report = ValidationReport.from_structure(
-            self._device_tree.ValidateContainerName(container_name)
+            self._device_tree.ValidateContainerName(
+                container_name,
+                self._invalid_names
+            )
         )
 
         if not report.is_valid():
@@ -655,6 +659,9 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
         if not self._permissions.can_modify_container():
             return
 
+        if not self._validate_disks():
+            return
+
         if not self._validate_raid_level():
             return
 
@@ -664,6 +671,15 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
         self._request.container_size_policy = self._get_size_policy()
         self._request.container_raid_level = get_selected_raid_level(self._raidLevelCombo)
         self._error_label.set_text("")
+
+    def _validate_disks(self):
+        if not self._get_disks():
+            self._error = _("No disks selected.")
+            self._error_label.set_text(self._error)
+            self.window.show_all()
+            return False
+
+        return True
 
     def _validate_raid_level(self):
         raid_level = get_selected_raid_level(self._raidLevelCombo)
