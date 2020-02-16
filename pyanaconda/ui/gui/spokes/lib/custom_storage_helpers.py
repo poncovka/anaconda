@@ -152,18 +152,6 @@ def get_default_raid_level(device_type):
     return ""
 
 
-def get_default_container_raid_level(device_type):
-    """ Returns the default RAID level for this device type's container type.
-
-    :param int device_type: an int representing the device_type
-    :return str: the default RAID level for this device type's container or an empty string
-    """
-    if device_type == DEVICE_TYPE_BTRFS:
-        return "single"
-
-    return ""
-
-
 def get_supported_device_raid_levels(device_tree, device_type):
     """Get RAID levels supported for the given device type.
 
@@ -565,8 +553,7 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
                 really_hide(widget)
             return
 
-        raid_level = self._request.container_raid_level or \
-            get_default_container_raid_level(self._request.device_type)
+        raid_level = self._request.container_raid_level
 
         for (i, row) in enumerate(self._raidLevelCombo.get_model()):
             if row[1] == raid_level:
