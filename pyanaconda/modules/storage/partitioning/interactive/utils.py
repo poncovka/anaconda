@@ -804,6 +804,7 @@ def generate_container_data(storage, request: DeviceFactoryRequest):
     else:
         # Set the request from a new container.
         request.container_name = storage.suggest_container_name()
+        request.container_raid_level = get_default_container_raid_level(request.device_type)
 
 
 def update_container_data(storage, request: DeviceFactoryRequest, container_name):
@@ -825,9 +826,13 @@ def update_container_data(storage, request: DeviceFactoryRequest, container_name
         request.container_encrypted = container.encrypted
         request.container_raid_level = get_device_raid_level_name(container)
         request.container_size_policy = get_container_size_policy(container)
+
+        # Use the container's disks.
+        request.disks = [d.name for d in container.disks]
     else:
         # Set the request from the new container.
         request.container_name = container_name
+        request.container_raid_level = get_default_container_raid_level(request.device_type)
 
 
 def generate_device_factory_permissions(storage, request: DeviceFactoryRequest):
@@ -1110,3 +1115,15 @@ def check_device_completeness(device):
 
     return _("This %(type)s device is missing member devices. You can remove "
              "it or select a different device.") % {"type": device.type}
+
+
+def get_default_container_raid_level(device_type):
+    """Returns the default RAID level for this device type's container type.
+
+    :param int device_type: a device_type
+    :return str: a name of the default RAID level or an empty string
+    """
+    if device_type == devicefactory.DEVICE_TYPE_BTRFS:
+        return "single"
+
+    return ""
