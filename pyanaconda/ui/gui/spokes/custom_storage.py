@@ -320,10 +320,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._update_space_display()
         self._applyButton.set_sensitive(False)
 
-    def _get_container_names(self):
-        for data in self._containerStore:
-            yield data[0]
-
     def _get_file_system_type(self):
         itr = self._fsCombo.get_active_iter()
         if not itr:
@@ -1170,8 +1166,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _run_container_editor(self, container_name=None):
         """ Run container edit dialog and return True if changes were made. """
-        # Do we create a new container?
-        new_container = not container_name
+        # Get a set of invalid container names.
+        invalid_names = set(self._get_container_names())
+        invalid_names.union(self._device_tree.GetNames())
+        invalid_names.discard(container_name)
 
         # Generate a new container name if necessary.
         container_name = container_name or self._device_tree.GenerateContainerName()
@@ -1191,9 +1189,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         dialog = ContainerDialog(
             self.data,
             self._device_tree,
-            disks=self._selected_disks,
             request=request,
-            permissions=permissions
+            permissions=permissions,
+            disks=self._selected_disks,
+            invalid_names=invalid_names
         )
 
         with self.main_window.enlightbox(dialog.window):
@@ -1203,25 +1202,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if rc != 1:
             return False
 
-        # Validate the disks.
-        if not request.disks:
-            self._error = _("No disks selected. Not saving changes.")
-            self.set_info(self._error)
-            log.error("No disks selected. Not saving changes.")
-            return False
-
-        # Validate the name.
-        if (request.container_name != self._request.container_name and request.container_name in
-                self._storage_playground.names) or (new_container and request.container_name in
-                                                    self._get_container_names()):
-            self._error = _("Volume Group name %s is already in use. Not "
-                            "saving changes.") % request.container_name
-            self.set_info(self._error)
-            log.error("Volume group name %s already in use.", request.container_name)
-            return False
+        # Has the encryption changed?
+        encryption_changed = self._request.container_encrypted != request.container_encrypted
 
         # Set the request.
-        encryption_changed = self._request.container_encrypted != request.container_encrypted
         self._request = request
         self._update_permissions()
 
@@ -1239,6 +1223,10 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._set_devices_label()
         self.on_value_changed()
         return True
+
+    def _get_container_names(self):
+        for data in self._containerStore:
+            yield data[0]
 
     def _get_container_store_row(self, container_name):
         description = container_name
