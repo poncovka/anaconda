@@ -16,10 +16,8 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from pyanaconda.modules.common.structures.storage import DeviceActionData, DeviceData, \
-    DeviceFormatData
+from pyanaconda.modules.common.structures.storage import DeviceActionData
 from pyanaconda.ui.gui import GUIObject
-from pyanaconda.core.i18n import _
 
 __all__ = ["ActionSummaryDialog"]
 
@@ -45,56 +43,16 @@ class ActionSummaryDialog(GUIObject):
             self._add_action(action)
 
     def _add_action(self, action: DeviceActionData):
-        # Get the device data.
-        device_data = DeviceData.from_structure(
-            self._device_tree.GetDeviceData(action.device_name)
-        )
-
-        format_data = DeviceFormatData.from_structure(
-            self._device_tree.GetFormatData(action.device_name)
-        )
-
-        # Get the object description and the mount point.
-        if action.object_type == "format":
-            object_description = format_data.description
-            mount_point = format_data.attrs.get("mount-point", "")
-        else:
-            object_description = device_data.type
-            mount_point = ""
-
         # Get the action description.
         if action.action_type in ["destroy", "resize"]:
             action_color = "red"
-            mount_point = ""
         else:
             action_color = "green"
 
         action_description = "<span foreground='{color}'>{action}</span>".format(
             color=action_color,
-            action=action.description
+            action=action.action_description
         )
-
-        # Get the device description and the serial number.
-        if device_data.description:
-            serial = device_data.attrs.get("serial", "")
-            device_description = _("{description} ({device_name})").format(
-                desciption=device_data.description,
-                device_name=device_data.name
-            )
-        elif device_data.type == "partition":
-            disk_name = device_data.parents[0]
-            disk_data = DeviceData.from_structure(
-                self._device_tree.GetDeviceData(disk_name)
-            )
-
-            serial = disk_data.attrs.get("serial", "")
-            device_description = _("{partition_name} on {disk_name}").format(
-                partition_name=device_data.name,
-                disk_name=disk_data.description
-            )
-        else:
-            serial = device_data.attrs.get("serial", "")
-            device_description = device_data.name
 
         # Get the action order.
         index = self._index
@@ -104,10 +62,10 @@ class ActionSummaryDialog(GUIObject):
         self._store.append([
             index,
             action_description,
-            object_description,
-            device_description,
-            mount_point,
-            serial
+            action.object_description,
+            action.device_description,
+            action.attrs.get("mount-point", ""),
+            action.attrs.get("serial", "")
         ])
 
     @property
