@@ -596,7 +596,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         raid_level = model[itr][1]
         return raid_level in self._supported_raid_levels
 
-    def _populate_raid(self, raid_level):
+    def _populate_raid(self, raid_level=""):
         """Set up the raid-specific portion of the device details.
 
         :param str raid_level: RAID level name or an empty string
@@ -610,13 +610,17 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         raid_level = raid_level or get_default_raid_level(device_type)
 
         # Set a default RAID level in the combo.
+        index = self._raidLevelCombo.get_active()
+
         for (i, row) in enumerate(self._raidLevelCombo.get_model()):
             if row[1] == raid_level:
-                self._raidLevelCombo.set_active(i)
+                index = i
                 break
 
         for widget in [self._raidLevelLabel, self._raidLevelCombo]:
             really_show(widget)
+
+        self._raidLevelCombo.set_active(index)
 
     def _populate_luks(self, luks_version):
         """Set up the LUKS version combo box.
@@ -1704,7 +1708,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         # the raid level combo to contain the relevant raid levels for the new
         # device type
         self._raidStoreFilter.refilter()
-        self._populate_raid(get_default_raid_level(new_type))
+        self._populate_raid()
 
         # Generate a new container configuration for the new type.
         self._request = DeviceFactoryRequest.from_structure(
