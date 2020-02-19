@@ -742,7 +742,12 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
         return rc
 
-    def _check_space_and_get_dialog(self, disks):
+    def _check_space_and_run_dialog(self, disks):
+        # User wants to reclaim the space.
+        if self._reclaim_checkbox.get_active():
+            return RESPONSE_RECLAIM
+
+        # Calculate the required and free space.
         disk_free = Size(self._device_tree.GetDiskFreeSpace(disks))
         fs_free = Size(self._device_tree.GetDiskReclaimableSpace(disks))
         disks_size = Size(self._device_tree.GetDiskTotalSpace(disks))
@@ -756,17 +761,19 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # It is not an ideal estimate, but it works.
         required_space = sw_space + auto_swap + STORAGE_METADATA_RATIO * disk_free
 
+        # There is enough space to continue.
         if disk_free >= required_space:
-            dialog = None
-        elif disks_size >= required_space - auto_swap:
+            return RESPONSE_OK
+
+        # Ask user what to do.
+        if disks_size >= required_space - auto_swap:
             dialog = NeedSpaceDialog(self.data, payload=self.payload)
             dialog.refresh(required_space, sw_space, auto_swap, disk_free, fs_free)
         else:
             dialog = NoSpaceDialog(self.data, payload=self.payload)
             dialog.refresh(required_space, sw_space, auto_swap, disk_free, fs_free)
 
-        # the 'dialog' variable is always set by the if statement above
-        return dialog
+        return self.run_lightbox_dialog(dialog)
 
     def on_back_clicked(self, button):
         if self._back_clicked:
@@ -923,18 +930,10 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         )
 
         # Reclaim space.
-        reclaim_space = self._reclaim_checkbox.get_active()
         disks = filter_disks_by_names(self._available_disks, self._selected_disks)
-        rc = None
+        rc = self._check_space_and_run_dialog(disks)
 
-        if not reclaim_space:
-            dialog = self._check_space_and_get_dialog(disks)
-            rc = self.run_lightbox_dialog(dialog)
-
-            if rc == RESPONSE_RECLAIM:
-                reclaim_space = True
-
-        if reclaim_space:
+        if rc == RESPONSE_RECLAIM:
             dialog = ResizeDialog(self.data, self.payload, self._partitioning, disks)
             dialog.refresh()
             rc = self.run_lightbox_dialog(dialog)
