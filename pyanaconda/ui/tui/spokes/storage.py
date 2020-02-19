@@ -160,8 +160,9 @@ class StorageSpoke(NormalTUISpoke):
 
         return summary
 
-    def refresh(self, args=None):
-        super().refresh(args)
+    def setup(self, args=None):
+        """Set up the spoke right before it is used."""
+        super().setup(args)
 
         # Join the initialization thread to block on it
         # This print is foul.  Need a better message display
@@ -173,6 +174,13 @@ class StorageSpoke(NormalTUISpoke):
 
         # Get the available selected disks.
         self._selected_disks = filter_disks_by_names(self._available_disks, self._selected_disks)
+
+        return True
+
+    def refresh(self, args=None):
+        """Prepare the content of the screen."""
+        super().refresh(args)
+        threadMgr.wait(THREAD_STORAGE_WATCHER)
 
         # Get the available partitioning.
         object_path = self._storage_module.CreatedPartitioning[-1]
