@@ -77,7 +77,7 @@ class DasdFormatting(object):
 
     def search_disks(self, disk_names):
         """Search for a list of disks for DASDs to format."""
-        self._dasds = self._dasd_module.FindUnformatted(disk_names)
+        self._dasds = self._dasd_module.FindFormattable(disk_names)
 
     def should_run(self):
         """Should we run the formatting?"""
