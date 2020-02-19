@@ -292,21 +292,13 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self._configure_partitioning_methods()
 
     def _configure_partitioning_methods(self):
-        self._auto_part_radio_button.connect("toggled", self._method_radio_button_toggled)
-
         if "CustomPartitioningSpoke" in conf.ui.hidden_spokes:
             self._custom_part_radio_button.set_visible(False)
             self._custom_part_radio_button.set_no_show_all(True)
-            self._custom_part_radio_button.connect("toggled", self._method_radio_button_toggled)
 
-        if "BlivetGuiSpoke" in conf.ui.hidden_spokes:
+        if "BlivetGuiSpoke" in conf.ui.hidden_spokes or not conf.ui.blivet_gui_supported:
             self._blivet_gui_radio_button.set_visible(False)
             self._blivet_gui_radio_button.set_no_show_all(True)
-            self._blivet_gui_radio_button.connect("toggled", self._method_radio_button_toggled)
-
-        if not conf.ui.blivet_gui_supported:
-            log.info("Blivet-GUI is not supported.")
-            self._part_type_box.remove(self._blivet_gui_radio_button)
 
     def _get_selected_partitioning_method(self):
         """Get the selected partitioning method.
@@ -322,10 +314,10 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
 
         return PARTITIONING_METHOD_AUTOMATIC
 
-    def _method_radio_button_toggled(self, radio_button):
+    def on_method_toggled(self, radio_button):
         """Triggered when one of the partitioning method radio buttons is toggled."""
-        # Run only for an active radio button.
-        if not radio_button.get_active():
+        # Run only for a visible active radio button.
+        if not radio_button.get_visible() or not radio_button.get_active():
             return
 
         # Get the selected patitioning method.
@@ -338,9 +330,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         self._encryption_revealer.set_reveal_child(
             current_partitioning_method == PARTITIONING_METHOD_AUTOMATIC
         )
-
-        if current_partitioning_method != PARTITIONING_METHOD_AUTOMATIC:
-            self._encrypted_checkbox.set_active(False)
 
         # Hide the reclaim space checkbox if automatic storage configuration is not used.
         self._reclaim_revealer.set_reveal_child(
@@ -977,18 +966,6 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         # catch-all.  Just stay on this spoke.
         self._back_clicked = False
         return
-
-    def on_custom_toggled(self, button):
-        # The custom button won't be active until after this handler is run,
-        # so we have to negate everything here.
-        self._reclaim_checkbox.set_sensitive(not button.get_active())
-
-        if self._reclaim_checkbox.get_sensitive():
-            self._reclaim_checkbox.set_has_tooltip(False)
-        else:
-            self._reclaim_checkbox.set_tooltip_text(
-                _("You'll be able to make space available during custom partitioning.")
-            )
 
     def on_specialized_clicked(self, button):
         # Don't want to run apply or execute in this case, since we have to
