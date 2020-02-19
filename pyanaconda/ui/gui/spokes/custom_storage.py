@@ -1821,7 +1821,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
     def on_unlock_clicked(self, *args):
         """ try to open the luks device, populate, then call _do_refresh. """
         self.clear_errors()
-        device_name = self._accordion.current_selector.device
+        device_name = self._accordion.current_selector.device_name
         passphrase = self._passphraseEntry.get_text()
 
         log.info("Trying to unlock device %s.", device_name)
