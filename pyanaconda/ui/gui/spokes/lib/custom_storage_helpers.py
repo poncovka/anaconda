@@ -572,7 +572,7 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
 
     @property
     def _supported_raid_levels(self):
-        return get_supported_device_raid_levels(
+        return get_supported_container_raid_levels(
             self._device_tree, self._request.device_type
         )
 
