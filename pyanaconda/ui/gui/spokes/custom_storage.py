@@ -316,7 +316,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         # Update the UI elements.
         self._do_refresh()
-        self._update_space_display()
         self._applyButton.set_sensitive(False)
 
     def _get_file_system_type(self):
@@ -516,6 +515,9 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self._applyButton.set_sensitive(False)
         self._resetButton.set_sensitive(bool(self._device_tree.GetActions()))
+
+        # Set up the free space/available space labels.
+        self._update_space_display()
 
     ###
     ### RIGHT HAND SIDE METHODS
@@ -995,8 +997,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         else:
             self._do_refresh(mountpoint_to_show=dialog.mount_point)
 
-        self._update_space_display()
-
     def _show_mountpoint(self, page, mountpoint=None):
         if not self._initialized:
             return
@@ -1038,6 +1038,11 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         if not self._accordion.is_current_selected and not self._accordion.is_multiselection:
             return
 
+        # No items are selected.
+        if not self._accordion.selected_items:
+            return
+
+        # Remove selected items.
         self.clear_errors()
 
         try:
@@ -1046,9 +1051,18 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             log.error("The device removal has failed: %s", e)
             self.set_detailed_warning(_("Device removal request failed."), e)
 
+        # Now that devices have been removed from the installation root,
+        # refreshing the display will have the effect of making them disappear.
+        # It's like they never existed.
+        task_path = self._device_tree.FindExistingSystemsWithTask()
+        task_proxy = STORAGE.get_proxy(task_path)
+        sync_run_task(task_proxy)
+
+        # Refresh UI.
+        self._do_refresh()
+
     def _remove_selected_devices(self):
         option_checked = False
-        part_removed = False
         is_multiselection = self._accordion.is_multiselection
         protected_types = platform.boot_stage1_constraint_dict["format_types"]
 
@@ -1104,18 +1118,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
                         continue
 
                     self._device_tree.DestroyDevice(other_name)
-
-            part_removed = True
-
-        # Now that devices have been removed from the installation root,
-        # refreshing the display will have the effect of making them disappear.
-        # It's like they never existed.
-        if part_removed:
-            task_path = self._device_tree.FindExistingSystemsWithTask()
-            task_proxy = STORAGE.get_proxy(task_path)
-            sync_run_task(task_proxy)
-            self._update_space_display()
-            self._do_refresh()
 
     def _find_unshared_devices(self, page):
         """Get unshared devices of the page."""
@@ -1442,7 +1444,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         # Refresh the spoke to make the new partitions appear.
         self._do_refresh()
-        self._update_space_display()
 
     def on_reformat_toggled(self, widget):
         reformat = widget.get_active()
