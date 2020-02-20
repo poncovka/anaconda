@@ -119,6 +119,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         self._selected_disks = []
         self._passphrase = ""
         self._os_name = ""
+        self._supported_raid_levels = {}
 
         self._partitioning = None
         self._device_tree = None
@@ -247,12 +248,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _get_all_devices(self):
         return self._device_tree.GetDevices()
-
-    @property
-    def _supported_raid_levels(self):
-        return get_supported_device_raid_levels(
-            self._device_tree, self._get_current_device_type()
-        )
 
     def _update_permissions(self):
         self._permissions = self._get_permissions(self._request)
@@ -601,6 +596,12 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         :param str raid_level: RAID level name or an empty string
         """
+        self._supported_raid_levels = get_supported_device_raid_levels(
+            self._device_tree, self._get_current_device_type()
+        )
+
+        self._raidStoreFilter.refilter()
+
         if not self._supported_raid_levels:
             for widget in [self._raidLevelLabel, self._raidLevelCombo]:
                 really_hide(widget)
@@ -1707,7 +1708,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         # this has to be done before calling populate_raid since it will need
         # the raid level combo to contain the relevant raid levels for the new
         # device type
-        self._raidStoreFilter.refilter()
         self._populate_raid()
 
         # Generate a new container configuration for the new type.
