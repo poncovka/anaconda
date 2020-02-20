@@ -710,15 +710,16 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
     def _get_device_name(self, device_type):
         """Update the dictionary of device names."""
-        if device_type == self._request.device_type:
-            return self._request.device_name
-        elif device_type in NAMED_DEVICE_TYPES:
+        if device_type == self._original_request.device_type:
+            return self._original_request.device_name
+
+        if device_type in NAMED_DEVICE_TYPES:
             return self._device_tree.GenerateDeviceName(
                 self._request.mount_point,
                 self._request.format_type
             )
-        else:
-            return ""
+
+        return ""
 
     def _set_devices_label(self):
         disks = self._request.disks
@@ -764,7 +765,6 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
 
         self._set_devices_label()
 
-        self._nameEntry.set_text(self._request.device_name)
         self._mountPointEntry.set_text(self._request.mount_point)
         fancy_set_sensitive(self._mountPointEntry, self._permissions.mount_point)
 
