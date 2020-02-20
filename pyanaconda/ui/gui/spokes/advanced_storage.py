@@ -20,6 +20,7 @@ from collections import namedtuple
 
 from blivet.size import Size
 
+from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import CN_, CP_
 from pyanaconda.modules.common.structures.storage import DeviceData
@@ -42,6 +43,8 @@ from pyanaconda.ui.categories.system import SystemCategory
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
+
+log = get_module_logger(__name__)
 
 __all__ = ["FilterSpoke"]
 
@@ -207,6 +210,8 @@ class FilterPage(object):
         if not self.is_member(row.type):
             return False
 
+        log.debug("Filter %s with %s.", row.name, str(self))
+
         filter_by = self._combo.get_active_id()
         if filter_by == self.SEARCH_TYPE_NONE:
             return True
@@ -216,6 +221,10 @@ class FilterPage(object):
     def _filter_func(self, filter_by, row):
         """Filter a row by the specified filter."""
         return True
+
+    def __str__(self):
+        """Get the name of the filter."""
+        return self.__class__.__name__
 
 
 class SearchPage(FilterPage):
@@ -469,7 +478,7 @@ class NvdimmPage(FilterPage):
             return self._mode_combo.get_active_text() == row.mode
 
         if filter_by == self.SEARCH_TYPE_NAMESPACE:
-            return self._namespace_entry.get_text().strip() == row.namespace
+            return self._namespace_entry.get_text().strip() in row.namespace
 
         return False
 
@@ -635,18 +644,23 @@ class FilterSpoke(NormalSpoke):
             dialog.refresh()
             dialog.run()
 
-    @timed_action(delay=1200, busy_cursor=False)
-    def on_filter_changed(self, *args):
-        n = self._notebook.get_current_page()
-        self._pages[n].is_active = True
-        self._pages[n].model.refilter()
-
     def on_clear_icon_clicked(self, entry, icon_pos, event):
         if icon_pos == Gtk.EntryIconPosition.SECONDARY:
             entry.set_text("")
 
     def on_page_switched(self, notebook, new_page, new_page_num, *args):
-        self._pages[new_page_num].model.refilter()
+        # Disable all filters.
+        for page in self._pages.values():
+            page.is_active = False
+
+        # Set up the new page.
+        page = self._pages[new_page_num]
+        page.is_active = True
+        page.model.refilter()
+
+        log.debug("Show the page %s.", str(page))
+
+        # Set up the UI.
         notebook.get_nth_page(new_page_num).show_all()
         self._reconfigure_nvdimm_button.set_sensitive(new_page_num == 3)
 
@@ -669,26 +683,32 @@ class FilterSpoke(NormalSpoke):
 
     @timed_action(delay=50, threshold=100)
     def on_refresh_clicked(self, widget, *args):
+        log.debug("Refreshing...")
         try_populate_devicetree()
         self.refresh()
 
     def on_add_iscsi_clicked(self, widget, *args):
+        log.debug("Add a new iSCSI device.")
         dialog = ISCSIDialog(self.data)
         self._run_dialog_and_refresh(dialog)
 
     def on_add_fcoe_clicked(self, widget, *args):
+        log.debug("Add a new FCoE device.")
         dialog = FCoEDialog(self.data)
         self._run_dialog_and_refresh(dialog)
 
     def on_add_zfcp_clicked(self, widget, *args):
+        log.debug("Add a new zFCP device.")
         dialog = ZFCPDialog(self.data)
         self._run_dialog_and_refresh(dialog)
 
     def on_add_dasd_clicked(self, widget, *args):
+        log.debug("Add a new DASD device.")
         dialog = DASDDialog(self.data)
         self._run_dialog_and_refresh(dialog)
 
     def on_reconfigure_nvdimm_clicked(self, widget, *args):
+        log.debug("Reconfigure a NVDIMM device.")
         namespaces = self._pages[PAGE_NVDIMM].get_selected_namespaces()
         dialog = NVDIMMDialog(self.data, namespaces)
         self._run_dialog_and_refresh(dialog)
@@ -703,22 +723,36 @@ class FilterSpoke(NormalSpoke):
         # storage are displayed in the UI.
         self.refresh()
 
+    @timed_action(delay=1200, busy_cursor=False)
+    def on_filter_changed(self, *args):
+        self._refilter_current_page()
+
     def on_search_type_changed(self, combo):
         self._set_notebook_page("searchTypeNotebook", combo.get_active())
+        self._refilter_current_page()
 
     def on_multipath_type_changed(self, combo):
         self._set_notebook_page("multipathTypeNotebook", combo.get_active())
+        self._refilter_current_page()
 
     def on_other_type_combo_changed(self, combo):
         self._set_notebook_page("otherTypeNotebook", combo.get_active())
+        self._refilter_current_page()
 
     def on_nvdimm_type_combo_changed(self, combo):
         self._set_notebook_page("nvdimmTypeNotebook", combo.get_active())
+        self._refilter_current_page()
 
     def on_z_type_combo_changed(self, combo):
         self._set_notebook_page("zTypeNotebook", combo.get_active())
+        self._refilter_current_page()
 
     def _set_notebook_page(self, notebook_name, page_index):
         notebook = self.builder.get_object(notebook_name)
         notebook.set_current_page(page_index)
-        self.on_filter_changed()
+        self._refilter_current_page()
+
+    def _refilter_current_page(self):
+        index = self._notebook.get_current_page()
+        page = self._pages[index]
+        page.model.refilter()
