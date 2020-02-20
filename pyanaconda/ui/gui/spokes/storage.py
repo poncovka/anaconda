@@ -353,8 +353,10 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
                 self._check_problems()
 
     def apply(self):
-        self._disk_init_module.SetInitializeLabelsEnabled(True)
         self._disk_init_module.SetInitializationMode(CLEAR_PARTITIONS_NONE)
+        self._disk_init_module.SetInitializeLabelsEnabled(True)
+        self._disk_init_module.SetFormatUnrecognizedEnabled(True)
+        self._disk_init_module.SetFormatLDLEnabled(True)
         apply_disk_selection(self._selected_disks, reset_boot_drive=True)
 
     @async_action_nowait
