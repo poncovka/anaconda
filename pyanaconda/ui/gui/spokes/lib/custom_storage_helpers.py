@@ -487,6 +487,10 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
 
         GUIDialogInputCheckHandler.__init__(self, self._save_button)
 
+        self._supported_raid_levels = get_supported_container_raid_levels(
+            self._device_tree, self._request.device_type
+        )
+
         self._set_labels()
         self._populate_disks()
         self._select_disks()
@@ -569,12 +573,6 @@ class ContainerDialog(GUIObject, GUIDialogInputCheckHandler):
     def _raid_level_visible(self, model, itr, user_data):
         raid_level = model[itr][1]
         return raid_level in self._supported_raid_levels
-
-    @property
-    def _supported_raid_levels(self):
-        return get_supported_container_raid_levels(
-            self._device_tree, self._request.device_type
-        )
 
     def _set_name(self):
         self._name_entry.set_text(self._request.container_name)
