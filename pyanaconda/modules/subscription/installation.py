@@ -165,6 +165,7 @@ class SubscriptionTaskInterface(TaskInterface):
     @property
     def Error(self) -> Str:
         """Contains description of an error."""
+        # Raise DBus errors instead.
         return self.implementation.error
 
 

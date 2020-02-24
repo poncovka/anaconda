@@ -33,31 +33,43 @@ class SubscriptionInterface(KickstartModuleInterface):
 
     def connect_signals(self):
         super().connect_signals()
+        # State of the module.
+        self.watch_property("IsSubscriptionAttached", self.implementation.subscription_attached_changed)
+        self.watch_property("AttachedSubscriptions",self.implementation.attached_subscriptions_changed)
+        self.watch_property("IsSystemPurposeApplied",self.implementation.is_system_purpose_applied_changed)
+
+        # Hints for the installation.
+        self.watch_property("InsightsEnabled", self.implementation.connect_to_insights_changed)
+
+        # System purpose - can be one structure.
+        # class SystemPurposeData(DBusData)
         self.watch_property("Role", self.implementation.role_changed)
         self.watch_property("SLA", self.implementation.sla_changed)
         self.watch_property("Usage", self.implementation.usage_changed)
         self.watch_property("Addons", self.implementation.addons_changed)
-        self.watch_property("IsSubscriptionAttached", self.implementation.subscription_attached_changed)
+        self.watch_property("IsSystemPurposeSet", self.implementation.is_system_purpose_set_changed)
+
+        # Subscription - another structure
+        # class SubscriptionRequest(DBusData)
+        # property Type - type of the activation method (password or the activation key)
         self.watch_property("Organization", self.implementation.organization_changed)
-        self.watch_property("IsActivationKeySet", self.implementation.activation_keys_changed)
         self.watch_property("AccountUsername", self.implementation.red_hat_account_username_changed)
-        self.watch_property("IsAccountPasswordSet", self.implementation.red_hat_account_password_changed)
         self.watch_property("ServerHostname", self.implementation.server_hostname_changed)
         self.watch_property("RHSMBaseurl", self.implementation.rhsm_baseurl_changed)
-        self.watch_property("InsightsEnabled", self.implementation.connect_to_insights_changed)
         self.watch_property("ServerProxyHostname", self.implementation.server_proxy_configuration_changed)
         self.watch_property("ServerProxyPort", self.implementation.server_proxy_configuration_changed)
         self.watch_property("ServerProxyUser", self.implementation.server_proxy_configuration_changed)
         self.watch_property("ServerProxyPasswordSet", self.implementation.server_proxy_configuration_changed)
-        self.watch_property("AttachedSubscriptions", self.implementation.attached_subscriptions_changed)
+        # Private data:
+        # property ActivationKey - will be set only by UI
+        # property AccountPassword - will be set only by UI
+        self.watch_property("IsActivationKeySet", self.implementation.activation_keys_changed)
+        self.watch_property("IsAccountPasswordSet", self.implementation.red_hat_account_password_changed)
 
-        # the SystemPurposeWillBeSet property depends on the value of
-        # all other system purpose properties
-        self.watch_property("IsSystemPurposeSet", self.implementation.is_system_purpose_set_changed)
-        self.watch_property("IsSystemPurposeApplied", self.implementation.is_system_purpose_applied_changed)
+        #def ValidateRequest(request: SubscriptionRequest) -> ValidationReport
+        #def ApplyRequest -> validation_request -> raise Error
 
     # system purpose
-
     @property
     def ValidRoles(self) -> List[Str]:
         """Return all valid roles."""
@@ -344,7 +356,12 @@ class SubscriptionInterface(KickstartModuleInterface):
         """
         self.implementation.set_connect_to_insights(connect_to_insights)
 
-    def RegisterWithTask(self) -> ObjPath:
+    @property
+    def Request(self):
+        """The request."""
+        return SubscriptionRequest.to_structure(self.implementation.request)
+
+    def RegisterWithTask(self, request: SubscriptionRequest) -> ObjPath:
         """Register with an installation task.
 
         :return: a DBus path of an installation task

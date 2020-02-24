@@ -26,6 +26,7 @@ from pyanaconda.core.i18n import _
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
 
+# DBus structure - SubscriptionReport
 class SubscriptionData(object):
     """A class for parsing and holding state of a subscribed system."""
 
@@ -116,6 +117,7 @@ class SubscriptionData(object):
         self._sla = syspurpose_json.get("service_level_agreement", self.SYSPURPOSE_DEFAULT_VALUE)
         self._usage = syspurpose_json.get("usage", self.SYSPURPOSE_DEFAULT_VALUE)
 
+# DBus structure AttachedSubscriptionData
 class AttachedSubscription(object):
     """A class for parsing and holding data for a single attached subscription."""
 
