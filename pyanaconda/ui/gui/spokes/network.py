@@ -1463,6 +1463,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
         # if installation media or hdd aren't used and settings have changed
         # try if source is available
         if self.networking_changed:
+            # FIXME: Call a DBus method instead.
             if self.payload and self.payload.needs_network:
                 if ANACONDA_ENVIRON in anaconda_flags.environs:
                     log.debug("network spoke (apply), network configuration changed - restarting payload thread")
@@ -1489,6 +1490,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
     def mandatory(self):
         # the network spoke should be mandatory only if it is running
         # during the installation and if the installation source requires network
+        # FIXME: Call a DBus method instead.
         return ANACONDA_ENVIRON in anaconda_flags.environs and self.payload.needs_network
 
     @property
@@ -1614,6 +1616,7 @@ class NetworkStandaloneSpoke(StandaloneSpoke):
 
         self._now_available = self.completed
 
+        # FIXME: Use the DBus methods instead.
         log.debug("network standalone spoke (apply) payload: %s completed: %s", self.payload.base_repo, self._now_available)
         if (not self.payload.base_repo and not self._initially_available
             and self._now_available and self.payload.needs_network):

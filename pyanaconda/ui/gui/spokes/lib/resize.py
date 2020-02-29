@@ -76,6 +76,7 @@ class ResizeDialog(GUIObject):
         )
 
         # Get the required device size.
+        # FIXME: Call a DBus method instead.
         required_space = payload.space_required.get_bytes()
         required_size = self._device_tree.GetRequiredDeviceSize(required_space)
 

@@ -54,6 +54,7 @@ class FileSystemSpaceChecker(object):
 
     def _calculate_needed_space(self):
         """Calculate the needed space."""
+        # FIXME: Call a DBus method instead.
         return self.payload.space_required
 
     def _calculate_deficit(self, needed):

@@ -81,6 +81,7 @@ class Anaconda(object):
     def payload(self):
         # Try to find the payload class.  First try the install
         # class.  If it doesn't give us one, fall back to the default.
+        # FIXME: Create the correct payload in the Payloads module instead.
         if not self._payload:
             if self.ksdata.ostreesetup.seen:
                 if FlatpakPayload.is_available():

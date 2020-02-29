@@ -52,6 +52,7 @@ def exitHandler(rebootData):
         anaconda.dbus_inhibit_id = None
 
     # Unsetup the payload, which most usefully unmounts live images
+    # FIXME: Call TeardownWithTasks of the Paylod module.
     if anaconda.payload:
         anaconda.payload.unsetup()
 
@@ -525,12 +526,14 @@ if __name__ == "__main__":
             util.setenv("ftp_proxy", proxy.url)
             util.setenv("HTTPS_PROXY", proxy.url)
 
+    # FIXME: Can we just remove these lines?
     if not conf.payload.verify_ssl and hasattr(ksdata.method, "noverifyssl"):
         ksdata.method.noverifyssl = not conf.payload.verify_ssl
     if opts.multiLib:
         # sets dnf's multilib_policy to "all" (as opposed to "best")
         ksdata.packages.multiLib = opts.multiLib
 
+    # FIXME: Create the right payload in the Payloads module.
     # set ksdata.method based on anaconda.method if it isn't already set
     # - anaconda.method is currently set by command line/boot options
     if anaconda.methodstr and not ksdata.method.seen:

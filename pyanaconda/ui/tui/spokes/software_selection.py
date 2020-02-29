@@ -39,7 +39,7 @@ log = get_module_logger(__name__)
 
 __all__ = ["SoftwareSpoke"]
 
-
+# FIXME: Rewrite the spoke.
 class SoftwareSpoke(NormalTUISpoke):
     """ Spoke used to read new value of text to represent source repo.
 
@@ -148,6 +148,7 @@ class SoftwareSpoke(NormalTUISpoke):
 
     @property
     def showable(self):
+        # FIXME: Use the DBus property instead.
         return isinstance(self.payload, PackagePayload)
 
     @property

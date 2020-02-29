@@ -140,6 +140,8 @@ def _prepare_configuration(payload, ksdata):
 
     # Initramfs generation
     generate_initramfs = TaskQueue("Initramfs generation", N_("Generating initramfs"))
+
+    # FIXME: Call the DBus task GenerateInitramfsWithTask instead.
     generate_initramfs.append(Task("Generate initramfs", payload.recreate_initrds))
 
     # This works around 2 problems, /boot on BTRFS and BTRFS installations where the initrd is
@@ -147,7 +149,9 @@ def _prepare_configuration(payload, ksdata):
     # been created, fixing the kernel root and subvol args and adding the missing initrd entry.
     bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
 
+    # FIXME: Check the type from the DBus module instead.
     if isinstance(payload, LiveImagePayload):
+        # FIXME: Get the kernel version list from the DBus module.
         btrfs_task = bootloader_proxy.FixBTRFSWithTask(payload.kernel_version_list)
         generate_initramfs.append_dbus_tasks(STORAGE, [btrfs_task])
 
@@ -248,6 +252,7 @@ def _prepare_installation(payload, ksdata):
     early_storage = TaskQueue("Early storage configuration", N_("Configuring storage"))
     early_storage.append_dbus_tasks(STORAGE, storage_proxy.InstallWithTasks())
 
+    # FIXME: Call a DBus method instead.
     if payload.needs_storage_configuration:
         conf_task = storage_proxy.WriteConfigurationWithTask()
         early_storage.append_dbus_tasks(STORAGE, [conf_task])
@@ -286,6 +291,7 @@ def _prepare_installation(payload, ksdata):
         # anaconda requires storage packages in order to make sure the target
         # system is bootable and configurable, and some other packages in order
         # to finish setting up the system.
+        # FIXME: Collect the requirements in the Paylod module instead.
         if kernel_arguments.is_enabled("fips"):
             payload.requirements.add_packages(['/usr/bin/fips-mode-setup'], reason="compliance")
 
@@ -302,16 +308,19 @@ def _prepare_installation(payload, ksdata):
             log.debug("Adding requirements for module %s : %s", module, module_requirements)
             payload.requirements.add_requirements(module_requirements)
 
+        # FIXME: Call the DBus task instead.
         payload.pre_install()
 
     pre_install.append(Task("Find additional packages & run pre_install()", run_pre_install))
     installation_queue.append(pre_install)
 
     payload_install = TaskQueue("Payload installation", N_("Installing."))
+    # FIXME: Call the DBus task instead.
     payload_install.append(Task("Install the payload", payload.install))
     installation_queue.append(payload_install)
 
     # for some payloads storage is configured after the payload is installed
+    # FIXME: Call the DBus method instead.
     if not payload.needs_storage_configuration:
         late_storage = TaskQueue("Late storage configuration", N_("Configuring storage"))
         conf_task = storage_proxy.WriteConfigurationWithTask()
@@ -322,6 +331,7 @@ def _prepare_installation(payload, ksdata):
     bootloader_proxy = STORAGE.get_proxy(BOOTLOADER)
     bootloader_install = TaskQueue("Bootloader installation", N_("Installing boot loader"))
 
+    # FIXME: Call the DBus method instead.
     if not payload.handles_bootloader_configuration:
         boot_task = bootloader_proxy.ConfigureWithTask(payload.kernel_version_list)
         bootloader_install.append_dbus_tasks(STORAGE, [boot_task])
@@ -330,6 +340,7 @@ def _prepare_installation(payload, ksdata):
     installation_queue.append(bootloader_install)
 
     post_install = TaskQueue("Post-installation setup tasks", (N_("Performing post-installation setup tasks")))
+    # FIXME: Call the DBus task instead.
     post_install.append(Task("Run post-installation setup tasks", payload.post_install))
     installation_queue.append(post_install)
 

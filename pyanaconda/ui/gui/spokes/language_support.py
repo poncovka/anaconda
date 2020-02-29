@@ -130,6 +130,7 @@ class LangsupportSpoke(LangLocaleHandler, NormalSpoke):
     @property
     def showable(self):
         # don't show the language support spoke on live media and in single language mode
+        # FIXME: Check the DBus property.
         return not isinstance(self.payload, LiveImagePayload) and not flags.singlelang
 
     @property

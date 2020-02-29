@@ -390,7 +390,7 @@ class IsoChooser(GUIObject):
         if not d.startswith(constants.ISO_DIR):
             chooser.set_current_folder(constants.ISO_DIR)
 
-
+# FIXME: Rewrite the spoke.
 class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
     """
        .. inheritance-diagram:: SourceSpoke
@@ -1085,6 +1085,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
 
     @property
     def showable(self):
+        # FIXME: Check a DBus property instead.
         return isinstance(self.payload, PackagePayload)
 
     def _mirror_active(self):

@@ -50,7 +50,7 @@ log = get_module_logger(__name__)
 
 __all__ = ["SourceSpoke"]
 
-
+# FIXME: Rewrite the spoke.
 class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
     """ Spoke used to customize the install source repo.
 
@@ -126,6 +126,7 @@ class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
 
     @property
     def showable(self):
+        # FIXME: Use the DBus property instead.
         return isinstance(self.payload, PackagePayload)
 
     @property

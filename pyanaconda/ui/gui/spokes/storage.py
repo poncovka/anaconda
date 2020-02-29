@@ -102,6 +102,7 @@ class InstallOptionsDialogBase(GUIObject):
     def _get_sw_needs_text(self, required_space, sw_space, auto_swap):
         tooltip = _("Please wait... software metadata still loading.")
 
+        # FIXME: Check a DBus property instead.
         if isinstance(self.payload, LiveImagePayload):
             sw_text = (_("Your current <b>%(product)s</b> software "
                          "selection requires <b>%(total)s</b> of available "
@@ -129,6 +130,7 @@ class InstallOptionsDialogBase(GUIObject):
         return (not threadMgr.get(constants.THREAD_PAYLOAD) and
                 not threadMgr.get(constants.THREAD_SOFTWARE_WATCHER) and
                 not threadMgr.get(constants.THREAD_CHECK_SOFTWARE) and
+                # FIXME: Call DBus methods instead.
                 self.payload.base_repo is not None)
 
     def _check_for_storage_thread(self, button):
@@ -754,6 +756,7 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         disk_free = Size(self._device_tree.GetDiskFreeSpace(disks))
         fs_free = Size(self._device_tree.GetDiskReclaimableSpace(disks))
         disks_size = Size(self._device_tree.GetDiskTotalSpace(disks))
+        # FIXME: Call a DBus method instead.
         sw_space = Size(self.payload.space_required)
         auto_swap = suggest_swap_size()
 

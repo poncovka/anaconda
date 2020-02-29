@@ -47,7 +47,7 @@ from gi.repository import Gtk, Pango
 
 __all__ = ["SoftwareSelectionSpoke"]
 
-
+# FIXME: Rewrite the spoke.
 class SoftwareSelectionSpoke(NormalSpoke):
     """
        .. inheritance-diagram:: SoftwareSelectionSpoke
@@ -289,6 +289,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
 
     @property
     def showable(self):
+        # FIXME: Check a DBus property.
         return isinstance(self.payload, PackagePayload)
 
     @property
