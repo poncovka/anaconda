@@ -65,6 +65,7 @@ class SoftwareSpoke(NormalTUISpoke):
         self._orig_addons = set()
 
         # are we taking values (package list) from a kickstart file?
+        # FIXME: Use the DBus module instead.
         self._kickstarted = flags.automatedInstall and self.data.packages.seen
 
         # Register event listeners to update our status on payload events

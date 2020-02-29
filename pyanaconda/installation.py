@@ -271,6 +271,7 @@ def _prepare_installation(payload, ksdata):
     # Setup timezone and add chrony as package if timezone was set in KS
     # and "-chrony" wasn't in packages section and/or --nontp wasn't set.
     timezone_proxy = TIMEZONE.get_proxy()
+    # FIXME: Use the DBus module instead.
     ntp_excluded = timezone.NTP_PACKAGE in ksdata.packages.excludedList
     pre_install.append_dbus_tasks(
         TIMEZONE, [timezone_proxy.ConfigureNTPServiceEnablementWithTask(ntp_excluded)]

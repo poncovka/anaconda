@@ -98,6 +98,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
         self._orig_environment = None
 
         # Whether we are using package selections from a kickstart
+        # FIXME: Use the DBus module instead.
         self._kickstarted = flags.automatedInstall and self.data.packages.seen
 
         # Whether the payload is in an error state

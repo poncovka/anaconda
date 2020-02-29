@@ -506,6 +506,7 @@ if __name__ == "__main__":
     # cmdline flags override kickstart settings
     if anaconda.proxy:
 
+        # FIXME: Handle the proxy differently.
         if hasattr(ksdata.method, "proxy"):
             ksdata.method.proxy = anaconda.proxy
 
@@ -694,6 +695,7 @@ if __name__ == "__main__":
     anaconda.add_additional_repositories_to_ksdata()
 
     # Fallback to default for interactive or for a kickstart with no installation method.
+    # FIXME: Replace this code.
     fallback = not (flags.automatedInstall and ksdata.method.method)
     payloadMgr.restart_thread(anaconda.payload, fallback=fallback)
 

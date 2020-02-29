@@ -268,6 +268,7 @@ class SpecifyRepoSpoke(NormalTUISpoke, SourceSwitchHandler):
         self.protocol = protocol
         self._container = None
 
+        # FIXME: Use the DBus module instead.
         self._url = self.data.url.url
 
     def refresh(self, args=None):

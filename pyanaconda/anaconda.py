@@ -66,6 +66,8 @@ class Anaconda(object):
     def set_from_opts(self, opts):
         """Load argument to variables from self.opts."""
         self.opts = opts
+
+        # FIXME: Move this code to the anaconda.py or conf.
         self.proxy = opts.proxy
         self.methodstr = opts.method
         self.additional_repos = opts.addRepo
@@ -110,6 +112,7 @@ class Anaconda(object):
 
         # methodstr and stage2 become strings in ways that pylint can't figure out
         # pylint: disable=unsubscriptable-object
+        # FIXME: Get the protected devices from the Payload module.
         if opts.method and SourceFactory.is_harddrive(opts.method):
             specs.append(opts.method[3:].split(":", 3)[0])
 
@@ -186,6 +189,7 @@ class Anaconda(object):
                  constants.DISPLAY_MODE_NAME[self.display_mode])
 
     def add_additional_repositories_to_ksdata(self):
+        # FIXME: Move it to DBus.
         from pyanaconda.kickstart import RepoData
 
         for add_repo in self.additional_repos:
@@ -219,6 +223,7 @@ class Anaconda(object):
 
         In automatic kickstart installation this will result in using the first defined repo.
         """
+        # FIXME: Move it to DBus.
         if repo in self.ksdata.repo.dataList():
             log.warning("Repository name %s is not unique. Only the first repo will be used!",
                         repo.name)

@@ -84,6 +84,7 @@ class StorageCheckHandler(object, metaclass=ABCMeta):
         StorageCheckHandler.warnings = report.warnings
 
 
+# FIXME: Rewrite this class.
 class SourceSwitchHandler(object, metaclass=ABCMeta):
     """ A class that can be used as a mixin handling
     installation source switching.

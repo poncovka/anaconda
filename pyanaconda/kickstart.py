@@ -227,7 +227,7 @@ class Logging(COMMANDS.Logging):
                 remote_server = "%s:%s" % (self.host, self.port)
             anaconda_logging.logger.updateRemote(remote_server)
 
-
+# FIXME: Remove this class.
 class RepoData(COMMANDS.RepoData):
 
     __mount_counter = 0

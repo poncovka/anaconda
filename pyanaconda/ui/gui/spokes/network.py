@@ -1631,6 +1631,7 @@ class NetworkStandaloneSpoke(StandaloneSpoke):
         # If we can't configure network, don't require it
         return (not conf.system.can_configure_network
                 or self._network_module.GetActivatedInterfaces()
+                # FIXME: Use the DBus module instead.
                 or self.data.method.method not in ("url", "nfs"))
 
     def initialize(self):

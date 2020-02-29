@@ -301,6 +301,7 @@ def set_installation_method_from_anaconda_options(anaconda, ksdata):
     :param ksdata: data model corresponding to the installation kickstart
     """
     try:
+        # FIXME: Move this to the DBus module.
         source = SourceFactory.parse_repo_cmdline_string(anaconda.methodstr)
     except PayloadSourceTypeUnrecognized:
         log.error("Unknown method: %s", anaconda.methodstr)
