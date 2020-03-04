@@ -22,18 +22,19 @@ from dasbus.typing import unwrap_variant
 from dasbus.client.proxy import get_object_path
 
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import PARTITIONING_METHOD_AUTOMATIC, BOOTLOADER_DRIVE_UNSET
 from pyanaconda.core.i18n import P_, _
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
 from pyanaconda.flags import flags
 from pyanaconda.modules.common.constants.objects import DISK_SELECTION, BOOTLOADER, DEVICE_TREE, \
-    DISK_INITIALIZATION
+    DISK_INITIALIZATION, NVDIMM
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.errors.configuration import StorageConfigurationError, \
     BootloaderConfigurationError
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.modules.common.task import sync_run_task
-from pyanaconda.storage.utils import filter_disks_by_names
+from pyanaconda.storage.utils import filter_disks_by_names, device_matches
 
 log = get_module_logger(__name__)
 
@@ -318,3 +319,36 @@ def is_local_disk(device_type):
         "zfcp",
         "nvdimm"
     )
+
+
+def ignore_nvdimm_blockdevs():
+    """Add nvdimm devices to be ignored to the ignored disks."""
+    if conf.target.is_directory:
+        return
+
+    nvdimm_proxy = STORAGE.get_proxy(NVDIMM)
+    ignored_nvdimm_devs = nvdimm_proxy.GetDevicesToIgnore()
+
+    if not ignored_nvdimm_devs:
+        return
+
+    log.debug("Adding NVDIMM devices %s to ignored disks", ",".join(ignored_nvdimm_devs))
+
+    disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
+    ignored_disks = disk_select_proxy.IgnoredDisks
+    ignored_disks.extend(ignored_nvdimm_devs)
+    disk_select_proxy.SetIgnoredDisks(ignored_disks)
+
+
+def ignore_oemdrv_disks():
+    """Ignore disks labeled OEMDRV."""
+    matched = device_matches("LABEL=OEMDRV", disks_only=True)
+
+    for oemdrv_disk in matched:
+        disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
+        ignored_disks = disk_select_proxy.IgnoredDisks
+
+        if oemdrv_disk not in ignored_disks:
+            log.info("Adding disk %s labeled OEMDRV to ignored disks.", oemdrv_disk)
+            ignored_disks.append(oemdrv_disk)
+            disk_select_proxy.SetIgnoredDisks(ignored_disks)

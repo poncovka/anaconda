@@ -642,12 +642,9 @@ if __name__ == "__main__":
 
     disk_select_proxy.SetDiskImages(disk_images)
 
-    # Ignore disks labeled OEMDRV
-    from pyanaconda.storage.utils import ignore_oemdrv_disks
+    # Ignore disks labeled OEMDRV and nvdimm devices.
+    from pyanaconda.ui.lib.storage import ignore_oemdrv_disks, ignore_nvdimm_blockdevs
     ignore_oemdrv_disks()
-
-    # Ignore nvdimm devices.
-    from pyanaconda.storage.utils import ignore_nvdimm_blockdevs
     ignore_nvdimm_blockdevs()
 
     # Specify protected devices.
@@ -661,7 +658,6 @@ if __name__ == "__main__":
 
     if not conf.target.is_directory:
         from pyanaconda.ui.lib.storage import reset_storage
-
         threadMgr.add(AnacondaThread(name=constants.THREAD_STORAGE,
                                      target=reset_storage))
 

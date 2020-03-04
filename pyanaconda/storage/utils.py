@@ -42,9 +42,7 @@ from pykickstart.errors import KickstartError
 
 from pyanaconda.core import util
 from pyanaconda.core.i18n import N_, _, P_
-from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.modules.common.constants.services import NETWORK, STORAGE
-from pyanaconda.modules.common.constants.objects import DISK_SELECTION, NVDIMM
+from pyanaconda.modules.common.constants.services import NETWORK
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP
@@ -242,39 +240,6 @@ def get_supported_filesystems():
 
 def get_supported_autopart_choices():
     return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
-
-
-def ignore_nvdimm_blockdevs():
-    """Add nvdimm devices to be ignored to the ignored disks."""
-    if conf.target.is_directory:
-        return
-
-    nvdimm_proxy = STORAGE.get_proxy(NVDIMM)
-    ignored_nvdimm_devs = nvdimm_proxy.GetDevicesToIgnore()
-
-    if not ignored_nvdimm_devs:
-        return
-
-    log.debug("Adding NVDIMM devices %s to ignored disks", ",".join(ignored_nvdimm_devs))
-
-    disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
-    ignored_disks = disk_select_proxy.IgnoredDisks
-    ignored_disks.extend(ignored_nvdimm_devs)
-    disk_select_proxy.SetIgnoredDisks(ignored_disks)
-
-
-def ignore_oemdrv_disks():
-    """Ignore disks labeled OEMDRV."""
-    matched = device_matches("LABEL=OEMDRV", disks_only=True)
-
-    for oemdrv_disk in matched:
-        disk_select_proxy = STORAGE.get_proxy(DISK_SELECTION)
-        ignored_disks = disk_select_proxy.IgnoredDisks
-
-        if oemdrv_disk not in ignored_disks:
-            log.info("Adding disk %s labeled OEMDRV to ignored disks.", oemdrv_disk)
-            ignored_disks.append(oemdrv_disk)
-            disk_select_proxy.SetIgnoredDisks(ignored_disks)
 
 
 def download_escrow_certificate(url):
