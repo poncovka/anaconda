@@ -37,7 +37,7 @@ from blivet.devicefactory import is_supported_device_type
 from blivet.util import total_memory
 from bytesize.bytesize import ROUND_HALF_UP
 
-from pyanaconda.core.i18n import N_, P_
+from pyanaconda.core.i18n import N_
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP
@@ -235,42 +235,6 @@ def get_supported_filesystems():
 
 def get_supported_autopart_choices():
     return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
-
-
-def check_disk_selection(storage, selected_disks):
-    """Return a list of errors related to a proposed disk selection.
-
-    :param storage: blivet.Blivet instance
-    :param selected_disks: names of selected disks
-    :type selected_disks: list of str
-    :returns: a list of error messages
-    :rtype: list of str
-    """
-    errors = []
-
-    for name in selected_disks:
-        selected = storage.devicetree.get_device_by_name(name, hidden=True)
-        related = sorted(storage.devicetree.get_related_disks(selected), key=lambda d: d.name)
-        missing = [r.name for r in related if r.name not in selected_disks]
-
-        if not missing:
-            continue
-
-        errors.append(P_(
-            "You selected disk %(selected)s, which contains "
-            "devices that also use unselected disk "
-            "%(unselected)s. You must select or de-select "
-            "these disks as a set.",
-            "You selected disk %(selected)s, which contains "
-            "devices that also use unselected disks "
-            "%(unselected)s. You must select or de-select "
-            "these disks as a set.",
-            len(missing)) % {
-            "selected": selected.name,
-            "unselected": ", ".join(missing)
-        })
-
-    return errors
 
 
 def get_required_device_size(required_space, format_class=None):

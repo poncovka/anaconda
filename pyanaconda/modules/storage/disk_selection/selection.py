@@ -18,6 +18,7 @@
 # Red Hat, Inc.
 #
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.core.i18n import P_
 from pyanaconda.core.signal import Signal
 from pyanaconda.core.dbus import DBus
 from pyanaconda.modules.common.base import KickstartBaseModule
@@ -25,7 +26,6 @@ from pyanaconda.modules.common.constants.objects import DISK_SELECTION
 from pyanaconda.modules.common.errors.storage import UnavailableStorageError
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.modules.storage.disk_selection.selection_interface import DiskSelectionInterface
-from pyanaconda.storage.utils import check_disk_selection
 
 log = get_module_logger(__name__)
 
@@ -107,7 +107,31 @@ class DiskSelectionModule(KickstartBaseModule):
         :return: a validation report
         """
         report = ValidationReport()
-        report.error_messages = check_disk_selection(self.storage, drives)
+        device_tree = self.storage.devicetree
+        selected_disks = drives
+
+        for name in selected_disks:
+            selected = device_tree.get_device_by_name(name, hidden=True)
+            related = sorted(device_tree.get_related_disks(selected), key=lambda d: d.name)
+            missing = [r.name for r in related if r.name not in selected_disks]
+
+            if not missing:
+                continue
+
+            report.error_messages.append(P_(
+                "You selected disk %(selected)s, which contains "
+                "devices that also use unselected disk "
+                "%(unselected)s. You must select or de-select "
+                "these disks as a set.",
+                "You selected disk %(selected)s, which contains "
+                "devices that also use unselected disks "
+                "%(unselected)s. You must select or de-select "
+                "these disks as a set.",
+                len(missing)) % {
+                              "selected": selected.name,
+                              "unselected": ", ".join(missing)
+                          })
+
         return report
 
     @property
