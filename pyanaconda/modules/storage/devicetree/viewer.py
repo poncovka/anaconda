@@ -20,6 +20,7 @@
 from abc import abstractmethod, ABC
 
 from blivet.deviceaction import ACTION_OBJECT_FORMAT
+from blivet.devicefactory import is_supported_device_type
 from blivet.formats import get_format
 from blivet.formats.fs import FS
 from blivet.size import Size
@@ -32,6 +33,7 @@ from pyanaconda.modules.common.errors.storage import UnknownDeviceError
 from pyanaconda.modules.common.structures.storage import DeviceData, DeviceActionData, \
     DeviceFormatData, OSData
 from pyanaconda.modules.storage.devicetree.utils import get_supported_filesystems
+from pyanaconda.storage.utils import AUTOPART_CHOICES, AUTOPART_DEVICE_TYPES
 
 log = get_module_logger(__name__)
 
@@ -364,6 +366,21 @@ class DeviceTreeViewer(ABC):
         :return: a list of filesystem names
         """
         return [fmt.type for fmt in get_supported_filesystems() if fmt.type]
+
+    def get_supported_partitioning_schemes(self):
+        """Get the supported partitioning schemes.
+
+        :return: a list of partitioning schemes
+        """
+        schemes = []
+
+        for description, scheme_id in AUTOPART_CHOICES:
+            device_type = AUTOPART_DEVICE_TYPES.get(scheme_id)
+
+            if device_type and is_supported_device_type(device_type):
+                schemes.append(scheme_id)
+
+        return schemes
 
     def get_required_device_size(self, required_space):
         """Get device size we need to get the required space on the device.

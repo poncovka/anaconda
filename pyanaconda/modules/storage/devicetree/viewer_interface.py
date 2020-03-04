@@ -127,6 +127,13 @@ class DeviceTreeViewerInterface(InterfaceTemplate):
         """
         return self.implementation.get_supported_file_systems()
 
+    def GetSupportedPartitioningSchemes(self) -> List[Int]:
+        """Get the supported partitioning schemes.
+
+        :return: a list of partitioning schemes
+        """
+        return self.implementation.get_supported_partitioning_schemes()
+
     def GetRequiredDeviceSize(self, required_space: UInt64) -> UInt64:
         """Get device size we need to get the required space on the device.
 
