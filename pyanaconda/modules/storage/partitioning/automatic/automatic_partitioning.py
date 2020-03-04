@@ -26,10 +26,10 @@ from pyanaconda.modules.common.structures.partitioning import PartitioningReques
 from pyanaconda.modules.storage.partitioning.automatic.noninteractive_partitioning import \
     NonInteractivePartitioningTask
 from pyanaconda.modules.storage.partitioning.automatic.utils import get_candidate_disks, \
-    schedule_implicit_partitions, schedule_volumes, schedule_partitions
+    schedule_implicit_partitions, schedule_volumes, schedule_partitions, get_pbkdf_args
 from pyanaconda.platform import platform
 from pyanaconda.storage.partspec import PartSpec
-from pyanaconda.storage.utils import suggest_swap_size, get_pbkdf_args
+from pyanaconda.storage.utils import suggest_swap_size
 
 log = get_module_logger(__name__)
 
