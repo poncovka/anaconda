@@ -237,20 +237,6 @@ def get_supported_autopart_choices():
     return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
 
 
-def lookup_alias(devicetree, alias):
-    """Look up a device of the given alias in the device tree.
-
-    :param devicetree: a device tree to look up devices
-    :param alias: an alias name
-    :return: a device object
-    """
-    for dev in devicetree.devices:
-        if getattr(dev, "req_name", None) == alias:
-            return dev
-
-    return None
-
-
 def find_live_backing_device(devicetree):
     """Find the backing device for the live image.
 

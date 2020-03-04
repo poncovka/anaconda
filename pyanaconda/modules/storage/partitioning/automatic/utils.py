@@ -46,6 +46,20 @@ __all__ = ["get_candidate_disks", "schedule_implicit_partitions", "schedule_part
            "schedule_volumes", "shrink_device", "remove_device"]
 
 
+def lookup_alias(device_tree, alias):
+    """Look up a device of the given alias in the device tree.
+
+    :param device_tree: a device tree to look up devices
+    :param alias: an alias name
+    :return: a device object
+    """
+    for dev in device_tree.devices:
+        if getattr(dev, "req_name", None) == alias:
+            return dev
+
+    return None
+
+
 def get_pbkdf_args(luks_version, pbkdf_type=None, max_memory_kb=0, iterations=0, time_ms=0):
     """Get the pbkdf arguments.
 
