@@ -17,8 +17,6 @@
 #
 
 """UI-independent storage utility functions"""
-import re
-import locale
 import os
 import time
 import requests
@@ -102,34 +100,6 @@ SUPPORTED_DEVICE_TYPES = (DEVICE_TYPE_PARTITION, DEVICE_TYPE_LVM, DEVICE_TYPE_LV
 MAX_SWAP_DISK_RATIO = Decimal('0.1')
 
 udev_device_dict_cache = None
-
-
-def size_from_input(input_str, units=None):
-    """ Get a Size object from an input string.
-
-        :param str input_str: a string forming some representation of a size
-        :param units: use these units if none specified in input_str
-        :type units: str or NoneType
-        :returns: a Size object corresponding to input_str
-        :rtype: :class:`blivet.size.Size` or NoneType
-
-        Units default to bytes if no units in input_str or units.
-    """
-
-    if not input_str:
-        # Nothing to parse
-        return None
-
-    # A string ending with a digit contains no units information.
-    if re.search(r'[\d.%s]$' % locale.nl_langinfo(locale.RADIXCHAR), input_str):
-        input_str += units or ""
-
-    try:
-        size = Size(input_str)
-    except ValueError:
-        return None
-
-    return size
 
 
 def device_type_from_autopart(autopart_type):

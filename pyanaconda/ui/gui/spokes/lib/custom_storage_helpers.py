@@ -16,6 +16,8 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+import locale
+import re
 from collections import namedtuple
 
 from blivet.devicefactory import SIZE_POLICY_AUTO, SIZE_POLICY_MAX, DEVICE_TYPE_LVM, \
@@ -32,7 +34,6 @@ from pyanaconda.modules.common.structures.device_factory import DeviceFactoryReq
 from pyanaconda.modules.common.structures.storage import DeviceFormatData, DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.platform import platform
-from pyanaconda.storage.utils import size_from_input
 from pyanaconda.ui.helpers import InputCheck
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.helpers import GUIDialogInputCheckHandler
@@ -118,6 +119,34 @@ def get_size_from_entry(entry, lower_bound=None, units=None):
         return None
     if lower_bound is not None and size < lower_bound:
         return lower_bound
+    return size
+
+
+def size_from_input(input_str, units=None):
+    """ Get a Size object from an input string.
+
+        :param str input_str: a string forming some representation of a size
+        :param units: use these units if none specified in input_str
+        :type units: str or NoneType
+        :returns: a Size object corresponding to input_str
+        :rtype: :class:`blivet.size.Size` or NoneType
+
+        Units default to bytes if no units in input_str or units.
+    """
+
+    if not input_str:
+        # Nothing to parse
+        return None
+
+    # A string ending with a digit contains no units information.
+    if re.search(r'[\d.%s]$' % locale.nl_langinfo(locale.RADIXCHAR), input_str):
+        input_str += units or ""
+
+    try:
+        size = Size(input_str)
+    except ValueError:
+        return None
+
     return size
 
 
