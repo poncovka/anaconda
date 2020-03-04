@@ -37,8 +37,9 @@ from pyanaconda.modules.storage.disk_initialization import DiskInitializationCon
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.storage.root import Root
-from pyanaconda.storage.utils import get_supported_filesystems, PARTITION_ONLY_FORMAT_TYPES, SUPPORTED_DEVICE_TYPES, \
+from pyanaconda.storage.utils import PARTITION_ONLY_FORMAT_TYPES, SUPPORTED_DEVICE_TYPES, \
     CONTAINER_DEVICE_TYPES, DEVICE_TEXT_MAP, NAMED_DEVICE_TYPES
+from pyanaconda.modules.storage.devicetree.utils import get_supported_filesystems
 
 log = get_module_logger(__name__)
 

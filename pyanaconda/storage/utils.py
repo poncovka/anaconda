@@ -18,15 +18,11 @@
 
 """UI-independent storage utility functions"""
 import os
-import time
 
 from decimal import Decimal
 
 from blivet import udev
 from blivet.size import Size
-from blivet.errors import StorageError
-from blivet.formats import device_formats
-from blivet.formats.fs import FS
 from blivet.devicefactory import DEVICE_TYPE_LVM
 from blivet.devicefactory import DEVICE_TYPE_LVM_THINP
 from blivet.devicefactory import DEVICE_TYPE_BTRFS
@@ -217,21 +213,6 @@ def device_matches(spec, devicetree=None, disks_only=False):
     return matches
 
 
-def get_supported_filesystems():
-    fs_types = []
-    for cls in device_formats.values():
-        obj = cls()
-
-        # btrfs is always handled by on_device_type_changed
-        supported_fs = (obj.supported and obj.formattable and
-                        (isinstance(obj, FS) or
-                         obj.type in ["biosboot", "prepboot", "swap"]))
-        if supported_fs:
-            fs_types.append(obj)
-
-    return fs_types
-
-
 def get_supported_autopart_choices():
     return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
 
@@ -292,127 +273,3 @@ def suggest_swap_size(quiet=False, hibernation=False, disk_space=None):
         log.info("Swap attempt of %s", swap)
 
     return swap
-
-
-def find_optical_media(devicetree):
-    """Find all devices with mountable optical media.
-
-    Search for devices identified as cdrom along with any other
-    device that has an iso9660 filesystem. This will catch USB
-    media created from ISO images.
-
-    :param devicetree: an instance of a device tree
-    :return: a list of devices
-    """
-    devices = []
-
-    for device in devicetree.devices:
-        if device.type != "cdrom" and device.format.type != "iso9660":
-            continue
-
-        if not device.controllable:
-            continue
-
-        devicetree.handle_format(None, device)
-        if not hasattr(device.format, "mount"):
-            # no mountable media
-            continue
-
-        devices.append(device)
-
-    return devices
-
-
-def find_mountable_partitions(devicetree):
-    """Find all mountable partitions.
-
-    :param devicetree: an instance of a device tree
-    :return: a list of devices
-    """
-    devices = []
-
-    for device in devicetree.devices:
-        if device.type != "partition":
-            continue
-
-        if not device.format.exists:
-            continue
-
-        if not device.format.mountable:
-            continue
-
-        devices.append(device)
-
-    return devices
-
-
-def unlock_device(storage, device, passphrase):
-    """Unlock a LUKS device.
-
-    :param storage: an instance of the storage
-    :param device: a device to unlock
-    :param passphrase: a passphrase to use
-    :return: True if success, otherwise False
-    """
-    # Set the passphrase.
-    device.format.passphrase = passphrase
-
-    try:
-        # Unlock the device.
-        device.setup()
-        device.format.setup()
-    except StorageError as err:
-        log.error("Failed to unlock %s: %s", device.name, err)
-
-        # Teardown the device.
-        device.teardown(recursive=True)
-
-        # Forget the wrong passphrase.
-        device.format.passphrase = None
-
-        return False
-    else:
-        # Save the passphrase.
-        storage.save_passphrase(device)
-
-        # Set the passphrase also to the original format of the device.
-        device.original_format.passphrase = passphrase
-
-        # Wait for the device.
-        # Otherwise, we could get a message about no Linux partitions.
-        time.sleep(2)
-
-        # Update the device tree.
-        storage.devicetree.populate()
-        storage.devicetree.teardown_all()
-
-        return True
-
-
-def find_unconfigured_luks(storage):
-    """Find all unconfigured LUKS devices.
-
-    Returns a list of devices that require a passphrase
-    for their configuration.
-
-    :param storage: an instance of Blivet
-    :return: a list of devices
-    """
-    devices = []
-
-    for device in storage.devices:
-        # Only LUKS devices.
-        if not device.format.type == "luks":
-            continue
-
-        # Skip existing formats.
-        if device.format.exists:
-            continue
-
-        # Skip formats with keys.
-        if device.format.has_key:
-            continue
-
-        devices.append(device)
-
-    return devices

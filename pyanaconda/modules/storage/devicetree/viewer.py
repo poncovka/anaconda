@@ -31,7 +31,7 @@ from pyanaconda.core.i18n import _
 from pyanaconda.modules.common.errors.storage import UnknownDeviceError
 from pyanaconda.modules.common.structures.storage import DeviceData, DeviceActionData, \
     DeviceFormatData, OSData
-from pyanaconda.storage.utils import get_supported_filesystems
+from pyanaconda.modules.storage.devicetree.utils import get_supported_filesystems
 
 log = get_module_logger(__name__)
 
