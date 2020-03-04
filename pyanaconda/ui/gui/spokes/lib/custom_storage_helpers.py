@@ -68,6 +68,21 @@ CONTAINER_TYPES = {
         CN_("GUI|Custom Partitioning|Configure|Devices", "_Volume:"))
 }
 
+MOUNTPOINT_DESCRIPTIONS = {
+    "Swap": N_("The 'swap' area on your computer is used by the operating\n"
+               "system when running low on memory."),
+    "Boot": N_("The 'boot' area on your computer is where files needed\n"
+               "to start the operating system are stored."),
+    "Root": N_("The 'root' area on your computer is where core system\n"
+               "files and applications are stored."),
+    "Home": N_("The 'home' area on your computer is where all your personal\n"
+               "data is stored."),
+    "BIOS Boot": N_("The BIOS boot partition is required to enable booting\n"
+                    "from GPT-partitioned disks on BIOS hardware."),
+    "PReP Boot": N_("The PReP boot partition is required as part of the\n"
+                    "boot loader configuration on some PPC platforms.")
+}
+
 
 def generate_request_description(request, original=None):
     """Generate a description of a device factory request.

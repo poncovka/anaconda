@@ -51,7 +51,7 @@ from pyanaconda.modules.common.structures.device_factory import DeviceFactoryReq
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.ui.lib.storage import reset_bootloader, create_partitioning, filter_disks_by_names
-from pyanaconda.storage.utils import DEVICE_TEXT_MAP, MOUNTPOINT_DESCRIPTIONS, NAMED_DEVICE_TYPES, \
+from pyanaconda.storage.utils import DEVICE_TEXT_MAP, NAMED_DEVICE_TYPES, \
     CONTAINER_DEVICE_TYPES, DEVICE_TYPE_UNSUPPORTED
 from pyanaconda.threading import threadMgr
 from pyanaconda.ui.categories.system import SystemCategory
@@ -65,7 +65,7 @@ from pyanaconda.ui.gui.spokes.lib.custom_storage_helpers import get_size_from_en
     ConfirmDeleteDialog, DisksDialog, ContainerDialog, NOTEBOOK_LABEL_PAGE, NOTEBOOK_DETAILS_PAGE, \
     NOTEBOOK_LUKS_PAGE, NOTEBOOK_UNEDITABLE_PAGE, NOTEBOOK_INCOMPLETE_PAGE, NEW_CONTAINER_TEXT, \
     CONTAINER_TOOLTIP, get_supported_device_raid_levels, generate_request_description, \
-    get_device_type_from_scheme
+    get_device_type_from_scheme, MOUNTPOINT_DESCRIPTIONS
 from pyanaconda.ui.gui.spokes.lib.passphrase import PassphraseDialog
 from pyanaconda.ui.gui.spokes.lib.refresh import RefreshDialog
 from pyanaconda.ui.gui.spokes.lib.summary import ActionSummaryDialog
