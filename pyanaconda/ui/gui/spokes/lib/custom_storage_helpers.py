@@ -34,7 +34,7 @@ from pyanaconda.modules.common.structures.device_factory import DeviceFactoryReq
 from pyanaconda.modules.common.structures.storage import DeviceFormatData, DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.platform import platform
-from pyanaconda.storage.utils import AUTOPART_DEVICE_TYPES
+from pyanaconda.core.storage import AUTOPART_DEVICE_TYPES
 from pyanaconda.ui.helpers import InputCheck
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.helpers import GUIDialogInputCheckHandler

@@ -51,7 +51,7 @@ from pyanaconda.modules.common.structures.device_factory import DeviceFactoryReq
 from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.ui.lib.storage import reset_bootloader, create_partitioning, filter_disks_by_names
-from pyanaconda.storage.utils import DEVICE_TEXT_MAP, NAMED_DEVICE_TYPES, \
+from pyanaconda.core.storage import DEVICE_TEXT_MAP, NAMED_DEVICE_TYPES, \
     CONTAINER_DEVICE_TYPES, DEVICE_TYPE_UNSUPPORTED
 from pyanaconda.threading import threadMgr
 from pyanaconda.ui.categories.system import SystemCategory

@@ -30,7 +30,7 @@ from pyanaconda.modules.storage.partitioning.automatic.utils import get_candidat
     get_escrow_certificate
 from pyanaconda.platform import platform
 from pyanaconda.storage.partspec import PartSpec
-from pyanaconda.storage.utils import suggest_swap_size
+from pyanaconda.core.storage import suggest_swap_size
 
 log = get_module_logger(__name__)
 

@@ -36,7 +36,7 @@ from pyanaconda.modules.storage.partitioning.automatic.noninteractive_partitioni
 from pyanaconda.modules.storage.partitioning.automatic.utils import get_candidate_disks, \
     schedule_partitions, get_pbkdf_args, get_escrow_certificate, lookup_alias
 from pyanaconda.platform import platform
-from pyanaconda.storage.utils import suggest_swap_size
+from pyanaconda.core.storage import suggest_swap_size
 
 log = get_module_logger(__name__)
 
