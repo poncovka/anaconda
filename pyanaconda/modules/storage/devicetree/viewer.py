@@ -21,14 +21,17 @@ from abc import abstractmethod, ABC
 
 from blivet.deviceaction import ACTION_OBJECT_FORMAT
 from blivet.formats import get_format
+from blivet.formats.fs import FS
 from blivet.size import Size
+
+from bytesize import ROUND_HALF_UP
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.i18n import _
 from pyanaconda.modules.common.errors.storage import UnknownDeviceError
 from pyanaconda.modules.common.structures.storage import DeviceData, DeviceActionData, \
     DeviceFormatData, OSData
-from pyanaconda.storage.utils import get_required_device_size, get_supported_filesystems
+from pyanaconda.storage.utils import get_supported_filesystems
 
 log = get_module_logger(__name__)
 
@@ -365,10 +368,16 @@ class DeviceTreeViewer(ABC):
     def get_required_device_size(self, required_space):
         """Get device size we need to get the required space on the device.
 
+        Get the required device size for the given space. We need to provide
+        information how big device is required to have successful installation.
+
         :param int required_space: a required space in bytes
         :return int: a required device size in bytes
         """
-        return get_required_device_size(Size(required_space)).get_bytes()
+        format_class = FS.biggest_overhead_FS()
+        device_size = format_class.get_required_size(Size(required_space))
+        rounded_size = device_size.round_to_nearest(Size("1 MiB"), ROUND_HALF_UP)
+        return rounded_size.get_bytes()
 
     def get_file_system_free_space(self, mount_points):
         """Get total file system free space on the given mount points.

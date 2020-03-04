@@ -35,7 +35,6 @@ from blivet.devicefactory import DEVICE_TYPE_PARTITION
 from blivet.devicefactory import DEVICE_TYPE_DISK
 from blivet.devicefactory import is_supported_device_type
 from blivet.util import total_memory
-from bytesize.bytesize import ROUND_HALF_UP
 
 from pyanaconda.core.i18n import N_
 
@@ -235,25 +234,6 @@ def get_supported_filesystems():
 
 def get_supported_autopart_choices():
     return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
-
-
-def get_required_device_size(required_space, format_class=None):
-    """Get the required device size for the given space.
-
-    We need to provide information how big device is required to
-    have successful installation. The argument ``format_class``
-    should be filesystem format class for the **root** filesystem
-    this class carry information about metadata size.
-
-    :param required_space: the required space
-    :param format_class: the class of the filesystem format.
-    :returns: Size of the device with given filesystem format.
-    """
-    if not format_class:
-        format_class = FS.biggest_overhead_FS()
-
-    device_size = format_class.get_required_size(required_space)
-    return device_size.round_to_nearest(Size("1 MiB"), ROUND_HALF_UP)
 
 
 def suggest_swap_size(quiet=False, hibernation=False, disk_space=None):
