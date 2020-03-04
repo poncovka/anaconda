@@ -108,47 +108,6 @@ def device_type_from_autopart(autopart_type):
     return AUTOPART_DEVICE_TYPES.get(autopart_type, DEVICE_TYPE_LVM)
 
 
-def bound_size(size, device, old_size):
-    """ Returns a size bounded by the maximum and minimum size for
-        the device.
-
-        :param size: the candidate size
-        :type size: :class:`blivet.size.Size`
-        :param device: the device being displayed
-        :type device: :class:`blivet.devices.StorageDevice`
-        :param old_size: the fallback size
-        :type old_size: :class:`blivet.size.Size`
-        :returns: a size to which to set the device
-        :rtype: :class:`blivet.size.Size`
-
-        If size is 0, interpreted as set size to maximum possible.
-        If no maximum size is available, reset size to old_size, but
-        log a warning.
-    """
-    max_size = device.max_size
-    min_size = device.min_size
-    if not size:
-        if max_size:
-            log.info("No size specified, using maximum size for this device (%d).", max_size)
-            size = max_size
-        else:
-            log.warning("No size specified and no maximum size available, setting size back to original size (%d).", old_size)
-            size = old_size
-    else:
-        if max_size:
-            if size > max_size:
-                log.warning("Size specified (%d) is greater than the maximum size for this device (%d), using maximum size.", size, max_size)
-                size = max_size
-        else:
-            log.warning("Unknown upper bound on size. Using requested size (%d).", size)
-
-        if size < min_size:
-            log.warning("Size specified (%d) is less than the minimum size for this device (%d), using minimum size.", size, min_size)
-            size = min_size
-
-    return size
-
-
 def filter_unsupported_disklabel_devices(devices):
     """ Return input list minus any devices that exist on an unsupported disklabel. """
     return [d for d in devices
