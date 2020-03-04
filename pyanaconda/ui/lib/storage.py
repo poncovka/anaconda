@@ -34,7 +34,7 @@ from pyanaconda.modules.common.errors.configuration import StorageConfigurationE
     BootloaderConfigurationError
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.modules.common.task import sync_run_task
-from pyanaconda.storage.utils import filter_disks_by_names, device_matches
+from pyanaconda.storage.utils import device_matches
 
 log = get_module_logger(__name__)
 
@@ -352,3 +352,13 @@ def ignore_oemdrv_disks():
             log.info("Adding disk %s labeled OEMDRV to ignored disks.", oemdrv_disk)
             ignored_disks.append(oemdrv_disk)
             disk_select_proxy.SetIgnoredDisks(ignored_disks)
+
+
+def filter_disks_by_names(disks, names):
+    """Filter disks by the given names.
+
+    :param disks: a list of disk names
+    :param names: a list of names to filter
+    :return: a list of filtered disk names
+    """
+    return list(filter(lambda name: name in disks, names))

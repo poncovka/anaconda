@@ -237,16 +237,6 @@ def get_supported_autopart_choices():
     return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
 
 
-def filter_disks_by_names(disks, names):
-    """Filter disks by the given names.
-
-    :param disks: a list of disks
-    :param names: a list of disk names
-    :return: a list of filtered disk names
-    """
-    return list(filter(lambda name: name in disks, names))
-
-
 def check_disk_selection(storage, selected_disks):
     """Return a list of errors related to a proposed disk selection.
 
