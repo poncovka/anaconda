@@ -22,6 +22,7 @@
 
 import os
 
+from blivet import udev
 from blivet.blivet import Blivet
 from blivet.devices import BTRFSSubVolumeDevice
 from blivet.formats import get_format
@@ -34,7 +35,6 @@ from pyanaconda.bootloader import BootLoaderFactory
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import shortProductName
 from pyanaconda.storage.fsset import FSSet
-from pyanaconda.storage.utils import find_live_backing_device
 from pyanaconda.storage.root import find_existing_installations
 from pyanaconda.modules.common.constants.services import NETWORK
 
@@ -271,7 +271,7 @@ class InstallerStorage(Blivet):
                 protected.append(dev)
 
         # Find the live backing device and its parents.
-        live_device = find_live_backing_device(self.devicetree)
+        live_device = self._find_live_backing_device()
 
         if live_device:
             log.debug("Resolved live device to %s.", live_device.name)
@@ -289,6 +289,36 @@ class InstallerStorage(Blivet):
         for dev in protected:
             log.debug("Marking device %s as protected.", dev.name)
             dev.protected = True
+
+    def _find_live_backing_device(self):
+        """Find the backing device for the live image.
+
+        Note that this is a little bit of a hack since we're assuming
+        that /run/initramfs/live will exist
+
+        :return: a device or None
+        """
+        for mnt in open("/proc/mounts").readlines():
+            if " /run/initramfs/live " not in mnt:
+                continue
+
+            # Return the device mounted at /run/initramfs/live.
+            device_path = mnt.split()[0]
+            device_name = device_path.split("/")[-1]
+            device = self.devicetree.get_device_by_name(device_name, hidden=True)
+
+            if device:
+                return device
+
+            # Or return the disk of this device.
+            info = udev.get_device(device_node=device_path)
+            disk_name = udev.device_get_partition_disk(info) if info else ""
+            disk = self.devicetree.get_device_by_name(disk_name, hidden=True)
+
+            if disk:
+                return disk
+
+        return None
 
     def protect_devices(self, protected_names):
         """Protect given devices.
