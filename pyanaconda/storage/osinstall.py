@@ -34,7 +34,7 @@ from pyanaconda.bootloader import BootLoaderFactory
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import shortProductName
 from pyanaconda.storage.fsset import FSSet
-from pyanaconda.storage.utils import download_escrow_certificate, find_live_backing_device
+from pyanaconda.storage.utils import find_live_backing_device
 from pyanaconda.storage.root import find_existing_installations
 from pyanaconda.modules.common.constants.services import NETWORK
 
@@ -104,22 +104,16 @@ class InstallerStorage(Blivet):
 
         return fstype
 
-    def get_escrow_certificate(self, url):
-        """Get the escrow certificate.
+    @property
+    def escrow_certificates(self):
+        """Downloaded escrow certificates.
 
-        :param url: an URL of the certificate
-        :return: a content of the certificate
+        The dictionary maps URL of the certificates
+        to their downloaded content.
+
+        :return: a dictionary of certificates
         """
-        if not url:
-            return None
-
-        certificate = self._escrow_certificates.get(url, None)
-
-        if not certificate:
-            certificate = download_escrow_certificate(url)
-            self._escrow_certificates[url] = certificate
-
-        return certificate
+        return self._escrow_certificates
 
     @property
     def mountpoints(self):

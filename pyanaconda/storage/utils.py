@@ -19,7 +19,6 @@
 """UI-independent storage utility functions"""
 import os
 import time
-import requests
 
 from decimal import Decimal
 
@@ -38,11 +37,7 @@ from blivet.devicefactory import is_supported_device_type
 from blivet.util import total_memory
 from bytesize.bytesize import ROUND_HALF_UP
 
-from pykickstart.errors import KickstartError
-
-from pyanaconda.core import util
-from pyanaconda.core.i18n import N_, _, P_
-from pyanaconda.modules.common.constants.services import NETWORK
+from pyanaconda.core.i18n import N_, P_
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS
 from pykickstart.constants import AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP
@@ -240,38 +235,6 @@ def get_supported_filesystems():
 
 def get_supported_autopart_choices():
     return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
-
-
-def download_escrow_certificate(url):
-    """Download the escrow certificate.
-
-    :param url: an URL of the certificate
-    :return: a content of the certificate
-    """
-    # Do we need a network connection?
-    if not url.startswith("/") and not url.startswith("file:"):
-        network_proxy = NETWORK.get_proxy()
-
-        if not network_proxy.Connected:
-            raise KickstartError(_("Escrow certificate %s requires the network.") % url)
-
-    # Download the certificate.
-    log.info("Downloading an escrow certificate from: %s", url)
-
-    try:
-        request = util.requests_session().get(url, verify=True)
-    except requests.exceptions.SSLError as e:
-        raise KickstartError(_("SSL error while downloading the escrow certificate:\n\n%s") % e)
-    except requests.exceptions.RequestException as e:
-        raise KickstartError(_("The following error was encountered while downloading the "
-                               "escrow certificate:\n\n%s") % e)
-
-    try:
-        certificate = request.content
-    finally:
-        request.close()
-
-    return certificate
 
 
 def lookup_alias(devicetree, alias):

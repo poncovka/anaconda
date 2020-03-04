@@ -34,7 +34,7 @@ from pyanaconda.core.i18n import _
 from pyanaconda.modules.storage.partitioning.automatic.noninteractive_partitioning import \
     NonInteractivePartitioningTask
 from pyanaconda.modules.storage.partitioning.automatic.utils import get_candidate_disks, \
-    schedule_partitions, get_pbkdf_args
+    schedule_partitions, get_pbkdf_args, get_escrow_certificate
 from pyanaconda.platform import platform
 from pyanaconda.storage.utils import suggest_swap_size, lookup_alias
 
@@ -423,7 +423,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
 
         if partition_data.encrypted:
             passphrase = self._get_passphrase(partition_data)
-            cert = storage.get_escrow_certificate(partition_data.escrowcert)
+            cert = get_escrow_certificate(storage, partition_data.escrowcert)
 
             # Get the version of LUKS and PBKDF arguments.
             partition_data.luks_version = (partition_data.luks_version
@@ -670,7 +670,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
 
         if raid_data.encrypted:
             passphrase = self._get_passphrase(raid_data)
-            cert = storage.get_escrow_certificate(raid_data.escrowcert)
+            cert = get_escrow_certificate(storage, raid_data.escrowcert)
 
             # Get the version of LUKS and PBKDF arguments.
             raid_data.luks_version = raid_data.luks_version or storage.default_luks_version
@@ -1125,7 +1125,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
 
         if logvol_data.encrypted:
             passphrase = self._get_passphrase(logvol_data)
-            cert = storage.get_escrow_certificate(logvol_data.escrowcert)
+            cert = get_escrow_certificate(storage, logvol_data.escrowcert)
 
             # Get the version of LUKS and PBKDF arguments.
             logvol_data.luks_version = logvol_data.luks_version or storage.default_luks_version

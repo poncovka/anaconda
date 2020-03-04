@@ -18,6 +18,7 @@
 # Red Hat Author(s): Dave Lehman <dlehman@redhat.com>
 #
 import parted
+import requests
 
 from blivet.size import Size
 from blivet.devices.partition import PartitionDevice, FALLBACK_DEFAULT_PART_SIZE
@@ -30,9 +31,12 @@ from blivet.partitioning import get_free_regions, get_next_partition_type
 
 from pykickstart.constants import AUTOPART_TYPE_BTRFS, AUTOPART_TYPE_LVM, \
     AUTOPART_TYPE_LVM_THINP, AUTOPART_TYPE_PLAIN
+from pykickstart.errors import KickstartError
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.i18n import _
+from pyanaconda.core.util import requests_session
+from pyanaconda.modules.common.constants.services import NETWORK
 from pyanaconda.modules.common.errors.storage import ProtectedDeviceError
 
 log = get_module_logger(__name__)
@@ -63,6 +67,57 @@ def get_pbkdf_args(luks_version, pbkdf_type=None, max_memory_kb=0, iterations=0,
 
     # Use specified arguments.
     return LUKS2PBKDFArgs(pbkdf_type or None, max_memory_kb or 0, iterations or 0, time_ms or 0)
+
+
+def get_escrow_certificate(storage, url):
+    """Get the escrow certificate.
+
+    :param storage: a storage model
+    :param url: an URL of the certificate
+    :return: a content of the certificate
+    """
+    if not url:
+        return None
+
+    certificate = storage.escrow_certificates.get(url, None)
+
+    if not certificate:
+        certificate = download_escrow_certificate(url)
+        storage.escrow_certificates[url] = certificate
+
+    return certificate
+
+
+def download_escrow_certificate(url):
+    """Download the escrow certificate.
+
+    :param url: an URL of the certificate
+    :return: a content of the certificate
+    """
+    # Do we need a network connection?
+    if not url.startswith("/") and not url.startswith("file:"):
+        network_proxy = NETWORK.get_proxy()
+
+        if not network_proxy.Connected:
+            raise KickstartError(_("Escrow certificate %s requires the network.") % url)
+
+    # Download the certificate.
+    log.info("Downloading an escrow certificate from: %s", url)
+
+    try:
+        request = requests_session().get(url, verify=True)
+    except requests.exceptions.SSLError as e:
+        raise KickstartError(_("SSL error while downloading the escrow certificate:\n\n%s") % e)
+    except requests.exceptions.RequestException as e:
+        raise KickstartError(_("The following error was encountered while downloading the "
+                               "escrow certificate:\n\n%s") % e)
+
+    try:
+        certificate = request.content
+    finally:
+        request.close()
+
+    return certificate
 
 
 def shrink_device(storage, device, size):

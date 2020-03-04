@@ -26,7 +26,8 @@ from pyanaconda.modules.common.structures.partitioning import PartitioningReques
 from pyanaconda.modules.storage.partitioning.automatic.noninteractive_partitioning import \
     NonInteractivePartitioningTask
 from pyanaconda.modules.storage.partitioning.automatic.utils import get_candidate_disks, \
-    schedule_implicit_partitions, schedule_volumes, schedule_partitions, get_pbkdf_args
+    schedule_implicit_partitions, schedule_volumes, schedule_partitions, get_pbkdf_args, \
+    get_escrow_certificate
 from pyanaconda.platform import platform
 from pyanaconda.storage.partspec import PartSpec
 from pyanaconda.storage.utils import suggest_swap_size
@@ -170,7 +171,7 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
             return {}
 
         luks_version = request.luks_version or storage.default_luks_version
-        escrow_cert = storage.get_escrow_certificate(request.escrow_certificate)
+        escrow_cert = get_escrow_certificate(storage, request.escrow_certificate)
 
         pbkdf_args = get_pbkdf_args(
             luks_version=luks_version,
