@@ -102,12 +102,6 @@ MAX_SWAP_DISK_RATIO = Decimal('0.1')
 udev_device_dict_cache = None
 
 
-def device_type_from_autopart(autopart_type):
-    """Get device type matching the given autopart type."""
-
-    return AUTOPART_DEVICE_TYPES.get(autopart_type, DEVICE_TYPE_LVM)
-
-
 def device_name_is_disk(device_name, devicetree=None, refresh_udev_cache=False):
     """Report if the given device name corresponds to a disk device.
 

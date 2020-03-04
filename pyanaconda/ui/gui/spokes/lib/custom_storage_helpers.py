@@ -34,6 +34,7 @@ from pyanaconda.modules.common.structures.device_factory import DeviceFactoryReq
 from pyanaconda.modules.common.structures.storage import DeviceFormatData, DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.platform import platform
+from pyanaconda.storage.utils import AUTOPART_DEVICE_TYPES
 from pyanaconda.ui.helpers import InputCheck
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.gui.helpers import GUIDialogInputCheckHandler
@@ -95,6 +96,11 @@ def generate_request_description(request, original=None):
         attributes.append(attribute)
 
     return "\n".join(["{"] + attributes + ["}"])
+
+
+def get_device_type_from_scheme(partitioning_scheme):
+    """Get device type matching the given partitioning scheme."""
+    return AUTOPART_DEVICE_TYPES.get(partitioning_scheme, DEVICE_TYPE_LVM)
 
 
 def get_size_from_entry(entry, lower_bound=None, units=None):

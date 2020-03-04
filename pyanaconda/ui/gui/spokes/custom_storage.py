@@ -52,7 +52,7 @@ from pyanaconda.platform import platform
 from pyanaconda.product import productName, productVersion
 from pyanaconda.ui.lib.storage import reset_bootloader, create_partitioning
 from pyanaconda.storage.utils import DEVICE_TEXT_MAP, MOUNTPOINT_DESCRIPTIONS, NAMED_DEVICE_TYPES, \
-    CONTAINER_DEVICE_TYPES, device_type_from_autopart, DEVICE_TYPE_UNSUPPORTED, \
+    CONTAINER_DEVICE_TYPES, DEVICE_TYPE_UNSUPPORTED, \
     filter_disks_by_names
 from pyanaconda.threading import threadMgr
 from pyanaconda.ui.categories.system import SystemCategory
@@ -62,10 +62,11 @@ from pyanaconda.ui.gui.spokes.lib.accordion import MountPointSelector, Accordion
     CreateNewPage, UnknownPage
 from pyanaconda.ui.gui.spokes.lib.cart import SelectedDisksDialog
 from pyanaconda.ui.gui.spokes.lib.custom_storage_helpers import get_size_from_entry, \
-    get_selected_raid_level, get_default_raid_level, get_container_type, AddDialog,\
-    ConfirmDeleteDialog, DisksDialog, ContainerDialog, NOTEBOOK_LABEL_PAGE, NOTEBOOK_DETAILS_PAGE,\
-    NOTEBOOK_LUKS_PAGE, NOTEBOOK_UNEDITABLE_PAGE, NOTEBOOK_INCOMPLETE_PAGE, NEW_CONTAINER_TEXT,\
-    CONTAINER_TOOLTIP, get_supported_device_raid_levels, generate_request_description
+    get_selected_raid_level, get_default_raid_level, get_container_type, AddDialog, \
+    ConfirmDeleteDialog, DisksDialog, ContainerDialog, NOTEBOOK_LABEL_PAGE, NOTEBOOK_DETAILS_PAGE, \
+    NOTEBOOK_LUKS_PAGE, NOTEBOOK_UNEDITABLE_PAGE, NOTEBOOK_INCOMPLETE_PAGE, NEW_CONTAINER_TEXT, \
+    CONTAINER_TOOLTIP, get_supported_device_raid_levels, generate_request_description, \
+    get_device_type_from_scheme
 from pyanaconda.ui.gui.spokes.lib.passphrase import PassphraseDialog
 from pyanaconda.ui.gui.spokes.lib.refresh import RefreshDialog
 from pyanaconda.ui.gui.spokes.lib.summary import ActionSummaryDialog
@@ -986,7 +987,7 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
         request = DeviceFactoryRequest()
         request.mount_point = dialog.mount_point
         request.device_size = dialog.size.get_bytes()
-        request.device_type = device_type_from_autopart(self._partitioning_scheme)
+        request.device_type = get_device_type_from_scheme(self._partitioning_scheme)
         request.disks = self._selected_disks
 
         # Clear errors and try to add the mountpoint/device.
