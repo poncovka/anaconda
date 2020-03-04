@@ -33,7 +33,7 @@ from pyanaconda.ui.lib.storage import find_partitioning, reset_storage, \
     create_partitioning, filter_disks_by_names
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.tuiobject import Dialog, PasswordDialog
-from pyanaconda.storage.utils import get_supported_autopart_choices
+from pyanaconda.storage.utils import AUTOPART_CHOICES
 from pyanaconda.ui.lib.format_dasd import DasdFormatting
 
 from blivet.size import Size
@@ -542,18 +542,18 @@ class PartitionSchemeSpoke(NormalTUISpoke):
             self._partitioning.Request
         )
 
-        supported_choices = get_supported_autopart_choices()
+        device_tree = self._partitioning.GetDeviceTree()
+        supported_schemes = device_tree.GetSupportedPartitioningSchemes()
 
-        if supported_choices:
+        if supported_schemes:
             # Fallback value (eg when default is not supported)
-            self._selected_scheme_value = supported_choices[0][1]
+            self._selected_scheme_value = supported_schemes[0]
 
-        selected_choice = self._request.partitioning_scheme
+        for description, scheme_id in AUTOPART_CHOICES:
+            self._part_schemes[description] = scheme_id
 
-        for item in supported_choices:
-            self._part_schemes[item[0]] = item[1]
-            if item[1] == selected_choice:
-                self._selected_scheme_value = item[1]
+            if self._request.partitioning_scheme == scheme_id:
+                self._selected_scheme_value = scheme_id
 
     @property
     def indirect(self):

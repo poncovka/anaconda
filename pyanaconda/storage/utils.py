@@ -29,7 +29,6 @@ from blivet.devicefactory import DEVICE_TYPE_BTRFS
 from blivet.devicefactory import DEVICE_TYPE_MD
 from blivet.devicefactory import DEVICE_TYPE_PARTITION
 from blivet.devicefactory import DEVICE_TYPE_DISK
-from blivet.devicefactory import is_supported_device_type
 from blivet.util import total_memory
 
 from pyanaconda.core.i18n import N_
@@ -198,10 +197,6 @@ def device_matches(spec, devicetree=None, disks_only=False):
               spec, matches, devicetree, disks_only)
 
     return matches
-
-
-def get_supported_autopart_choices():
-    return [c for c in AUTOPART_CHOICES if is_supported_device_type(AUTOPART_DEVICE_TYPES[c[1]])]
 
 
 def suggest_swap_size(quiet=False, hibernation=False, disk_space=None):

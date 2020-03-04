@@ -21,7 +21,7 @@ from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.constants import DEFAULT_AUTOPART_TYPE
 from pyanaconda.core.i18n import _, C_
 from pyanaconda.product import productName, productVersion
-from pyanaconda.storage.utils import get_supported_autopart_choices
+from pyanaconda.storage.utils import AUTOPART_CHOICES
 from pyanaconda.ui.gui.utils import escape_markup, really_hide, really_show
 
 import gi
@@ -486,7 +486,7 @@ class CreateNewPage(BasePage):
         is created, it will be removed and replaced with a Page for it.
     """
     def __init__(self, title, create_clicked_cb, autopart_type_changed_cb,
-                 partitions_to_reuse=True):
+                 supported_schemes, partitions_to_reuse=True):
         super().__init__(title)
 
         # Create a box where we store the "Here's how you create a new blah" info.
@@ -550,7 +550,11 @@ class CreateNewPage(BasePage):
         label.set_mnemonic_widget(combo)
 
         default = None
-        for name, code in get_supported_autopart_choices():
+        for name, code in AUTOPART_CHOICES:
+            # Skip unsupported partitioning schemes.
+            if code not in supported_schemes:
+                continue
+
             itr = store.append([_(name), code])
             if code == DEFAULT_AUTOPART_TYPE:
                 default = itr

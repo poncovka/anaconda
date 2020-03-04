@@ -413,10 +413,13 @@ class CustomPartitioningSpoke(NormalSpoke, StorageCheckHandler):
             self._add_unknown_page(unused_devices)
 
     def _add_initial_page(self, reuse_existing=False):
+        supported_schemes = self._device_tree.GetSupportedPartitioningSchemes()
+
         page = CreateNewPage(
             self._os_name,
             self.on_create_clicked,
             self._change_autopart_type,
+            supported_schemes=supported_schemes,
             partitions_to_reuse=reuse_existing
         )
 
