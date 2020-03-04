@@ -108,12 +108,6 @@ def device_type_from_autopart(autopart_type):
     return AUTOPART_DEVICE_TYPES.get(autopart_type, DEVICE_TYPE_LVM)
 
 
-def filter_unsupported_disklabel_devices(devices):
-    """ Return input list minus any devices that exist on an unsupported disklabel. """
-    return [d for d in devices
-            if not any(not getattr(p, "disklabel_supported", True) for p in d.ancestors)]
-
-
 def device_name_is_disk(device_name, devicetree=None, refresh_udev_cache=False):
     """Report if the given device name corresponds to a disk device.
 
