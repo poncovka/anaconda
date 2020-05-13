@@ -93,8 +93,10 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
         Unset the source in kickstart and notify the payload so that it can correctly
         release all related resources (unmount iso files, drop caches, etc.).
         """
+        # FIXME: Reset the payloads module.
         self._clean_hdd_iso()
         self.data.method.method = None
+
         payloadMgr.restart_thread(self.payload, checkmount=False)   # pylint: disable=no-member
         threadMgr.wait(constants.THREAD_PAYLOAD_RESTART)
         threadMgr.wait(constants.THREAD_PAYLOAD)
@@ -104,6 +106,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
         This means unmounting the partition and unprotecting it,
         so it can be used for the installation.
         """
+        # FIXME: Move this to the DBus source.
         if self.data.method.method == "harddrive" and self.data.method.partition:
             unmark_protected_device(self.data.method.partition)
 
@@ -115,6 +118,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
         :param iso_path: full path to the source ISO file
         :type iso_path: string
         """
+        # FIXME: Set up the DBus source.
         partition = device_name
         # the GUI source spoke also does the copy
         old_source = copy.copy(self.data.method)
@@ -128,7 +132,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
 
         self.data.method.method = "harddrive"
         self.data.method.partition = partition
-        # the / gets stripped off by payload.ISO_image
+        # the / gets stripped off
         self.data.method.dir = "/" + iso_path
 
         # as we already made the device_name protected when
@@ -136,7 +140,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
 
     def set_source_url(self, url=None):
         """ Switch to install source specified by URL """
-        # clean any old HDD ISO sources
+        # FIXME: Set up the DBus source.
         self._clean_hdd_iso()
 
         self.data.method.method = "url"
@@ -145,6 +149,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
 
     def set_source_nfs(self, opts=None):
         """ Switch to NFS install source """
+        # FIXME: Set up the DBus source.
         # clean any old HDD ISO sources
         self._clean_hdd_iso()
 
@@ -158,6 +163,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
 
     def set_source_cdrom(self):
         """ Switch to cdrom install source """
+        # FIXME: Set up the DBus source.
         # clean any old HDD ISO sources
         self._clean_hdd_iso()
 
@@ -165,6 +171,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
 
     def set_source_hmc(self):
         """ Switch to install source via HMC """
+        # FIXME: Set up the DBus source.
         # clean any old HDD ISO sources
         self._clean_hdd_iso()
 
@@ -172,6 +179,7 @@ class SourceSwitchHandler(object, metaclass=ABCMeta):
 
     def set_source_closest_mirror(self):
         """ Switch to the closest mirror install source """
+        # FIXME: Set up the DBus source.
         # clean any old HDD ISO sources
         self._clean_hdd_iso()
 
