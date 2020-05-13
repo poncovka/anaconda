@@ -35,6 +35,7 @@ class RepoMDMetaHash(object):
     """
     def __init__(self, dnf_payload, repo):
         self._repoId = repo.id
+        # FIXME: Use the DBus source.
         self._method = dnf_payload.data.method
         self._ssl_verify = repo.sslverify
         self._urls = repo.baseurl
@@ -71,6 +72,7 @@ class RepoMDMetaHash(object):
         repomd = ""
         headers = {"user-agent": USER_AGENT}
 
+        # FIXME: Use the DBus source.
         if hasattr(method, "proxy"):
             proxy_url = method.proxy
             try:
