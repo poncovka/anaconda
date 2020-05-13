@@ -65,6 +65,7 @@ class Anaconda(object):
 
     def set_from_opts(self, opts):
         """Load argument to variables from self.opts."""
+        # FIXME; Handle this in the DBus module.
         self.opts = opts
         self.proxy = opts.proxy
         self.methodstr = opts.method

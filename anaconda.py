@@ -505,6 +505,7 @@ if __name__ == "__main__":
     # cmdline flags override kickstart settings
     if anaconda.proxy:
 
+        # FIXME: Set up the DBus module.
         if hasattr(ksdata.method, "proxy"):
             ksdata.method.proxy = anaconda.proxy
 
@@ -525,6 +526,7 @@ if __name__ == "__main__":
             util.setenv("ftp_proxy", proxy.url)
             util.setenv("HTTPS_PROXY", proxy.url)
 
+    # FIXME: Handle in DBus module.
     if not conf.payload.verify_ssl and hasattr(ksdata.method, "noverifyssl"):
         ksdata.method.noverifyssl = not conf.payload.verify_ssl
     if opts.multiLib:
@@ -533,6 +535,7 @@ if __name__ == "__main__":
 
     # set ksdata.method based on anaconda.method if it isn't already set
     # - anaconda.method is currently set by command line/boot options
+    # FIXME: Set up the DBus source.
     if anaconda.methodstr and not ksdata.method.seen:
         startup_utils.set_installation_method_from_anaconda_options(anaconda, ksdata)
 
@@ -694,6 +697,7 @@ if __name__ == "__main__":
     anaconda.add_additional_repositories_to_ksdata()
 
     # Fallback to default for interactive or for a kickstart with no installation method.
+    # FIXME: Check the DBus source.
     fallback = not (flags.automatedInstall and ksdata.method.method)
     payloadMgr.restart_thread(anaconda.payload, fallback=fallback)
 

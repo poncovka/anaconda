@@ -306,6 +306,7 @@ def set_installation_method_from_anaconda_options(anaconda, ksdata):
         log.error("Unknown method: %s", anaconda.methodstr)
         return
 
+    # FIXME: Set up the DBus source instead.
     ksdata.method.method = source.method_type
 
     if source.is_nfs:
