@@ -27,10 +27,12 @@ from collections import namedtuple
 from urllib.parse import urlsplit
 
 from pyanaconda.core import glib, constants
-from pyanaconda.core.constants import PAYLOAD_TYPE_DNF
+from pyanaconda.core.constants import PAYLOAD_TYPE_DNF, SOURCE_TYPE_HDD, SOURCE_TYPE_URL, \
+    SOURCE_TYPE_NFS, SOURCE_TYPE_HMC, SOURCE_TYPE_CDROM, SOURCE_TYPE_REPO_FILES
 from pyanaconda.core.process_watchers import PidWatcher
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import _, N_, CN_
+from pyanaconda.modules.common.constants.interfaces import PAYLOAD
 from pyanaconda.payload.image import find_optical_install_media, find_potential_hdiso_sources, \
     get_hdiso_source_info, get_hdiso_source_description
 from pyanaconda.core.payload import ProxyString, ProxyStringError
@@ -51,8 +53,6 @@ from pyanaconda.core.regexes import REPO_NAME_VALID, URL_PARSE, HOSTNAME_PATTERN
 from pyanaconda.modules.common.constants.services import NETWORK, STORAGE
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.structures.storage import DeviceData
-from pyanaconda.core.storage import device_matches
-from pyanaconda.ui.lib.storage import mark_protected_device, unmark_protected_device
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -427,159 +427,22 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
         self._network_module = NETWORK.get_proxy()
         self._device_tree = STORAGE.get_proxy(DEVICE_TREE)
 
+        self._payload_proxy = PAYLOAD.get_proxy()
+        self._source_proxy = None
+
         self._treeinfo_repos_already_disabled = False
+
+    @property
+    def _source_type(self):
+        """Get the current source type."""
+        if not self._source_proxy:
+            return None
+
+        return self._source_proxy.Type
 
     def apply(self):
         payloadMgr.restart_thread(self.payload, checkmount=False)
         self.clear_info()
-
-    def _method_changed(self):
-        """ Check to see if the install method has changed.
-
-            :returns: True if it changed, False if not
-            :rtype: bool
-        """
-        # FIXME:
-        # This is an ugly temporary fix, because we cannot use deepcopy since
-        # pykickstart 3. This entire module should be rewritten anyway.
-        old_method = self.data.method.method
-        old_partition = getattr(self.data.method, "partition", None)
-        old_dir = getattr(self.data.method, "dir", None)
-        old_url = getattr(self.data.method, "url", None)
-        old_server = getattr(self.data.method, "server", None)
-        old_opts = getattr(self.data.method, "opts", None)
-        old_mirrorlist = getattr(self.data.method, "mirrorlist", None)
-        old_metalink = getattr(self.data.method, "metalink", None)
-
-        if self._autodetect_button.get_active():
-            if not self._cdrom:
-                return False
-
-            self.data.method.method = "cdrom"
-            self.payload.install_device = self._cdrom
-            if old_method == "cdrom":
-                # XXX maybe we should always redo it for cdrom in case they
-                #     switched disks
-                return False
-        elif self._hmc_button.get_active():
-            self.data.method.method = "hmc"
-        elif self._iso_button.get_active():
-            # If the user didn't select a partition (not sure how that would
-            # happen) or didn't choose a directory (more likely), then return
-            # as if they never did anything.
-            partition = self._get_selected_partition()
-            if not partition or not self._current_iso_file:
-                return False
-
-            self.data.method.method = "harddrive"
-            self.data.method.partition = partition
-            # The / gets stripped off by payload.ISO_image
-            self.data.method.dir = "/" + self._current_iso_file
-            if old_method == "harddrive" \
-               and payload_utils.resolve_device(old_partition) == partition \
-               and old_dir in [self._current_iso_file, "/" + self._current_iso_file]:
-                return False
-
-            # Make sure anaconda doesn't touch this device.
-            mark_protected_device(partition)
-        elif self._mirror_active():
-            # this preserves the url for later editing
-            self.data.method.method = None
-            self.data.method.proxy = self._proxy_url
-            if not old_method and self.payload.base_repo and \
-               not self._proxy_change and not self._updates_change:
-                return False
-        elif self._ftp_active():
-            url = self._url_entry.get_text().strip()
-            # If the user didn't fill in the URL entry, just return as if they
-            # selected nothing.
-            if url == "":
-                return False
-
-            # Make sure the URL starts with the protocol.  dnf will want that
-            # to know how to fetch, and the refresh method needs that to know
-            # which element of the combo to default to should this spoke be
-            # revisited.
-            if not url.startswith("ftp://"):
-                url = "ftp://" + url
-            if old_method == "url" and not self._proxy_change and \
-                    old_url == url:
-                return False
-            self.data.method.method = "url"
-            self.data.method.proxy = self._proxy_url
-            self.data.method.url = url
-            self.data.method.mirrorlist = ""
-            self.data.method.metalink = ""
-        elif self._http_active():
-            url = self._url_entry.get_text().strip()
-            # If the user didn't fill in the URL entry, just return as if they
-            # selected nothing.
-            if url == "":
-                return False
-
-            # Make sure the URL starts with the protocol.  dnf will want that
-            # to know how to fetch, and the refresh method needs that to know
-            # which element of the combo to default to should this spoke be
-            # revisited.
-            elif (self._protocol_combo_box.get_active_id() == PROTOCOL_HTTP
-                  and not url.startswith("http://")):
-                url = "http://" + url
-            elif (self._protocol_combo_box.get_active_id() == PROTOCOL_HTTPS
-                  and not url.startswith("https://")):
-                url = "https://" + url
-
-            url_type = self._url_type_combo_box.get_active_id()
-            url_changed = self._url_changed(url, url_type, old_url, old_mirrorlist, old_metalink)
-            if old_method == "url" and not self._proxy_change and not url_changed:
-                return False
-
-            self.data.method.method = "url"
-            self.data.method.proxy = self._proxy_url
-            self.data.method.url = self.data.method.mirrorlist = self.data.method.metalink = ""
-            if url_type == URL_TYPE_MIRRORLIST:
-                self.data.method.mirrorlist = url
-            elif url_type == URL_TYPE_METALINK:
-                self.data.method.metalink = url
-            else:
-                self.data.method.url = url
-        elif self._nfs_active():
-            url = self._url_entry.get_text().strip()
-
-            if url == "":
-                return False
-
-            self.data.method.method = "nfs"
-            try:
-                (self.data.method.server, self.data.method.dir) = url.split(":", 2)
-            except ValueError as e:
-                log.error("ValueError: %s", e)
-                self._error = True
-                self._error_msg = _("Failed to set up installation source; check the repo url")
-                return
-
-            self.data.method.opts = self.builder.get_object("nfsOptsEntry").get_text() or ""
-
-            if old_method == "nfs" \
-               and old_server == self.data.method.server \
-               and old_dir == self.data.method.dir \
-               and old_opts == self.data.method.opts:
-                return False
-
-        # If the user moved from an HDISO method to some other, we need to
-        # clear the protected bit on that device.
-        if old_method == "harddrive" and old_partition:
-            if not self._iso_button.get_active():
-                # Only clear this if iso isn't selected
-                self._current_iso_file = None
-                self._iso_chooser_button.set_label(self._orig_iso_chooser_button)
-                self._iso_chooser_button.set_use_underline(True)
-
-            unmark_protected_device(old_partition)
-
-        self._proxy_change = False
-        self._updates_change = False
-
-        return True
 
     def _url_changed(self, url, url_type, old_url, old_mirrorlist, old_metalink):
         if url_type == URL_TYPE_URL:
@@ -626,6 +489,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
 
     @property
     def changed(self):
+        # FIXME: Change the sources immediately.
         method_changed = self._method_changed()
         update_payload_repos = self._update_payload_repos()
         return method_changed or update_payload_repos or self._error
@@ -639,7 +503,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
             return False
         else:
             return not self._error and self.ready and \
-                (self.data.method.method or self.payload.base_repo)
+                (self._source_type == SOURCE_TYPE_REPO_FILES or self.payload.base_repo)
 
     @property
     def mandatory(self):
@@ -662,35 +526,10 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
             return _("Error setting up base repository")
         elif self._error:
             return _("Error setting up software source")
-        elif self.data.method.method == "url":
-            return self.data.method.url or self.data.method.mirrorlist or self.data.method.metalink
-        elif self.data.method.method == "nfs":
-            return _("NFS server {}").format(self.data.method.server)
-        elif self.data.method.method == "cdrom":
-            return _("Local media")
-        elif self.data.method.method == "hmc":
-            return _("Local media via SE/HMC")
-        elif self.data.method.method == "harddrive":
-            if not self._current_iso_file:
-                if self.payload.base_repo:
-                    return "{}:{}".format(self._get_harddrive_partition_name(),
-                                          self.data.method.dir)
-                return _("Error setting up installation from HDD")
-            return os.path.basename(self._current_iso_file)
-        elif self.payload.base_repo:
-            return _("Closest mirror")
+        elif self._source_proxy:
+            return self._source_proxy.Description
         else:
             return _("Nothing selected")
-
-    def _get_harddrive_partition_name(self):
-        devices = device_matches(self.data.method.partition)
-        if not devices:
-            log.warning("Device for installation from HDD can't be found!")
-            return ""
-        elif len(devices) > 1:
-            log.warning("More than one device is found for HDD installation!")
-
-        return devices[0]
 
     def _grab_objects(self):
         self._autodetect_button = self.builder.get_object("autodetectRadioButton")
@@ -751,6 +590,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
 
         self._proxy_button = self.builder.get_object("proxyButton")
         self._nfs_opts_box = self.builder.get_object("nfsOptsBox")
+        self._nfs_opts_entry = self.builder.get_object("nfsOptsEntry")
 
         # Connect scroll events on the viewport with focus events on the box
         main_viewport = self.builder.get_object("mainViewport")
@@ -826,11 +666,10 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
     def _payload_error(self):
         self._error = True
         hubQ.send_message(self.__class__.__name__, payloadMgr.error)
-        if not (hasattr(self.data.method, "proxy") and self.data.method.proxy):
-            self._error_msg = _("Failed to set up installation source; check the repo url.")
-        else:
-            self._error_msg = _("Failed to set up installation source; check the repo url"
-                                " and proxy settings.")
+
+        self._error_msg = _("Failed to set up installation source; check the repo url"
+                            " and proxy settings.")
+
         if self.payload.verbose_errors:
             self._error_msg += _(CLICK_FOR_DETAILS)
 
@@ -851,27 +690,35 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
             if itr:
                 model.remove(itr)
 
+        # FIXME: Get the data from the DBus source.
+        source_path = self._payload_proxy.GetSource()
+        self._source_proxy = PAYLOAD.get_proxy(source_path)
+
         # If we've previously set up to use a CD/DVD method, the media has
         # already been mounted by payload.setup.  We can't try to mount it
         # again.  So just use what we already know to create the selector.
         # Otherwise, check to see if there's anything available.
-        if self.data.method.method == "cdrom":
-            self._cdrom = self.payload.install_device
+        if self._source_type == SOURCE_TYPE_CDROM:
+            self._cdrom = self._source_proxy.Device
         elif not flags.automatedInstall:
             self._cdrom = find_optical_install_media()
 
         if self._cdrom:
             self._show_autodetect_box_with_device(self._cdrom)
 
-        if self.data.method.method == "harddrive":
-            if self.payload.ISO_image:
-                self._current_iso_file = self.payload.ISO_image
-            else:  # Installation from an expanded install tree
-                device_name = self._get_harddrive_partition_name()
-                self._show_autodetect_box(device_name, self.data.method.partition)
+        if self._source_type == SOURCE_TYPE_HDD:
+            iso_file = self._source_proxy.ISOFile
+            if iso_file:
+                self._current_iso_file = iso_file
+            else:
+                # Installation from an expanded install tree
+                self._show_autodetect_box(
+                    self._source_proxy.PartitionName,
+                    self._source_proxy.PartitionSpec
+                )
 
         # Enable the SE/HMC option.
-        if self.payload.is_hmc_enabled:
+        if self._source_type == SOURCE_TYPE_HMC:
             gtk_call_once(self._hmc_button.set_no_show_all, False)
 
         # Add the mirror manager URL in as the default for HTTP and HTTPS.
@@ -919,8 +766,9 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
         active = 0
         idx = 0
 
-        if self.data.method.method == "harddrive":
-            method_dev_name = self._get_harddrive_partition_name()
+        # FIXME: Get the data from the DBus source.
+        source_path = self._payload_proxy.GetSource()
+        self._source_proxy = PAYLOAD.get_proxy(source_path)
 
         for device_name in find_potential_hdiso_sources():
             device_info = get_hdiso_source_info(self._device_tree, device_name)
@@ -933,7 +781,8 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
             device_desc = get_hdiso_source_description(device_info)
             store.append([device_name, device_desc])
 
-            if self.data.method.method == "harddrive" and device_name == method_dev_name:
+            if self._source_type == SOURCE_TYPE_HDD \
+                    and device_name == self._source_proxy.PartitionName:
                 active = idx
 
             added = True
@@ -953,37 +802,23 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
         # something different later, we can change it.
         self._protocol_combo_box.set_active_id(PROTOCOL_MIRROR)
 
-        if self.data.method.method == "url":
+        if self._source_type == SOURCE_TYPE_URL:
             self._network_button.set_active(True)
-
-            proto = self.data.method.url or \
-                self.data.method.mirrorlist or \
-                self.data.method.metalink
-            if proto.startswith("http:"):
-                self._protocol_combo_box.set_active_id(PROTOCOL_HTTP)
-                length = 7
-            elif proto.startswith("https:"):
-                self._protocol_combo_box.set_active_id(PROTOCOL_HTTPS)
-                length = 8
-            elif proto.startswith("ftp:"):
-                self._protocol_combo_box.set_active_id(PROTOCOL_FTP)
-                length = 6
-            else:
-                self._protocol_combo_box.set_active_id(PROTOCOL_HTTP)
-                length = 0
-
-            self._url_entry.set_text(proto[length:])
+            self._protocol_combo_box.set_active_id(self._source_proxy.Protocol)
+            self._url_entry.set_text(self._source_proxy.Path)
             self._update_url_entry_check()
             self._update_url_type_combo_box()
-            self._proxy_url = self.data.method.proxy
-        elif self.data.method.method == "nfs":
+            self._proxy_url = self._source_proxy.Proxy
+        elif self._source_type == SOURCE_TYPE_NFS:
             self._network_button.set_active(True)
             self._protocol_combo_box.set_active_id(PROTOCOL_NFS)
-
-            self._url_entry.set_text("%s:%s" % (self.data.method.server, self.data.method.dir))
+            self._url_entry.set_text("{}:{}".format(
+                self._source_proxy.Server,
+                self._source_proxy.Directory)
+            )
             self._update_url_entry_check()
-            self.builder.get_object("nfsOptsEntry").set_text(self.data.method.opts or "")
-        elif self.data.method.method == "harddrive":
+            self._nfs_opts_entry.set_text(self._source_proxy.Options)
+        elif self._source_type == SOURCE_TYPE_HDD:
             if not self._current_iso_file:
                 self._autodetect_button.set_active(True)
             else:
@@ -995,7 +830,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
                 else:
                     self._iso_chooser_button.set_label("")
                 self._iso_chooser_button.set_use_underline(False)
-        elif self.data.method.method == "hmc":
+        elif self._source_type == SOURCE_TYPE_HMC:
             self._hmc_button.set_active(True)
         else:
             # No method was given in advance, so now we need to make a sensible
@@ -1003,11 +838,13 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
             # fall back to closest mirror.
             if not self._autodetect_button.get_no_show_all():
                 self._autodetect_button.set_active(True)
-                self.data.method.method = "cdrom"
+                source_path = self._payload_proxy.CreateSouce(SOURCE_TYPE_CDROM)
+                self._source_proxy = PAYLOAD.get_proxy(source_path)
             else:
                 self._network_button.set_active(True)
-                self.data.method.method = None
-                self._proxy_url = self.data.method.proxy
+                source_path = self._payload_proxy.CreateSouce(SOURCE_TYPE_REPO_FILES)
+                self._source_proxy = PAYLOAD.get_proxy(source_path)
+                self._proxy_url = self._source_proxy.Proxy
 
         self._setup_updates()
 
@@ -1037,7 +874,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
         # really no way we can tear down that source to allow the user to
         # change it.  Thus, this entire portion of the spoke should be
         # insensitive.
-        if self.data.method.method == "harddrive" and \
+        if self._source_proxy.Type == SOURCE_TYPE_HDD and \
            payload_utils.get_mount_device_path(constants.DRACUT_ISODIR) == \
                 payload_utils.get_mount_device_path(constants.DRACUT_REPODIR):
             for widget in [self._autodetect_button, self._autodetect_box, self._iso_button,
@@ -1066,9 +903,9 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler):
         self._update_url_entry_check()
 
     def _update_url_type_combo_box(self):
-        if self.data.method.mirrorlist:
+        if self._source_proxy.MirrorList:
             self._url_type_combo_box.set_active_id(URL_TYPE_MIRRORLIST)
-        elif self.data.method.metalink:
+        elif self._source_proxy.MetaLink:
             self._url_type_combo_box.set_active_id(URL_TYPE_METALINK)
         else:
             self._url_type_combo_box.set_active_id(URL_TYPE_URL)
