@@ -18,7 +18,7 @@
 #
 from pyanaconda.flags import flags
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
-from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.constants.services import STORAGE, PAYLOADS
 from pyanaconda.ui.categories.software import SoftwareCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.tuiobject import Dialog
@@ -29,7 +29,8 @@ from pyanaconda.core.i18n import N_, _, C_
 from pyanaconda.payload.image import find_optical_install_media, find_potential_hdiso_sources, \
     get_hdiso_source_info, get_hdiso_source_description
 
-from pyanaconda.core.constants import THREAD_SOURCE_WATCHER, THREAD_PAYLOAD, PAYLOAD_TYPE_DNF
+from pyanaconda.core.constants import THREAD_SOURCE_WATCHER, THREAD_PAYLOAD, PAYLOAD_TYPE_DNF, \
+    SOURCE_TYPE_CDROM, SOURCE_TYPE_HMC, SOURCE_TYPE_REPO_FILES, SOURCE_TYPE_HDD
 from pyanaconda.core.constants import THREAD_STORAGE_WATCHER
 from pyanaconda.core.constants import THREAD_CHECK_SOFTWARE, ISO_DIR, DRACUT_ISODIR, DRACUT_REPODIR
 from pyanaconda.core.constants import PAYLOAD_STATUS_PROBING_STORAGE
@@ -71,6 +72,17 @@ class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
         self._cdrom = None
         self._hmc = False
 
+        self._payloads_proxy = PAYLOADS.get_proxy()
+        self._source_proxy = None
+
+    @property
+    def _source_type(self):
+        """Get the current source type."""
+        if not self._source_proxy:
+            return None
+
+        return self._source_proxy.Type
+
     def initialize(self):
         NormalTUISpoke.initialize(self)
         self.initialize_start()
@@ -82,17 +94,21 @@ class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
     def _initialize(self):
         """ Private initialize. """
         threadMgr.wait(THREAD_PAYLOAD)
+
+        source_path = self._payloads_proxy.GetSource()
+        self._source_proxy = PAYLOADS.get_proxy(source_path)
+
         # If we've previously set up to use a CD/DVD method, the media has
         # already been mounted by payload.setup.  We can't try to mount it
         # again.  So just use what we already know to create the selector.
         # Otherwise, check to see if there's anything available.
-        if self.data.method.method == "cdrom":
+        if self._source_type == SOURCE_TYPE_CDROM:
             self._cdrom = self.payload.install_device
         elif not flags.automatedInstall:
             self._cdrom = find_optical_install_media()
 
         # Enable the SE/HMC option.
-        if self.payload.is_hmc_enabled:
+        if self._source_type == SOURCE_TYPE_HMC:
             self._hmc = True
 
         self._ready = True
@@ -105,23 +121,10 @@ class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
 
     def _repo_status(self):
         """ Return a string describing repo url or lack of one. """
-        method = self.data.method
-        if method.method == "url":
-            return method.url or method.mirrorlist or method.metalink
-        elif method.method == "nfs":
-            return _("NFS server {}").format(method.server)
-        elif method.method == "cdrom":
-            return _("Local media")
-        elif method.method == "hmc":
-            return _("Local media via SE/HMC")
-        elif method.method == "harddrive":
-            if not method.dir:
-                return _("Error setting up software source")
-            return os.path.basename(method.dir)
-        elif self.payload.base_repo:
-            return _("Closest mirror")
-        else:
-            return _("Nothing selected")
+        if self._source_proxy:
+            return self._source_proxy.Description
+
+        return _("Nothing selected")
 
     @property
     def showable(self):
@@ -143,16 +146,20 @@ class SourceSpoke(NormalTUISpoke, SourceSwitchHandler):
         else:
             return (not self._error
                     and self.ready
-                    and (self.data.method.method or self.payload.base_repo))
+                    and (self._source_type != SOURCE_TYPE_REPO_FILES or
+                         self.payload.base_repo))
+
+    def setup(self, args):
+        source_path = self._payloads_proxy.GetSource()
+        self._source_proxy = PAYLOADS.get_proxy(source_path)
 
     def refresh(self, args=None):
         NormalTUISpoke.refresh(self, args)
 
         threadMgr.wait(THREAD_PAYLOAD)
-
         self._container = ListColumnContainer(1, columns_width=78, spacing=1)
 
-        if self.data.method.method == "harddrive" and \
+        if self._source_type == SOURCE_TYPE_HDD and \
            payload_utils.get_mount_device_path(DRACUT_ISODIR) == \
                 payload_utils.get_mount_device_path(DRACUT_REPODIR):
             message = _("The installation source is in use by the installer and "
@@ -319,6 +326,7 @@ class SpecifyNFSRepoSpoke(NormalTUISpoke, SourceSwitchHandler):
         self._container = None
         self._error = error
 
+        # FIXME: Set up the DBus source.
         nfs = self.data.method
 
         self._nfs_opts = ""
@@ -369,6 +377,7 @@ class SpecifyNFSRepoSpoke(NormalTUISpoke, SourceSwitchHandler):
 
     def apply(self):
         """ Apply our changes. """
+        # FIXME: Set up the DBus source.
         if self._nfs_server == "" or ':' not in self._nfs_server:
             return False
 
@@ -466,7 +475,10 @@ class SelectISOSpoke(NormalTUISpoke, SourceSwitchHandler):
         SourceSwitchHandler.__init__(self)
         self.title = N_("Select an ISO to use as install source")
         self._container = None
+
+        # FIXME: Set up the DBus source.
         self.args = self.data.method
+
         self._device = device
         self._mount_device()
         self._isos = self._getISOs()
@@ -540,6 +552,7 @@ class SelectISOSpoke(NormalTUISpoke, SourceSwitchHandler):
             # Otherwise we would get a crash if the same iso was selected again
             # as _unmount_device() would try to unmount a partition that is in use
             # due to the payload still holding on to the ISO file.
+            # FIXME: Set up the DBus source.
             if self.data.method.method == "harddrive":
                 self.unset_source()
             self.set_source_hdd_iso(self._device, self._current_iso_path)
