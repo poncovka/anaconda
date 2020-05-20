@@ -1450,7 +1450,7 @@ class DNFPayload(Payload):
 
     def update_base_repo(self, fallback=True, checkmount=True):
         """Update the base repository from the DBus source."""
-        log.info('configuring base repo')
+        log.info("Configuring the base repo")
         self.reset()
 
         # Set up the source.
@@ -1483,6 +1483,8 @@ class DNFPayload(Payload):
             data = RepoConfigurationData.from_structure(
                 self.proxy.GetRepoConfigurations()[0]
             )
+
+            log.debug("Using the repo configuration: %s", data)
 
             # Get the URL.
             install_tree_url = data.url if data.type == URL_TYPE_BASEURL else ""
