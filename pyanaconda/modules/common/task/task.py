@@ -107,6 +107,29 @@ class Task(AbstractTask):
         log.error("Thread %s has failed: %s", self._thread_name, formatted_info)
         super()._task_failed_callback()
 
+    def run_with_signals(self):
+        """Run the task in the current thread with enabled signals.
+
+        Call this method to run the task synchronously in the current
+        thread. It will emit all signals in the same order as the start
+        method.
+
+        :raise: an error if the task fails
+        :return: a result of the task if the task succeeds
+        """
+        try:
+            self._task_started_callback()
+            result = self._task_run_callback()
+        except Exception:  # pylint: disable=broad-except
+            self._task_failed_callback()
+            raise
+        else:
+            self._task_succeeded_callback()
+        finally:
+            self._task_stopped_callback()
+
+        return result
+
     @abstractmethod
     def run(self):
         """The task implementation.
