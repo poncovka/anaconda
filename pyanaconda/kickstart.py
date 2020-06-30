@@ -216,64 +216,6 @@ class Logging(COMMANDS.Logging):
             anaconda_logging.logger.updateRemote(remote_server)
 
 
-class RepoData(COMMANDS.RepoData):
-
-    __mount_counter = 0
-
-    def __init__(self, *args, **kwargs):
-        """ Add enabled kwarg
-
-            :param enabled: The repo has been enabled
-            :type enabled: bool
-        """
-        self.enabled = kwargs.pop("enabled", True)
-        self.repo_id = kwargs.pop("repo_id", None)
-        self.treeinfo_origin = kwargs.pop("treeinfo_origin", False)
-        self.partition = kwargs.pop("partition", None)
-        self.iso_path = kwargs.pop("iso_path", None)
-
-        self.mount_dir_suffix = kwargs.pop("mount_dir_suffix", None)
-
-        super().__init__(*args, **kwargs)
-
-    @classmethod
-    def create_copy(cls, other):
-        return cls(name=other.name,
-                   baseurl=other.baseurl,
-                   mirrorlist=other.mirrorlist,
-                   metalink=other.metalink,
-                   proxy=other.proxy,
-                   enabled=other.enabled,
-                   treeinfo_origin=other.treeinfo_origin,
-                   partition=other.partition,
-                   iso_path=other.iso_path,
-                   mount_dir_suffix=other.mount_dir_suffix)
-
-    def generate_mount_dir(self):
-        """Generate persistent mount directory suffix
-
-        This is valid only for HD repositories
-        """
-        if self.is_harddrive_based() and self.mount_dir_suffix is None:
-            self.mount_dir_suffix = "addition_" + self._generate_mount_dir_suffix()
-
-    @classmethod
-    def _generate_mount_dir_suffix(cls):
-        suffix = str(cls.__mount_counter)
-        cls.__mount_counter += 1
-        return suffix
-
-    def __str__(self):
-        """Don't output disabled repos"""
-        if self.enabled:
-            return super().__str__()
-        else:
-            return ''
-
-    def is_harddrive_based(self):
-        return self.partition is not None
-
-
 ###
 ### %anaconda Section
 ###
@@ -371,6 +313,7 @@ commandMap = {
     "raid": UselessCommand,
     "realm": UselessCommand,
     "reqpart": UselessCommand,
+    "repo": UselessCommand,
     "rootpw": UselessCommand,
     "selinux": UselessCommand,
     "services": UselessCommand,
@@ -384,10 +327,6 @@ commandMap = {
     "xconfig": UselessCommand,
     "zerombr": UselessCommand,
     "zfcp": UselessCommand,
-}
-
-dataMap = {
-    "RepoData": RepoData,
 }
 
 superclass = returnClassForVersion(VERSION)
@@ -404,7 +343,7 @@ class AnacondaKSHandler(superclass):
             commandUpdates = commandMap
 
         if dataUpdates is None:
-            dataUpdates = dataMap
+            dataUpdates = {}
 
         super().__init__(commandUpdates=commandUpdates, dataUpdates=dataUpdates)
         self.onPart = {}
