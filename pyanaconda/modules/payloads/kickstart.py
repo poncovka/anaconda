@@ -28,5 +28,10 @@ class PayloadKickstartSpecification(KickstartSpecification):
         "hmc": COMMANDS.Hmc,
         "liveimg": COMMANDS.Liveimg,
         "nfs": COMMANDS.NFS,
+        "repo": COMMANDS.Repo,
         "url": COMMANDS.Url
+    }
+
+    commands_data = {
+        "RepoData": COMMANDS.RepoData,
     }
