@@ -1422,10 +1422,12 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
         REPO_ATTRS = ("name", "baseurl", "mirrorlist", "metalink", "proxy", "enabled")
         changed = False
 
+        # FIXME: Use the DBus objects.
         with self._repo_store_lock:
             ui_orig_names = [r[REPO_OBJ].orig_name for r in self._repo_store]
 
             # Remove repos from payload that were removed in the UI
+            # FIXME: Use the DBus module for this.
             for repo_name in [r for r in self.payload.addons if r not in ui_orig_names]:
                 repo = self.payload.get_addon_repo(repo_name)
                 # TODO: Need an API to do this w/o touching dnf (not add_repo)
@@ -1465,6 +1467,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
             self.remove_check(checks.proxy_check)
         self._repo_checks = {}
 
+        # FIXME: Use the DBus objects.
         with self._repo_store_lock:
             self._repo_store.clear()
             repos = self.payload.addons
@@ -1662,6 +1665,7 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
     def on_addRepo_clicked(self, button):
         """ Add a new repository
         """
+        # FIXME: Use the DBus objects.
         name = self._unique_repo_name("New_Repository")
         repo = self.data.RepoData(name=name)
         repo.ks_repo = True

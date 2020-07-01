@@ -277,6 +277,7 @@ def register_and_subscribe(payload, progress_callback=None, error_callback=None)
         switch_source(payload, SOURCE_TYPE_CDN)
         # disable automatically added treeinfo repos so that
         # they do not interfere with the CDN
+        # FIXME: Use the DBus modules.
         for repo in payload.data.repo.dataList():
             if repo.treeinfo_origin:
                 repo.enabled = False

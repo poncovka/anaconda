@@ -181,6 +181,7 @@ class Anaconda(object):
                  constants.DISPLAY_MODE_NAME[self.display_mode])
 
     def add_additional_repositories_to_ksdata(self):
+        # FIXME: Create new DBus sources for these repositories.
         from pyanaconda.kickstart import RepoData
 
         for add_repo in self.additional_repos:
@@ -214,6 +215,7 @@ class Anaconda(object):
 
         In automatic kickstart installation this will result in using the first defined repo.
         """
+        # FIXME: Move this check to the DBus module.
         if repo in self.ksdata.repo.dataList():
             log.warning("Repository name %s is not unique. Only the first repo will be used!",
                         repo.name)

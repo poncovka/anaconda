@@ -230,6 +230,7 @@ class DNFPayload(Payload):
     @property
     def needs_network(self):
         """Test base and additional repositories if they require network."""
+        # FIXME: Remove the condition for additional repos. The proxy will handle it.
         return (self.proxy.IsNetworkRequired() or
                 any(self._repo_needs_network(repo) for repo in self.data.repo.dataList()))
 
@@ -272,6 +273,7 @@ class DNFPayload(Payload):
 
         return None
 
+    # FIXME: Change the argument of this method.
     def _add_repo(self, ksrepo):
         """Add a repo to the dnf repo object.
 
@@ -279,11 +281,13 @@ class DNFPayload(Payload):
         :type ksrepo: Kickstart RepoData object.
         :returns: None
         """
+        # FIXME: Use the DBus source to set up the repo.
         repo = dnf.repo.Repo(ksrepo.name, self._base.conf)
         url = self._replace_vars(ksrepo.baseurl)
         mirrorlist = self._replace_vars(ksrepo.mirrorlist)
         metalink = self._replace_vars(ksrepo.metalink)
 
+        # FIXME: Use the DBus source to set up NFS.
         if url and url.startswith("nfs://"):
             (server, path) = url[6:].split(":", 1)
             # DNF is dynamically creating properties which seems confusing for Pylint here
@@ -370,6 +374,7 @@ class DNFPayload(Payload):
         log.info("enabled repo: '%s' - %s and got repomd", repo.id,
                  repo.baseurl or repo.mirrorlist or repo.metalink)
 
+    # FIXME: Change the argument of this method.
     def add_repo(self, ksrepo):
         """Add an enabled repo to dnf and kickstart repo lists.
 
@@ -389,6 +394,8 @@ class DNFPayload(Payload):
 
         # Add the repo to the ksdata so it'll appear in the output ks file.
         ksrepo.enabled = True
+
+        # FIXME: Create and add a new DBus object.
         self.data.repo.dataList().append(ksrepo)
 
     def _process_module_command(self):
@@ -946,6 +953,7 @@ class DNFPayload(Payload):
     @property
     def addons(self):
         """A list of addon repo names."""
+        # FIXME: Use the DBus module. Maybe create a new DBus method.
         return [r.name for r in self.data.repo.dataList()]
 
     @property
@@ -977,6 +985,7 @@ class DNFPayload(Payload):
 
     def get_addon_repo(self, repo_id):
         """Return a ksdata Repo instance matching the specified repo id."""
+        # FIXME: Create a new DBus method for this?
         repo = None
         for r in self.data.repo.dataList():
             if r.name == repo_id:
@@ -992,10 +1001,12 @@ class DNFPayload(Payload):
         Duplicate repos will not raise an error.  They should just silently
         take the place of the previous value.
         """
+        # FIXME: Use the DBus module.
         ksrepo.enabled = False
         self.data.repo.dataList().append(ksrepo)
 
     def remove_repo(self, repo_id):
+        # FIXME: Use the DBus module.
         repos = self.data.repo.dataList()
         try:
             idx = [repo.name for repo in repos].index(repo_id)
@@ -1004,6 +1015,7 @@ class DNFPayload(Payload):
         else:
             repos.pop(idx)
 
+    # FIXME: Handle this in the DBus module.
     def add_driver_repos(self):
         """Add driver repositories and packages."""
         # Drivers are loaded by anaconda-dracut, their repos are copied
@@ -1589,6 +1601,7 @@ class DNFPayload(Payload):
                 log.error("couldn't set releasever from base repo (%s): %s", source_type, e)
 
             try:
+                # FIXME: Set up the DNF repo.
                 base_ksrepo = self.data.RepoData(
                     name=constants.BASE_REPO_NAME,
                     baseurl=base_repo_url,
@@ -1652,6 +1665,7 @@ class DNFPayload(Payload):
                         log.debug("repo %s: fall back enabled from default repos", id_)
                         repo.enable()
 
+        # FIXME: Use the DBus sources.
         for repo in self.addons:
             ksrepo = self.get_addon_repo(repo)
 
@@ -1686,6 +1700,7 @@ class DNFPayload(Payload):
                 if repo_name in enabled_repos:
                     self._fetch_md(repo_name)
 
+    # FIXME: Move this function on DBus.
     def _find_and_mount_iso(self, device, device_mount_dir, iso_path, iso_mount_dir):
         """Find and mount installation source from ISO on device.
 
@@ -1727,6 +1742,7 @@ class DNFPayload(Payload):
 
         return iso_path
 
+    # FIXME: Move this function on DBus.
     @staticmethod
     def _setup_device(device, mountpoint):
         """Prepare an install CD/DVD for use as a package source."""
@@ -1753,6 +1769,7 @@ class DNFPayload(Payload):
             payload_utils.teardown_device(device)
             raise PayloadSetupError(str(e))
 
+    # FIXME: Handle this in the DBus source.
     @staticmethod
     def _setup_NFS(mountpoint, server, path, options):
         """Prepare an NFS directory for use as an install source."""
@@ -1779,6 +1796,7 @@ class DNFPayload(Payload):
 
         payload_utils.mount(url, mountpoint, fstype="nfs", options=options)
 
+    # FIXME: Move this function on DBus.
     def _setup_harddrive_addon_repo(self, ksrepo):
         iso_device = payload_utils.resolve_device(ksrepo.partition)
         if not iso_device:
@@ -1893,6 +1911,7 @@ class DNFPayload(Payload):
         log.debug("No base repository found in treeinfo file. Using installation tree root.")
         return install_tree_url
 
+    # FIXME: Generate the additional repos in the DBus module.
     def _add_treeinfo_repositories(self, install_tree_url, base_repo_url=None):
         """Add all repositories from treeinfo file which are not already loaded.
 

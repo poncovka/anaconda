@@ -523,6 +523,7 @@ class AsynchronousRegistrationTestCase(unittest.TestCase):
     def register_override_cdrom_test(self, get_proxy, thread_mgr_wait, run_task, switch_source):
         """Test the register_and_subscribe() helper method - override CDROM source."""
         payload = Mock()
+        # FIXME: Fix this test.
         payload.data.repo.dataList = MagicMock(return_value=[])
         #repo_data_list = payload.data.return_value.repo.return_value.dataList
         #repo_data_list.return_value = []
