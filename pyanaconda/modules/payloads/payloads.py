@@ -114,6 +114,7 @@ class PayloadsService(KickstartService):
             log.debug("Generating kickstart... (skip)")
             return ""
 
+        # FIXME: Don't generate data.repo for now.
         return super().generate_kickstart()
 
     def generate_temporary_kickstart(self):

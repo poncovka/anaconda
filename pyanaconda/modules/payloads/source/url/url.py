@@ -85,45 +85,66 @@ class URLSourceModule(PayloadSourceBase, RPMSourceMixin):
         """
         return has_network_protocol(self._repo_configuration.url)
 
-    def process_kickstart(self, data):
-        """Process the kickstart data."""
+    def process_kickstart(self, data, obj=None):
+        """Process the kickstart data.
+
+        :param data: the kickstart data
+        :param obj: a command data object
+        """
+        # Process the 'url' command by default.
+        if obj is None:
+            obj = data.url
+
+        # Process the specified data object.
         repo_data = RepoConfigurationData()
         repo_data.name = self._url_source_name
 
-        if data.url.url:
-            repo_data.url = data.url.url
+        if obj.url:
+            repo_data.url = obj.url
             repo_data.type = URL_TYPE_BASEURL
-        elif data.url.mirrorlist:
-            repo_data.url = data.url.mirrorlist
+        elif obj.mirrorlist:
+            repo_data.url = obj.mirrorlist
             repo_data.type = URL_TYPE_MIRRORLIST
-        elif data.url.metalink:
-            repo_data.url = data.url.metalink
+        elif obj.metalink:
+            repo_data.url = obj.metalink
             repo_data.type = URL_TYPE_METALINK
 
-        repo_data.proxy = data.url.proxy
-        repo_data.ssl_verification_enabled = not data.url.noverifyssl
-        repo_data.ssl_configuration.ca_cert_path = data.url.sslcacert or ""
-        repo_data.ssl_configuration.client_cert_path = data.url.sslclientcert or ""
-        repo_data.ssl_configuration.client_key_path = data.url.sslclientkey or ""
+        repo_data.proxy = obj.proxy
+        repo_data.ssl_verification_enabled = not obj.noverifyssl
+        repo_data.ssl_configuration.ca_cert_path = obj.sslcacert or ""
+        repo_data.ssl_configuration.client_cert_path = obj.sslclientcert or ""
+        repo_data.ssl_configuration.client_key_path = obj.sslclientkey or ""
 
         self.set_repo_configuration(repo_data)
 
-    def setup_kickstart(self, data):
-        """Setup the kickstart data."""
+    def setup_kickstart(self, data, additional=False):
+        """Setup the kickstart data.
+
+        :param data: the kickstart data
+        :param additional: is it an additional source?
+        """
+        if not additional:
+            obj = data.url
+        else:
+            obj = data.repo.dataClass()
+            data_list = data.repo.dataList()
+            data_list.append(obj)
+
+        # Process the specified kickstart command.
         if self.repo_configuration.type == URL_TYPE_BASEURL:
-            data.url.url = self.repo_configuration.url
+            obj.url = self.repo_configuration.url
         elif self.repo_configuration.type == URL_TYPE_MIRRORLIST:
-            data.url.mirrorlist = self.repo_configuration.url
+            obj.mirrorlist = self.repo_configuration.url
         elif self.repo_configuration.type == URL_TYPE_METALINK:
-            data.url.metalink = self.repo_configuration.url
+            obj.metalink = self.repo_configuration.url
 
-        data.url.proxy = self.repo_configuration.proxy
-        data.url.noverifyssl = not self.repo_configuration.ssl_verification_enabled
-        data.url.sslcacert = self.repo_configuration.ssl_configuration.ca_cert_path
-        data.url.sslclientcert = self.repo_configuration.ssl_configuration.client_cert_path
-        data.url.sslclientkey = self.repo_configuration.ssl_configuration.client_key_path
+        obj.proxy = self.repo_configuration.proxy
+        obj.noverifyssl = not self.repo_configuration.ssl_verification_enabled
+        obj.sslcacert = self.repo_configuration.ssl_configuration.ca_cert_path
+        obj.sslclientcert = self.repo_configuration.ssl_configuration.client_cert_path
+        obj.sslclientkey = self.repo_configuration.ssl_configuration.client_key_path
 
-        data.url.seen = True
+        obj.seen = True
 
     def generate_repo_configuration(self):
         """Generate RepoConfigurationData structure."""

@@ -17,6 +17,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.modules.payloads.base.initialization import SetUpSourcesTask, TearDownSourcesTask
 from pyanaconda.modules.payloads.constants import PayloadType, SourceType
 from pyanaconda.modules.payloads.payload.payload_base import PayloadBase
@@ -61,16 +62,29 @@ class DNFModule(PayloadBase):
         source_type = SourceFactory.get_rpm_type_for_kickstart(data)
 
         if source_type is None:
-            return
+            # Create a default source if none is defined.
+            # The payload always needs to have a source.
+            source_type = conf.payload.default_source
 
+        # The "base" source needs the be the first one.
         source = SourceFactory.create_source(source_type)
         source.process_kickstart(data)
         self.add_source(source)
 
+        # The "additional" sources needs to be added after that.
+        for repo in data.repo:
+            # FIXME: Can we have other types? NFS?
+            source = SourceFactory.create_source(SourceType.URL)
+            source.process_kickstart(data, repo)
+            self.add_source(source)
+
     def setup_kickstart(self, data):
         """Setup the kickstart data."""
+        additional = False
+
         for source in self.sources:
-            source.setup_kickstart(data)
+            source.setup_kickstart(data, additional)
+            additional = True
 
     def get_repo_configurations(self):
         """Get RepoConfiguration structures for all sources.
