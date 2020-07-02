@@ -62,8 +62,7 @@ from pyanaconda.core.regexes import VERSION_DIGITS
 from pyanaconda.core.util import decode_bytes, join_paths
 from pyanaconda.flags import flags
 from pyanaconda.kickstart import RepoData
-from pyanaconda.modules.common.constants.objects import DEVICE_TREE
-from pyanaconda.modules.common.constants.services import LOCALIZATION, STORAGE, SUBSCRIPTION
+from pyanaconda.modules.common.constants.services import LOCALIZATION, SUBSCRIPTION
 from pyanaconda.modules.payloads.source.utils import has_network_protocol
 from pyanaconda.modules.common.errors.installation import SecurityInstallationError
 from pyanaconda.modules.common.errors.storage import DeviceSetupError, MountFilesystemError
@@ -1043,22 +1042,14 @@ class DNFPayload(Payload):
 
     @property
     def space_required(self):
-        device_tree = STORAGE.get_proxy(DEVICE_TREE)
         size = self._space_required()
         download_size = self._download_space
-        valid_points = get_df_map()
-        root_mpoint = conf.target.system_root
 
-        for key in payload_utils.get_mount_points():
-            new_key = key
-            if key.endswith('/'):
-                new_key = key[:-1]
-            # we can ignore swap
-            if key.startswith('/') and ((root_mpoint + new_key) not in valid_points):
-                valid_points[root_mpoint + new_key] = device_tree.GetFileSystemFreeSpace([key])
+        valid_points = payload_utils.get_mount_point_sizes()
+        valid_points.update(get_df_map())
 
         m_point = pick_mount_point(valid_points, download_size, size, download_only=False)
-        if not m_point or m_point == root_mpoint:
+        if not m_point or m_point == conf.target.system_root:
             # download and install to the same mount point
             size = size + download_size
             log.debug("Install + download space required %s", size)

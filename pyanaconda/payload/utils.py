@@ -23,8 +23,11 @@ import blivet.arch
 from distutils.version import LooseVersion
 
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.core.configuration.anaconda import conf
+from pyanaconda.core.util import join_paths
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
 from pyanaconda.modules.common.constants.services import STORAGE
+from pyanaconda.modules.common.errors.storage import UnavailableStorageError
 from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.payload.errors import PayloadSetupError
 
@@ -111,6 +114,31 @@ def get_mount_points():
     """
     device_tree = STORAGE.get_proxy(DEVICE_TREE)
     return device_tree.GetMountPoints()
+
+
+def get_mount_point_sizes():
+    """Get mount point sizes in the device tree.
+
+    :return: a dictionary of full mount points and sizes in bytes
+    """
+    device_tree = STORAGE.get_proxy(DEVICE_TREE)
+    sizes = {}
+
+    try:
+        for mount_point in device_tree.GetMountPoints():
+            # Skip swap.
+            if not mount_point.startswith('/'):
+                continue
+
+            # Get the size and the full path of the mount point.
+            size = device_tree.GetFileSystemFreeSpace([mount_point])
+            full_mount_point = join_paths(conf.target.system_root, mount_point)
+            sizes[full_mount_point] = size
+
+    except UnavailableStorageError:
+        log.warning("No storage is available.")
+
+    return sizes
 
 
 def get_mount_device_path(mount_point):
