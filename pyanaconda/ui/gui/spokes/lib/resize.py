@@ -19,6 +19,7 @@
 from collections import namedtuple
 from blivet.size import Size
 
+from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.i18n import _, C_, N_, P_
 from pyanaconda.modules.common.constants.services import STORAGE
 from pyanaconda.modules.common.structures.storage import OSData, DeviceData, DeviceFormatData
@@ -54,6 +55,8 @@ PRESERVE = N_("Preserve")
 SHRINK = N_("Shrink")
 DELETE = N_("Delete")
 NOTHING = ""
+
+log = get_module_logger(__name__)
 
 
 class ResizeDialog(GUIObject):
@@ -531,8 +534,13 @@ class ResizeDialog(GUIObject):
             return False
 
         if obj.action == _(PRESERVE):
-            pass
-        elif obj.action == _(SHRINK):
+            return False
+
+        if not self._device_tree.IsDevice(obj.name):
+            log.warning("Device %s isn't in the device tree.", obj.name)
+            return False
+
+        if obj.action == _(SHRINK):
             self._device_tree.ShrinkDevice(obj.name, obj.target)
         elif obj.action == _(DELETE):
             self._device_tree.RemoveDevice(obj.name)
