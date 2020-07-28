@@ -87,8 +87,6 @@
       <column type="gboolean"/>
       <!-- column-name working -->
       <column type="gint"/>
-      <!-- column-name use -->
-      <column type="gboolean"/>
       <!-- column-name object -->
       <column type="PyObject"/>
     </columns>
@@ -301,19 +299,6 @@
                     <property name="title" translatable="yes">Working</property>
                     <child>
                       <object class="GtkCellRendererPixbuf" id="workingRenderer"/>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkTreeViewColumn" id="removeColumn">
-                    <property name="title" translatable="yes">Use</property>
-                    <child>
-                      <object class="GtkCellRendererToggle" id="removeRenderer">
-                        <signal name="toggled" handler="on_use_server_toggled" swapped="no"/>
-                      </object>
-                      <attributes>
-                        <attribute name="active">4</attribute>
-                      </attributes>
                     </child>
                   </object>
                 </child>

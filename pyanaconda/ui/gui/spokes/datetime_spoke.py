@@ -65,8 +65,7 @@ SERVER_HOSTNAME = 0
 SERVER_POOL = 1
 SERVER_NTS = 2
 SERVER_WORKING = 3
-SERVER_USE = 4
-SERVER_OBJECT = 5
+SERVER_OBJECT = 4
 
 DEFAULT_TZ = "America/New_York"
 
@@ -236,12 +235,6 @@ class NTPConfigDialog(GUIObject, GUIDialogInputCheckHandler):
 
         # OK clicked
         if rc == 1:
-            # Remove servers.
-            for row in self._serversStore:
-                if not row[SERVER_USE]:
-                    server = row[SERVER_OBJECT]
-                    self._servers.remove(server)
-
             # Restart the NTP service.
             if conf.system.can_set_time_synchronization:
                 ntp.save_servers_to_config(self._servers)
@@ -260,7 +253,6 @@ class NTPConfigDialog(GUIObject, GUIDialogInputCheckHandler):
             False,
             False,
             constants.NTP_SERVER_QUERY,
-            True,
             server
         ])
 
@@ -317,11 +309,6 @@ class NTPConfigDialog(GUIObject, GUIDialogInputCheckHandler):
 
     def on_add_clicked(self, *args):
         self._serverEntry.emit("activate")
-
-    def on_use_server_toggled(self, renderer, path, *args):
-        itr = self._serversStore.get_iter(path)
-        old_value = self._serversStore[itr][SERVER_USE]
-        self._serversStore.set_value(itr, SERVER_USE, not old_value)
 
     def on_pool_toggled(self, renderer, path, *args):
         itr = self._serversStore.get_iter(path)
