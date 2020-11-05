@@ -36,15 +36,13 @@ import re
 
 from blivet.size import Size
 from dnf.const import GROUP_PACKAGE_TYPES
-from fnmatch import fnmatch
 from glob import glob
 
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
-from pyanaconda.modules.payloads.base.utils import sort_kernel_version_list
 from pyanaconda.modules.payloads.payload.dnf.requirements import collect_language_requirements, \
     collect_platform_requirements, collect_driver_disk_requirements, collect_remote_requirements, \
     apply_requirements
-from pyanaconda.modules.payloads.payload.dnf.utils import get_kernel_package
+from pyanaconda.modules.payloads.payload.dnf.utils import get_kernel_package, get_installed_kernel_versions
 from pyanaconda.payload.source import SourceFactory, PayloadSourceTypeUnrecognized
 from pykickstart.constants import GROUP_ALL, GROUP_DEFAULT, KS_MISSING_IGNORE, KS_BROKEN_IGNORE, \
     GROUP_REQUIRED
@@ -61,7 +59,7 @@ from pyanaconda.core.i18n import N_, _
 from pyanaconda.core.kernel import kernel_arguments
 from pyanaconda.core.payload import ProxyString, ProxyStringError
 from pyanaconda.core.regexes import VERSION_DIGITS
-from pyanaconda.core.util import decode_bytes, join_paths
+from pyanaconda.core.util import join_paths
 from pyanaconda.flags import flags
 from pyanaconda.kickstart import RepoData
 from pyanaconda.modules.common.constants.objects import DEVICE_TREE
@@ -1937,16 +1935,4 @@ class DNFPayload(Payload):
 
     @property
     def kernel_version_list(self):
-        # Find all installed rpms that provide 'kernel'
-        files = []
-        ts = rpm.TransactionSet(conf.target.system_root)
-        mi = ts.dbMatch('providename', 'kernel')
-
-        for hdr in mi:
-            unicode_fnames = (decode_bytes(f) for f in hdr.filenames)
-            # Find all /boot/vmlinuz- files and strip off vmlinuz-
-            files.extend((f.split("/")[-1][8:] for f in unicode_fnames
-                         if fnmatch(f, "/boot/vmlinuz-*") or
-                         fnmatch(f, "/boot/efi/EFI/%s/vmlinuz-*" % conf.bootloader.efi_dir)))
-
-        return sort_kernel_version_list(files)
+        return get_installed_kernel_versions()
