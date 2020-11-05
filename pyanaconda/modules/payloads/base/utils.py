@@ -22,10 +22,11 @@ import glob
 import os
 import stat
 
+from distutils.version import LooseVersion
+
 from pyanaconda.core.kernel import kernel_arguments
 from pyanaconda.core.util import mkdirChain, execWithRedirect
 from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.payload.utils import version_cmp
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -95,15 +96,32 @@ def get_dir_size(directory):
 
 
 def get_kernel_version_list(root_path):
-    files = glob.glob(root_path + "/boot/vmlinuz-*")
-    files.extend(
-        glob.glob(root_path + "/boot/efi/EFI/{}/vmlinuz-*".format(conf.bootloader.efi_dir))
-    )
+    """Get the kernel version list."""
+    efi_dir = conf.bootloader.efi_dir
 
-    kernel_version_list = sorted((f.split("/")[-1][8:] for f in files
-                                  if os.path.isfile(f) and "-rescue-" not in f),
-                                 key=functools.cmp_to_key(version_cmp))
+    files = []
+    files.extend(glob.glob(root_path + "/boot/vmlinuz-*"))
+    files.extend(glob.glob(root_path + "/boot/efi/EFI/{}/vmlinuz-*".format(efi_dir)))
+
+    kernel_version_list = [
+        f.split("/")[-1][8:] for f in files
+        if os.path.isfile(f) and "-rescue-" not in f
+    ]
+
+    sort_kernel_version_list(kernel_version_list)
     return kernel_version_list
+
+
+def sort_kernel_version_list(kernel_version_list):
+    """Sort the given kernel version list."""
+    kernel_version_list.sort(key=functools.cmp_to_key(_compare_versions))
+
+
+def _compare_versions(v1, v2):
+    """Compare two version number strings."""
+    first_version = LooseVersion(v1)
+    second_version = LooseVersion(v2)
+    return (first_version > second_version) - (first_version < second_version)
 
 
 def create_rescue_image(root, kernel_version_list):

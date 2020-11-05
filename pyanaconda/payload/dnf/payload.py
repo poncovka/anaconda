@@ -17,7 +17,6 @@
 # Red Hat, Inc.
 #
 import configparser
-import functools
 import multiprocessing
 import os
 import shutil
@@ -41,6 +40,7 @@ from fnmatch import fnmatch
 from glob import glob
 
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
+from pyanaconda.modules.payloads.base.utils import sort_kernel_version_list
 from pyanaconda.modules.payloads.payload.dnf.requirements import collect_language_requirements, \
     collect_platform_requirements, collect_driver_disk_requirements, collect_remote_requirements, \
     apply_requirements
@@ -1949,4 +1949,4 @@ class DNFPayload(Payload):
                          if fnmatch(f, "/boot/vmlinuz-*") or
                          fnmatch(f, "/boot/efi/EFI/%s/vmlinuz-*" % conf.bootloader.efi_dir)))
 
-        return sorted(files, key=functools.cmp_to_key(payload_utils.version_cmp))
+        return sort_kernel_version_list(files)
