@@ -198,11 +198,6 @@ class SoftwareSpoke(NormalTUISpoke):
         threadMgr.wait(THREAD_PAYLOAD)
         self._container = None
 
-        if not self.payload.base_repo:
-            message = TextWidget(_("Installation source needs to be set up first."))
-            self.window.add_with_separator(message)
-            return
-
         threadMgr.wait(THREAD_CHECK_SOFTWARE)
         self._container = ListColumnContainer(2, columns_width=38, spacing=2)
 
@@ -280,10 +275,17 @@ class SoftwareSpoke(NormalTUISpoke):
 
     @property
     def ready(self):
-        """ If we're ready to move on. """
-        return (not threadMgr.get(THREAD_PAYLOAD) and
-                not threadMgr.get(THREAD_CHECK_SOFTWARE) and
-                not threadMgr.get(THREAD_SOFTWARE_WATCHER))
+        """Is the spoke ready?
+
+        By default, the software selection spoke is not ready. We have to
+        wait until the installation source spoke is completed. This could be
+        because the user filled something out, or because we're done fetching
+        repo metadata from the mirror list, or we detected a DVD/CD.
+        """
+        return not threadMgr.get(THREAD_SOFTWARE_WATCHER) \
+            and not threadMgr.get(THREAD_PAYLOAD) \
+            and not threadMgr.get(THREAD_CHECK_SOFTWARE) \
+            and self.payload.base_repo is not None
 
     def apply(self):
         """Apply the changes."""
