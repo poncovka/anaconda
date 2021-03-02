@@ -153,6 +153,22 @@ class DNFManager(object):
         """
         return [env.id for env in self._base.comps.environments]
 
+    @property
+    def default_environment(self):
+        """Default environment.
+
+        :return: an identifier of an environment or an empty string
+        """
+        environments = self.environments
+
+        if conf.payload.default_environment in environments:
+            return conf.payload.default_environment
+
+        if environments:
+            return environments[0]
+
+        return ""
+
     def _get_environment(self, environment_name):
         """Translate the given environment name to a DNF object.
 
