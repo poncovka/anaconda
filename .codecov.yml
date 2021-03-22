@@ -1,0 +1,29 @@
+codecov:
+  # Don't wait for all other statuses to pass.
+  require_ci_to_pass: false
+
+coverage:
+  status:
+    project:
+      # Show an informational status for the project.
+      default:
+        informational: true
+        paths:
+          - "!tests/"
+      # Show an informational status for the core.
+      core:
+        paths:
+          - "!pyanaconda/ui/tui/"
+          - "!pyanaconda/ui/gui/"
+          - "!tests/"
+      tests:
+        informational: true
+        paths:
+          - "tests/"
+    patch:
+      # Show an informational status for the patch.
+      default:
+        informational: true
+
+# Disable the pull request comment.
+comment: false
