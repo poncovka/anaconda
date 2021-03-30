@@ -113,6 +113,11 @@ class DNFPayload(Payload):
         self._requirements = []
 
     @property
+    def dnf_manager(self):
+        """The DNF manager."""
+        return self._dnf_manager
+
+    @property
     def _base(self):
         """Return a DNF base.
 
