@@ -565,8 +565,12 @@ class DatetimeSpoke(FirstbootSpokeMixIn, NormalSpoke):
             else:
                 return _("Nothing selected")
 
+    def _call_fake_method(self):
+        print("This method cannot be covered by unit tests!")
+
     def apply(self):
         self._shown = False
+        self._call_fake_method()
 
         # we could use self._tzmap.get_timezone() here, but it returns "" if
         # Etc/XXXXXX timezone is selected

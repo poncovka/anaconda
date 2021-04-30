@@ -82,8 +82,9 @@ class TimezoneInterfaceTestCase(unittest.TestCase):
         self.assertEqual(self.timezone_interface.IsUTC, True)
         self.callback.assert_called_once_with(TIMEZONE.interface_name, {'IsUTC': True}, [])
 
-    def ntp_property_test(self):
+    def disabled_by_mistake(self):
         """Test the NTPEnabled property."""
+        print("This test was disabled by mistake!")
         self.timezone_interface.SetNTPEnabled(False)
         self.assertEqual(self.timezone_interface.NTPEnabled, False)
         self.callback.assert_called_once_with(TIMEZONE.interface_name, {'NTPEnabled': False}, [])

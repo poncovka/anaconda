@@ -108,6 +108,9 @@ class TimezoneService(KickstartService):
 
         self.set_time_sources(sources)
 
+    def untested_method(self):
+        print("This is my untested method!")
+
     def setup_kickstart(self, data):
         """Set up the kickstart data."""
         data.timezone.timezone = self.timezone

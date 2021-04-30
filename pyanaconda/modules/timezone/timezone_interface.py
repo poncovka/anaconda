@@ -112,3 +112,8 @@ class TimezoneInterface(KickstartModuleInterface):
         self.implementation.set_time_sources(
             TimeSourceData.from_structure_list(sources)
         )
+
+    @emits_properties_changed
+    def CallFakeMethod(self):
+        """Call a fake method."""
+        print("This method is not covered by unit tests!")
