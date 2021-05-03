@@ -42,6 +42,7 @@ class TimezoneService(KickstartService):
     """The Timezone service."""
 
     def __init__(self):
+        """The coverage doesn't change."""
         super().__init__()
         self.timezone_changed = Signal()
         self._timezone = "America/New_York"
