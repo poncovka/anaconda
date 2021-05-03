@@ -1,0 +1,30 @@
+codecov:
+  # Don't wait for all other statuses to pass.
+  require_ci_to_pass: false
+
+coverage:
+  status:
+    patch:
+      # Disable the default status for the patch.
+      default: false
+    project:
+      # Disable the default status for the project.
+      default: false
+      # Show a strict status for the core.
+      core:
+        paths:
+          - "!anaconda.py"
+          - "!pyanaconda/ui/tui/"
+          - "!pyanaconda/ui/gui/"
+      # Show a strict status for the unit tests.
+      tests:
+        paths:
+          - "tests/nosetests"
+
+# Disable the pull request comment.
+comment: false
+
+# Ignore some paths.
+ignore:
+  - "translation-canary/"
+  - "widgets/"
