@@ -5,17 +5,18 @@ codecov:
 coverage:
   status:
     project:
-      # Show an informational status for the project.
-      default:
+      # Disable the default status for the project.
+      default: false
+      # Show an informational status for everything.
+      all:
         informational: true
-        paths:
-          - "!tests/"
-      # Show an informational status for the core.
+      # Show a strict status for the core.
       core:
         paths:
           - "!pyanaconda/ui/tui/"
           - "!pyanaconda/ui/gui/"
           - "!tests/"
+      # Show an informational status for tests.
       tests:
         informational: true
         paths:
