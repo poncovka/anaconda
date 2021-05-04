@@ -3,6 +3,9 @@ codecov:
   require_ci_to_pass: false
 
 coverage:
+  # Shift the color range.
+  range: 60..90
+  # Set up the pull request status.
   status:
     patch:
       # Disable the default status for the patch.
@@ -13,11 +16,11 @@ coverage:
       # Show a status for the DBus API.
       api:
         paths:
-          - "*_interface.py"
-        target: 100%
+          - "pyanaconda/modules/**/*_interface.py"
       # Show a status for the core.
       core:
         paths:
+          - "pyanaconda/"
           - "!pyanaconda/ui/tui/"
           - "!pyanaconda/ui/gui/"
         threshold: 5%
