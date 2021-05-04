@@ -10,13 +10,18 @@ coverage:
     project:
       # Disable the default status for the project.
       default: false
-      # Show a strict status for the core.
+      # Show a status for the DBus API.
+      api:
+        paths:
+          - "*_interface.py"
+        target: 100%
+      # Show a status for the core.
       core:
         paths:
-          - "!anaconda.py"
           - "!pyanaconda/ui/tui/"
           - "!pyanaconda/ui/gui/"
-      # Show a strict status for the unit tests.
+        threshold: 5%
+      # Show a status for the unit tests.
       tests:
         paths:
           - "tests/nosetests"
