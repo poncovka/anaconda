@@ -19,47 +19,48 @@ import hashlib
 
 from requests import RequestException
 
-from pyanaconda.anaconda_loggers import get_packaging_logger
+from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core import util, constants
-from pyanaconda.core.payload import ProxyString, ProxyStringError
 from pyanaconda.product import productName, productVersion
 
 __all__ = ["RepoMDMetaHash"]
 
 USER_AGENT = "%s (anaconda)/%s" % (productName, productVersion)
 
-log = get_packaging_logger()
+log = get_module_logger(__name__)
 
 
 class RepoMDMetaHash(object):
-    """Class that holds hash of a repomd.xml file content from a repository.
+    """Representation of the repo
+
+    Class that holds hash of a repomd.xml file content from a repository.
     This class can test availability of this repository by comparing hashes.
     """
     def __init__(self, repo, proxy_url):
-        self._repoId = repo.id
-        self._proxy_url = proxy_url
+        self._repo_id = repo.id
         self._ssl_verify = repo.sslverify
         self._urls = repo.baseurl
+        self._proxy_url = proxy_url
         self._repomd_hash = ""
 
     @property
-    def repoMD_hash(self):
+    def repomd_hash(self):
         """Return SHA256 hash of the repomd.xml file stored."""
         return self._repomd_hash
 
     @property
     def id(self):
         """Name of the repository."""
-        return self._repoId
+        return self._repo_id
 
-    def store_repoMD_hash(self):
+    def store_repomd_hash(self):
         """Download and store hash of the repomd.xml file content."""
-        repomd = self._download_repoMD()
+        repomd = self._download_repomd()
         self._repomd_hash = self._calculate_hash(repomd)
 
-    def verify_repoMD(self):
+    def verify_repomd(self):
         """Download and compare with stored repomd.xml file."""
-        new_repomd = self._download_repoMD()
+        new_repomd = self._download_repomd()
         new_repomd_hash = self._calculate_hash(new_repomd)
         return new_repomd_hash == self._repomd_hash
 
@@ -68,19 +69,16 @@ class RepoMDMetaHash(object):
         m.update(data.encode('ascii', 'backslashreplace'))
         return m.digest()
 
-    def _download_repoMD(self):
+    def _download_repomd(self):
         proxies = {}
         repomd = ""
         headers = {"user-agent": USER_AGENT}
 
-        if self._proxy_url is not None:
-            try:
-                proxy = ProxyString(self._proxy_url)
-                proxies = {"http": proxy.url,
-                           "https": proxy.url}
-            except ProxyStringError as e:
-                log.info("Failed to parse proxy for test if repo available %s: %s",
-                         self._proxy_url, e)
+        if self._proxy_url:
+            proxies = {
+                "http": self._proxy_url,
+                "https": self._proxy_url
+            }
 
         session = util.requests_session()
 

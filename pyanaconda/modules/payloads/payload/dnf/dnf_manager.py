@@ -42,6 +42,7 @@ from pyanaconda.modules.common.structures.comps import CompsEnvironmentData, Com
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData
 from pyanaconda.modules.payloads.constants import DNF_REPO_DIRS
 from pyanaconda.modules.payloads.payload.dnf.download_progress import DownloadProgress
+from pyanaconda.modules.payloads.payload.dnf.repomd import RepoMDMetaHash
 from pyanaconda.modules.payloads.payload.dnf.transaction_progress import TransactionProgress, \
     process_transaction_progress
 from pyanaconda.modules.payloads.payload.dnf.utils import get_product_release_version
@@ -87,6 +88,8 @@ class DNFManager(object):
         self._ignore_missing_packages = False
         self._ignore_broken_packages = False
         self._download_location = None
+        self._proxy_url = ""
+        self._repomd_list = []
 
     @property
     def _base(self):
@@ -132,6 +135,8 @@ class DNFManager(object):
         self._ignore_missing_packages = False
         self._ignore_broken_packages = False
         self._download_location = None
+        self._proxy_url = ""
+        self._repomd_list = []
         log.debug("The DNF base has been reset.")
 
     def configure_base(self, data: PackagesConfigurationData):
@@ -331,6 +336,7 @@ class DNFManager(object):
         base.conf.proxy = ""
         base.conf.proxy_username = ""
         base.conf.proxy_password = ""
+        self._proxy_url = ""
 
         # No URL is provided.
         if not url:
@@ -348,6 +354,7 @@ class DNFManager(object):
         base.conf.proxy = proxy.noauth_url
         base.conf.proxy_username = proxy.username or ""
         base.conf.proxy_password = proxy.password or ""
+        self._proxy_url = proxy.url
 
     def dump_configuration(self):
         """Log the state of the DNF configuration."""
@@ -654,3 +661,29 @@ class DNFManager(object):
             log.debug("The transaction has ended.")
             base.close()  # Always close this base.
             display.quit(exit_reason or "DNF quit")
+
+    def load_repomd_hash(self):
+        """Load the repomd hash."""
+        self._repomd_list = []
+
+        for repo in self._base.repos.iter_enabled():
+            repomd = RepoMDMetaHash(repo, self._proxy_url)
+            repomd.store_repomd_hash()
+            self._repomd_list.append(repomd)
+
+    def verify_repomd_hash(self):
+        """Verify availability of existing repositories.
+
+        This method tests if URL links from active repositories can be reached.
+        It is useful when network settings is changed so that we can verify if repositories
+        are still reachable.
+        """
+        if not self._repomd_list:
+            return False
+
+        for repo in self._repomd_list:
+            if not repo.verify_repomd():
+                log.debug("Can't reach repo %s", repo.id)
+                return False
+
+        return True

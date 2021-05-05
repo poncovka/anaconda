@@ -25,7 +25,7 @@ import hashlib
 import shutil
 
 import pyanaconda.core.payload as util
-from pyanaconda.payload.dnf.repomd import RepoMDMetaHash
+from pyanaconda.modules.payloads.payload.dnf.repomd import RepoMDMetaHash
 
 
 class DummyRepo(object):
