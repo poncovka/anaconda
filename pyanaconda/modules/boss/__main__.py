@@ -20,6 +20,14 @@
 from pyanaconda.modules.common import init
 init()
 
-from pyanaconda.modules.boss.boss import Boss
-service = Boss()
-service.run()
+from pyanaconda.modules.boss.message_bus.launcher import DBusLauncher
+launcher = DBusLauncher()
+
+try:
+    launcher.start()
+
+    from pyanaconda.modules.boss.boss import Boss
+    service = Boss()
+    service.run()
+finally:
+    launcher.stop()
