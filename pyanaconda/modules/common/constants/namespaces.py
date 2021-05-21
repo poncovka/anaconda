@@ -101,6 +101,12 @@ SOURCE_NAMESPACE = (
     "Source"
 )
 
+# Message bus namespaces.
+
+MESSAGE_BUS_NAMESPACE = (
+    "org", "bus1", "DBus"
+)
+
 # System service namespaces
 
 RHSM_NAMESPACE = (

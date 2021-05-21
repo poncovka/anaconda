@@ -19,7 +19,7 @@
 from dasbus.identifier import DBusObjectIdentifier
 from pyanaconda.modules.common.constants.namespaces import STORAGE_NAMESPACE, NETWORK_NAMESPACE, \
     PARTITIONING_NAMESPACE, DEVICE_TREE_NAMESPACE, \
-    RHSM_NAMESPACE, BOSS_NAMESPACE
+    RHSM_NAMESPACE, BOSS_NAMESPACE, MESSAGE_BUS_NAMESPACE
 
 # Boss objects.
 
@@ -114,6 +114,28 @@ ZFCP = DBusObjectIdentifier(
 FIREWALL = DBusObjectIdentifier(
     namespace=NETWORK_NAMESPACE,
     basename="Firewall"
+)
+
+# Message bus objects.
+
+DBUS_CONTROLLER = DBusObjectIdentifier(
+    namespace=MESSAGE_BUS_NAMESPACE,
+    basename="Controller"
+)
+
+DBUS_BROKER = DBusObjectIdentifier(
+    namespace=MESSAGE_BUS_NAMESPACE,
+    basename="Broker"
+)
+
+DBUS_LISTENER = DBusObjectIdentifier(
+    namespace=MESSAGE_BUS_NAMESPACE,
+    basename="Listener"
+)
+
+DBUS_NAME = DBusObjectIdentifier(
+    namespace=MESSAGE_BUS_NAMESPACE,
+    basename="Name"
 )
 
 # System services
