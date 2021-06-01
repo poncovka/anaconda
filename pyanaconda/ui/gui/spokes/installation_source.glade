@@ -407,7 +407,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="activates_default">True</property>
-                        <signal name="changed" handler="on_proxyUsernameEntry_changed" swapped="no"/>
+                        <signal name="changed" handler="on_proxy_username_entry_changed" swapped="no"/>
                       </object>
                       <packing>
                         <property name="left_attach">1</property>
@@ -421,7 +421,7 @@
                         <property name="visibility">False</property>
                         <property name="invisible_char">●</property>
                         <property name="activates_default">True</property>
-                        <signal name="changed" handler="on_proxyPasswordEntry_changed" swapped="no"/>
+                        <signal name="changed" handler="on_proxy_password_entry_changed" swapped="no"/>
                       </object>
                       <packing>
                         <property name="left_attach">1</property>
@@ -465,9 +465,9 @@
       <!-- column-name repo -->
       <column type="PyObject"/>
     </columns>
-    <signal name="row-changed" handler="on_repoStore_row_changed" swapped="no"/>
-    <signal name="row-deleted" handler="on_repoStore_row_deleted" swapped="no"/>
-    <signal name="row-inserted" handler="on_repoStore_row_inserted" swapped="no"/>
+    <signal name="row-changed" handler="on_repo_store_row_changed" swapped="no"/>
+    <signal name="row-deleted" handler="on_repo_store_row_deleted" swapped="no"/>
+    <signal name="row-inserted" handler="on_repo_store_row_inserted" swapped="no"/>
   </object>
   <object class="AnacondaSpokeWindow" id="sourceWindow">
     <property name="can_focus">False</property>
@@ -805,7 +805,7 @@
                                         <property name="visible">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="hexpand">True</property>
-                                        <signal name="changed" handler="on_urlEntry_changed" swapped="no"/>
+                                        <signal name="changed" handler="on_url_entry_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -945,7 +945,7 @@
                                     <property name="use_underline">True</property>
                                     <property name="xalign">0</property>
                                     <property name="draw_indicator">True</property>
-                                    <signal name="toggled" handler="on_updatesRadioButton_toggled" swapped="no"/>
+                                    <signal name="toggled" handler="on_updates_radio_button_toggled" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1019,7 +1019,7 @@
                                         <property name="enable_search">False</property>
                                         <child internal-child="selection">
                                           <object class="GtkTreeSelection" id="repoSelection">
-                                            <signal name="changed" handler="on_repoSelection_changed" swapped="no"/>
+                                            <signal name="changed" handler="on_repo_selection_changed" swapped="no"/>
                                           </object>
                                         </child>
                                         <child>
@@ -1027,7 +1027,7 @@
                                             <property name="title" translatable="yes">Enabled</property>
                                             <child>
                                               <object class="GtkCellRendererToggle" id="repoEnableRenderer">
-                                                <signal name="toggled" handler="on_repoEnable_toggled" swapped="no"/>
+                                                <signal name="toggled" handler="on_repo_enable_toggled" swapped="no"/>
                                               </object>
                                               <attributes>
                                                 <attribute name="active">0</attribute>
@@ -1074,7 +1074,7 @@
                                         <property name="label" translatable="yes" context="GUI|Software Source">A_dd</property>
                                         <property name="use_underline">True</property>
                                         <property name="icon_name">list-add-symbolic</property>
-                                        <signal name="clicked" handler="on_addRepo_clicked" swapped="no"/>
+                                        <signal name="clicked" handler="on_add_repo_clicked" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1093,7 +1093,7 @@
                                         <property name="label" translatable="yes" context="GUI|Software Source">_Remove</property>
                                         <property name="use_underline">True</property>
                                         <property name="icon_name">list-remove-symbolic</property>
-                                        <signal name="clicked" handler="on_removeRepo_clicked" swapped="no"/>
+                                        <signal name="clicked" handler="on_remove_repo_clicked" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1112,7 +1112,7 @@
                                         <property name="label" translatable="yes" context="GUI|Software Source">Rese_t</property>
                                         <property name="use_underline">True</property>
                                         <property name="icon_name">view-refresh</property>
-                                        <signal name="clicked" handler="on_resetRepos_clicked" swapped="no"/>
+                                        <signal name="clicked" handler="on_reset_repos_clicked" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1141,7 +1141,7 @@
                                         <property name="can_focus">True</property>
                                         <property name="tooltip_markup" translatable="yes">URL for the repository, without protocol.</property>
                                         <property name="tooltip_text" translatable="yes">URL for the repository, without protocol.</property>
-                                        <signal name="changed" handler="on_repoUrl_changed" swapped="no"/>
+                                        <signal name="changed" handler="on_repo_url_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -1154,7 +1154,7 @@
                                         <property name="can_focus">True</property>
                                         <property name="tooltip_markup" translatable="yes">URL of proxy in the form of protocol://host:[port]</property>
                                         <property name="tooltip_text" translatable="yes">URL of proxy in the form of protocol://host:[port]</property>
-                                        <signal name="changed" handler="on_repoProxy_changed" swapped="no"/>
+                                        <signal name="changed" handler="on_repo_proxy_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -1167,7 +1167,7 @@
                                         <property name="can_focus">True</property>
                                         <property name="tooltip_markup" translatable="yes">Optional proxy user name.</property>
                                         <property name="tooltip_text" translatable="yes">Optional proxy user name.</property>
-                                        <signal name="changed" handler="on_repoProxy_changed" swapped="no"/>
+                                        <signal name="changed" handler="on_repo_proxy_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -1181,7 +1181,7 @@
                                         <property name="tooltip_markup" translatable="yes">Optional proxy password.</property>
                                         <property name="visibility">False</property>
                                         <property name="invisible_char">●</property>
-                                        <signal name="changed" handler="on_repoProxy_changed" swapped="no"/>
+                                        <signal name="changed" handler="on_repo_proxy_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -1218,7 +1218,7 @@
                                           <item id="ftp">ftp://</item>
                                           <item id="nfs">nfs</item>
                                         </items>
-                                        <signal name="changed" handler="on_repoProtocolComboBox_changed" swapped="no"/>
+                                        <signal name="changed" handler="on_repo_protocol_combo_box_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="left_attach">0</property>
@@ -1283,7 +1283,7 @@
                                         <property name="tooltip_markup" translatable="yes">Name of the repository.</property>
                                         <property name="tooltip_text" translatable="yes">Name of the repository.</property>
                                         <property name="hexpand">True</property>
-                                        <signal name="changed" handler="on_repoNameEntry_changed" swapped="no"/>
+                                        <signal name="changed" handler="on_repo_name_entry_changed" swapped="no"/>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
