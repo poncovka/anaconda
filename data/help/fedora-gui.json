@@ -1,0 +1,85 @@
+{
+  "_comment_": [
+    "This is a mapping of screen ids and help files for Anaconda GUI on Fedora."
+  ],
+  "_default_": {
+    "file": "FedoraPlaceholderWithLinks.html",
+    "anchor": ""
+  },
+  "installation-summary": {
+    "file": "SummaryHub.xml",
+    "anchor": ""
+  },
+  "language-pre-configuration": {
+    "file": "WelcomeSpoke.xml",
+    "anchor": ""
+  },
+  "date-time-configuration": {
+    "file": "DateTimeSpoke.xml",
+    "anchor": ""
+  },
+  "keyboard-configuration": {
+    "file": "KeyboardSpoke.xml",
+    "anchor": ""
+  },
+  "language-configuration": {
+    "file": "LangSupportSpoke.xml",
+    "anchor": ""
+  },
+  "software-selection": {
+    "file": "SoftwareSpoke.xml",
+    "anchor": ""
+  },
+  "software-source-configuration": {
+    "file": "SourceSpoke.xml",
+    "anchor": ""
+  },
+  "network-configuration": {
+    "file": "NetworkSpoke.xml",
+    "anchor": ""
+  },
+  "storage-configuration": {
+    "file": "StorageSpoke.xml",
+    "anchor": ""
+  },
+  "storage-advanced-configuration": {
+    "file": "FilterSpoke.xml",
+    "anchor": ""
+  },
+  "interactive-partitioning": {
+    "file": "CustomSpoke.xml",
+    "anchor": ""
+  },
+  "blivet-gui-partitioning": {
+    "file": "blivet-gui/index.page",
+    "anchor": ""
+  },
+  "root-configuration": {
+    "file": "PasswordSpoke.xml",
+    "anchor": ""
+  },
+  "user-configuration": {
+    "file": "UserSpoke.xml",
+    "anchor": ""
+  },
+  "kdump-configuration": {
+    "file": "KdumpSpoke.xml",
+    "anchor": ""
+  },
+  "security-policy-selection": {
+    "file": "",
+    "anchor": ""
+  },
+  "installation-progress": {
+    "file": "ProgressHub.xml",
+    "anchor": ""
+  },
+  "initial-setup-summary": {
+    "file": "InitialSetupHub.xml",
+    "anchor": ""
+  },
+  "license-information": {
+    "file": "InitialSetupHub.xml",
+    "anchor": ""
+  }
+}

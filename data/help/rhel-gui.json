@@ -1,0 +1,85 @@
+{
+  "_comment_": [
+    "This is a mapping of screen ids and help files for Anaconda GUI on RHEL."
+  ],
+  "_default_": {
+    "file": "anaconda-help.xml",
+    "anchor": ""
+  },
+  "installation-summary": {
+    "file": "anaconda-help.xml",
+    "anchor": "graphical-installation_graphical-installation"
+  },
+  "language-pre-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-localization-settings_graphical-installation"
+  },
+  "date-time-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-localization-settings_graphical-installation"
+  },
+  "keyboard-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-localization-settings_graphical-installation"
+  },
+  "language-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-localization-settings_graphical-installation"
+  },
+  "software-selection": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-software-selection_configuring-software-settings"
+  },
+  "software-source-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-installation-source_configuring-software-settings"
+  },
+  "subscription-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "connect-to-red-hat_configuring-software-settings"
+  },
+  "network-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "network-hostname_configuring-system-settings"
+  },
+  "storage-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "storage-devices_graphical-installation"
+  },
+  "storage-advanced-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-advanced-storage-options_storage-devices"
+  },
+  "interactive-partitioning": {
+    "file": "anaconda-help.xml",
+    "anchor": "manual-partitioning_graphical-installation"
+  },
+  "root-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-a-root-password_graphical-installation"
+  },
+  "user-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "creating-a-user-account_graphical-installation"
+  },
+  "kdump-configuration": {
+    "file": "anaconda-help.xml",
+    "anchor": "configuring-kdump_configuring-system-settings"
+  },
+  "security-policy-selection": {
+    "file": "anaconda-help.xml",
+    "anchor": "security-policy_configuring-system-settings"
+  },
+  "installation-progress": {
+    "file": "anaconda-help.xml",
+    "anchor": "installation-complete_installing-RHEL"
+  },
+  "initial-setup-summary": {
+    "file": "",
+    "anchor": ""
+  },
+  "license-information": {
+    "file": "",
+    "anchor": ""
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "_comment_": [
+    "This is a mapping of screen ids and help files for Anaconda TUI on Fedora."
+  ],
+  "_default_": {
+    "file": "FedoraPlaceholder.txt"
+  },
+  "installation-summary": {
+    "file": "SummaryHub.txt"
+  },
+  "date-time-configuration": {
+    "file": "DateTimeSpoke.txt"
+  },
+  "language-configuration": {
+    "file": "LangSupportSpoke.txt"
+  },
+  "software-selection": {
+    "file": "SoftwareSpoke.txt"
+  },
+  "software-source-configuration": {
+    "file": "SourceSpoke.txt"
+  },
+  "network-configuration": {
+    "file": "NetworkSpoke.txt"
+  },
+  "storage-configuration": {
+    "file": "StorageSpoke.txt"
+  },
+  "root-configuration": {
+    "file": "PasswordSpoke.txt"
+  },
+  "user-configuration": {
+    "file": "UserSpoke.txt"
+  },
+  "kdump-configuration": {
+    "file": "KdumpSpoke.txt",
+    "anchor": ""
+  },
+  "initial-setup-summary": {
+    "file": "InitialSetupHub.txt",
+    "anchor": ""
+  },
+  "license-information": {
+    "file": "InitialSetupHub.txt",
+    "anchor": ""
+  }
+}
