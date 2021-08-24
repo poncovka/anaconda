@@ -258,6 +258,8 @@ def copy_updated_files(tag, updates, cwd, builddir):
             install_to_dir(gitfile, "usr/share/anaconda/gnome")
         elif gitfile.startswith("data/pixmaps"):
             install_to_dir(gitfile, "usr/share/anaconda/pixmaps")
+        elif gitfile.startswith("data/help"):
+            install_to_dir(gitfile, "usr/share/anaconda/help/rhel")
         elif gitfile.startswith("widgets/data/pixmaps"):
             install_to_dir(gitfile, "usr/share/anaconda/pixmaps")
         elif gitfile.startswith("data/ui/"):
