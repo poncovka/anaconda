@@ -297,12 +297,9 @@ class KeyboardSpoke(NormalSpoke):
         return "keyboard-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(LOCALIZATION):
-            return False
-
-        return NormalSpoke.should_run(environment, data)
+        return is_module_available(LOCALIZATION)
 
     def __init__(self, *args):
         super().__init__(*args)

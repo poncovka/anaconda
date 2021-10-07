@@ -35,6 +35,7 @@ from pyanaconda.modules.common.structures.partitioning import PartitioningReques
 from pyanaconda.modules.common.structures.storage import DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.core.storage import suggest_swap_size
+from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.communication import hubQ
@@ -88,12 +89,10 @@ class StorageSpoke(NormalSpoke, StorageCheckHandler):
         return "storage-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Don't run the storage spoke on dir installations."""
-        if not NormalSpoke.should_run(environment, data):
-            return False
-
-        return not conf.target.is_directory
+        return is_module_available(STORAGE) \
+            and not conf.target.is_directory
 
     def __init__(self, *args, **kwargs):
         StorageCheckHandler.__init__(self)

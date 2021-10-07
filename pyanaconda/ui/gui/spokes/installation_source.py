@@ -34,7 +34,7 @@ from pyanaconda.core.process_watchers import PidWatcher
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import _, N_, CN_
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
-from pyanaconda.modules.common.constants.services import SUBSCRIPTION
+from pyanaconda.modules.common.constants.services import SUBSCRIPTION, PAYLOADS
 from pyanaconda.payload.image import find_optical_install_media, find_potential_hdiso_sources, \
     get_hdiso_source_info, get_hdiso_source_description
 from pyanaconda.core.payload import ProxyString, ProxyStringError, parse_nfs_url, create_nfs_url
@@ -413,12 +413,10 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
         return "software-source-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Don't run for any non-package payload."""
-        if not NormalSpoke.should_run(environment, data):
-            return False
-
-        return context.payload_type == PAYLOAD_TYPE_DNF
+        return is_module_available(PAYLOADS) \
+            and context.payload_type == PAYLOAD_TYPE_DNF
 
     def __init__(self, *args, **kwargs):
         NormalSpoke.__init__(self, *args, **kwargs)

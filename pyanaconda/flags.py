@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from pyanaconda.core.constants import ANACONDA_ENVIRON
-
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
 
@@ -42,8 +40,6 @@ class Flags(object):
         self.ksprompt = True
         self.rescue_mode = False
         self.kexec = False
-        # current runtime environments
-        self.environs = [ANACONDA_ENVIRON]
         # Lock it down: no more creating new flags!
         self.__dict__['_in_init'] = False
 

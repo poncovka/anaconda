@@ -70,12 +70,9 @@ class WelcomeLanguageSpoke(StandaloneSpoke, LangLocaleHandler):
         return "language-pre-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(LOCALIZATION):
-            return False
-
-        return StandaloneSpoke.should_run(environment, data)
+        return is_module_available(LOCALIZATION)
 
     def __init__(self, *args, **kwargs):
         StandaloneSpoke.__init__(self, *args, **kwargs)

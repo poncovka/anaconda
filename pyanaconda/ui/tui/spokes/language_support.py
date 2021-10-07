@@ -21,7 +21,6 @@ from pyanaconda.modules.common.constants.services import LOCALIZATION
 from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ui.categories.localization import LocalizationCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda import localization
 from pyanaconda.core.i18n import N_, _
 
@@ -35,7 +34,7 @@ PROMPT_BACK_DESCRIPTION = N_("to return to language list")
 PROMPT_BACK_KEY = 'b'
 
 
-class LangSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
+class LangSpoke(NormalTUISpoke):
     """
     This spoke allows a user to select their installed language. Note that this
     does not affect the display of the installer, it only will affect the system
@@ -56,12 +55,9 @@ class LangSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
         return "language-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(LOCALIZATION):
-            return False
-
-        return FirstbootSpokeMixIn.should_run(environment, data)
+        return is_module_available(LOCALIZATION)
 
     def __init__(self, data, storage, payload):
         NormalTUISpoke.__init__(self, data, storage, payload)

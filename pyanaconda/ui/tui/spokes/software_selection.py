@@ -17,6 +17,8 @@
 # Red Hat, Inc.
 #
 from pyanaconda.flags import flags
+from pyanaconda.modules.common.constants.services import PAYLOADS
+from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ui.categories.software import SoftwareCategory
 from pyanaconda.ui.context import context
 from pyanaconda.ui.lib.software import get_software_selection_status, \
@@ -54,12 +56,10 @@ class SoftwareSpoke(NormalTUISpoke):
         return "software-selection"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Don't run for any non-package payload."""
-        if not NormalTUISpoke.should_run(environment, data):
-            return False
-
-        return context.payload_type == PAYLOAD_TYPE_DNF
+        return is_module_available(PAYLOADS) \
+            and context.payload_type == PAYLOAD_TYPE_DNF
 
     def __init__(self, data, storage, payload):
         super().__init__(data, storage, payload)

@@ -21,7 +21,6 @@ from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.core.i18n import N_, _
 from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.core.constants import ANACONDA_ENVIRON
 from pyanaconda.core.util import execConsole
 from blivet import arch
 
@@ -47,9 +46,9 @@ class ShellSpoke(NormalTUISpoke):
         self.title = N_("Shell")
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         # run only in the installer on s390(x) machines
-        return conf.anaconda.debug or (environment == ANACONDA_ENVIRON and arch.is_s390())
+        return conf.anaconda.debug or arch.is_s390()
 
     @property
     def completed(self):

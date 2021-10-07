@@ -19,11 +19,9 @@
 from abc import abstractmethod, ABC
 
 from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.core.constants import ANACONDA_ENVIRON, FIRSTBOOT_ENVIRON
 from pyanaconda.core.util import collect
 from pyanaconda.core.signal import Signal
 from pyanaconda.ui.categories import SpokeCategory
-from pyanaconda.ui.lib.services import is_reconfiguration_mode
 from pyanaconda import lifecycle
 from pyanaconda.anaconda_loggers import get_module_logger
 
@@ -99,62 +97,6 @@ class UIObject(object):
     @property
     def data(self):
         return self._data
-
-
-class FirstbootSpokeMixIn(object):
-    """This MixIn class marks Spokes as usable for Firstboot
-       and Anaconda.
-    """
-    @classmethod
-    def should_run(cls, environment, data):
-        """This method is responsible for beginning Spoke initialization
-           in the firstboot environment (even before __init__).
-
-           It should return True if the spoke is to be shown
-           and False if it should be skipped.
-
-           It might be called multiple times, with or without (None)
-           the data argument.
-        """
-
-        if environment == ANACONDA_ENVIRON:
-            return True
-
-        if environment == FIRSTBOOT_ENVIRON:
-            # cannot decide, stay in the game and let another call with data
-            # available (will come) decide
-            if data is None:
-                return True
-
-            # generally run spokes in firstboot only if doing reconfig, spokes
-            # that should run even if not doing reconfig should override this
-            # method
-            return is_reconfiguration_mode()
-
-        return False
-
-
-class FirstbootOnlySpokeMixIn(object):
-    """This MixIn class marks Spokes as usable for Firstboot."""
-    @classmethod
-    def should_run(cls, environment, data):
-        """This method is responsible for beginning Spoke initialization
-           in the firstboot environment (even before __init__).
-
-           It should return True if the spoke is to be shown and False
-           if it should be skipped.
-
-           It might be called multiple times, with or without (None)
-           the data argument.
-        """
-
-        if environment == FIRSTBOOT_ENVIRON:
-            # firstboot only spokes should run in firstboot by default, spokes
-            # that should run even if not doing reconfig should override this
-            # method
-            return True
-        else:
-            return False
 
 
 class Screen(ABC):
@@ -262,7 +204,7 @@ class Spoke(Screen):
            It might be called multiple times, with or without (None)
            the data argument.
         """
-        return environment == ANACONDA_ENVIRON
+        return True
 
     def apply(self):
         """Apply the selections made on this Spoke to the object's preset

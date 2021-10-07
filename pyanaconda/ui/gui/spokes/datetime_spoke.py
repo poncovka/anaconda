@@ -38,7 +38,6 @@ from pyanaconda.modules.common.constants.services import TIMEZONE, NETWORK
 from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ntp import NTPServerStatusCache
 from pyanaconda.ui.communication import hubQ
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda.ui.gui.spokes import NormalSpoke
 from pyanaconda.ui.categories.localization import LocalizationCategory
 from pyanaconda.ui.gui.utils import blockedHandler
@@ -148,7 +147,7 @@ def _new_date_field_box(store):
     return (box, combo, suffix_label)
 
 
-class DatetimeSpoke(FirstbootSpokeMixIn, NormalSpoke):
+class DatetimeSpoke(NormalSpoke):
     """
        .. inheritance-diagram:: DatetimeSpoke
           :parts: 3
@@ -181,12 +180,9 @@ class DatetimeSpoke(FirstbootSpokeMixIn, NormalSpoke):
         return "date-time-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(TIMEZONE):
-            return False
-
-        return FirstbootSpokeMixIn.should_run(environment, data)
+        return is_module_available(TIMEZONE)
 
     def __init__(self, *args):
         NormalSpoke.__init__(self, *args)

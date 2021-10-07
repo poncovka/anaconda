@@ -26,14 +26,12 @@ from pyanaconda import network
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.modules.common.constants.services import NETWORK
 from pyanaconda.modules.common.structures.network import NetworkDeviceConfiguration
-from pyanaconda.flags import flags
+from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.tuiobject import Dialog, report_if_failed
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda.core.i18n import N_, _
 from pyanaconda.core.regexes import IPV4_PATTERN_WITH_ANCHORS, IPV4_NETMASK_WITH_ANCHORS, IPV4_OR_DHCP_PATTERN_WITH_ANCHORS
-from pyanaconda.core.constants import ANACONDA_ENVIRON
 from pyanaconda.anaconda_loggers import get_module_logger
 
 from simpleline.render.containers import ListColumnContainer
@@ -192,7 +190,7 @@ class WiredTUIConfigurationData():
                                                               self.ipv6addrgenmode)
 
 
-class NetworkSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
+class NetworkSpoke(NormalTUISpoke):
     """ Spoke used to configure network settings.
 
        .. inheritance-diagram:: NetworkSpoke
@@ -226,12 +224,10 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
         self._apply = False
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not FirstbootSpokeMixIn.should_run(environment, data):
-            return False
-
-        return conf.system.can_configure_network
+        return is_module_available(NETWORK) \
+            and conf.system.can_configure_network
 
     def initialize(self):
         self.initialize_start()
@@ -262,7 +258,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
     def mandatory(self):
         # the network spoke should be mandatory only if it is running
         # during the installation and if the installation source requires network
-        return ANACONDA_ENVIRON in flags.environs and self.payload.needs_network
+        return self.payload and self.payload.needs_network
 
     @property
     def status(self):
@@ -440,7 +436,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
 
         if self._apply:
             self._apply = False
-            if ANACONDA_ENVIRON in flags.environs:
+            if self.payload:
                 from pyanaconda.payload.manager import payloadMgr
                 payloadMgr.restart_thread(self.payload, checkmount=False)
 

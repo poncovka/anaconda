@@ -69,16 +69,13 @@ class LangsupportSpoke(NormalSpoke, LangLocaleHandler):
         return "language-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
-        """Should the spoke run?"""
-        if not is_module_available(LOCALIZATION):
-            return False
+    def should_run(cls, *args, **kwargs):
+        """Should the spoke run?
 
-        if not NormalSpoke.should_run(environment, data):
-            return False
-
-        # Don't show the language support spoke on live media.
-        return context.payload_type not in PAYLOAD_LIVE_TYPES
+        Don't show the language support spoke on live media.
+        """
+        return is_module_available(LOCALIZATION) \
+            and context.payload_type not in PAYLOAD_LIVE_TYPES
 
     def __init__(self, *args, **kwargs):
         NormalSpoke.__init__(self, *args, **kwargs)

@@ -24,6 +24,8 @@ from pyanaconda.core.constants import PAYLOAD_TYPE_DNF, THREAD_SOFTWARE_WATCHER,
 from pyanaconda.core.i18n import _, C_, CN_
 from pyanaconda.core.util import ipmi_abort
 from pyanaconda.flags import flags
+from pyanaconda.modules.common.constants.services import PAYLOADS
+from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.ui.categories.software import SoftwareCategory
 from pyanaconda.ui.communication import hubQ
@@ -66,12 +68,10 @@ class SoftwareSelectionSpoke(NormalSpoke):
         return "software-selection"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Don't run for any non-package payload."""
-        if not NormalSpoke.should_run(environment, data):
-            return False
-
-        return context.payload_type == PAYLOAD_TYPE_DNF
+        return is_module_available(PAYLOADS) \
+            and context.payload_type == PAYLOAD_TYPE_DNF
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

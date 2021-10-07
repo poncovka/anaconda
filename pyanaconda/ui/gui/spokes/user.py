@@ -30,7 +30,6 @@ from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ui.gui.spokes import NormalSpoke
 from pyanaconda.ui.gui import GUIObject
 from pyanaconda.ui.categories.user_settings import UserSettingsCategory
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda.ui.helpers import InputCheck
 from pyanaconda.ui.gui.helpers import GUISpokeInputCheckHandler, GUIDialogInputCheckHandler
 from pyanaconda.ui.gui.utils import blockedHandler, set_password_visibility
@@ -214,7 +213,7 @@ class AdvancedUserDialog(GUIObject, GUIDialogInputCheckHandler):
         return False
 
 
-class UserSpoke(FirstbootSpokeMixIn, NormalSpoke, GUISpokeInputCheckHandler):
+class UserSpoke(NormalSpoke, GUISpokeInputCheckHandler):
     """
        .. inheritance-diagram:: UserSpoke
           :parts: 3
@@ -237,26 +236,9 @@ class UserSpoke(FirstbootSpokeMixIn, NormalSpoke, GUISpokeInputCheckHandler):
         return "user-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(USERS):
-            return False
-
-        # the user spoke should run always in the anaconda and in firstboot only
-        # when doing reconfig or if no user has been created in the installation
-        users_module = USERS.get_proxy()
-        user_list = get_user_list(users_module)
-
-        if environment == constants.ANACONDA_ENVIRON:
-            return True
-        elif environment == constants.FIRSTBOOT_ENVIRON and data is None:
-            # cannot decide, stay in the game and let another call with data
-            # available (will come) decide
-            return True
-        elif environment == constants.FIRSTBOOT_ENVIRON and data and not user_list:
-            return True
-        else:
-            return False
+        return is_module_available(USERS)
 
     def __init__(self, *args):
         NormalSpoke.__init__(self, *args)

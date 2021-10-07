@@ -36,18 +36,15 @@ from pyanaconda.ui.gui.spokes.lib.network_secret_agent import register_secret_ag
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.gui.hubs.summary import SummaryHub
 from pyanaconda.ui.gui.utils import gtk_call_once, escape_markup, really_hide, really_show
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.util import startProgram
 from pyanaconda.core.process_watchers import PidWatcher
-from pyanaconda.core.constants import ANACONDA_ENVIRON
 from pyanaconda.core import glib
 from pyanaconda.modules.common.constants.services import NETWORK
 from pyanaconda.modules.common.structures.network import NetworkDeviceConfiguration
 from pyanaconda.modules.network.constants import NM_CONNECTION_TYPE_WIFI, \
     NM_CONNECTION_TYPE_ETHERNET
-
-
+from pyanaconda.modules.common.util import is_module_available
 from pyanaconda import network
 
 from uuid import uuid4
@@ -1450,7 +1447,7 @@ class SelectWirelessNetworksDialog(GUIObject):
         return strongest_ap
 
 
-class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
+class NetworkSpoke(NormalSpoke):
     """
        .. inheritance-diagram:: NetworkSpoke
           :parts: 3
@@ -1472,13 +1469,12 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
         return "network-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
-        """Should the spoke run?"""
-        if not FirstbootSpokeMixIn.should_run(environment, data):
-            return False
+    def should_run(cls, *args, **kwargs):
+        """Should the spoke run?
 
-        # Always allow to configure the hostname for the target system.
-        return True
+        Always allow to configure the hostname for the target system.
+        """
+        return is_module_available(NETWORK)
 
     def __init__(self, *args, **kwargs):
         NormalSpoke.__init__(self, *args, **kwargs)
@@ -1510,18 +1506,14 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
         # try if source is available
         if self.networking_changed:
             if self.payload and self.payload.needs_network:
-                if ANACONDA_ENVIRON in anaconda_flags.environs:
-                    log.debug("network spoke (apply), network configuration changed - restarting payload thread")
-                    from pyanaconda.payload.manager import payloadMgr
-                    payloadMgr.restart_thread(self.payload, fallback=not anaconda_flags.automatedInstall, onlyOnChange=True)
-                else:
-                    log.debug("network spoke (apply), network configuration changed - "
-                              "skipping restart of payload thread, outside of Anaconda environment")
+                log.debug("network spoke (apply), network configuration changed - restarting payload thread")
+                from pyanaconda.payload.manager import payloadMgr
+                payloadMgr.restart_thread(self.payload, fallback=not anaconda_flags.automatedInstall, onlyOnChange=True)
             else:
                 log.debug("network spoke (apply), network configuration changed - "
                           "skipping restart of payload thread, payload does not need network")
-        self.networking_changed = False
 
+        self.networking_changed = False
         self.network_control_box.kill_nmce(msg="leaving network spoke")
 
     @property
@@ -1535,7 +1527,7 @@ class NetworkSpoke(FirstbootSpokeMixIn, NormalSpoke):
     def mandatory(self):
         # the network spoke should be mandatory only if it is running
         # during the installation and if the installation source requires network
-        return ANACONDA_ENVIRON in anaconda_flags.environs and self.payload.needs_network
+        return self.payload and self.payload.needs_network
 
     @property
     def status(self):

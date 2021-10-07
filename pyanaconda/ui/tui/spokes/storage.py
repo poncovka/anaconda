@@ -25,6 +25,7 @@ from pyanaconda.modules.common.structures.partitioning import MountPointRequest,
     PartitioningRequest
 from pyanaconda.modules.common.structures.storage import DeviceFormatData, DeviceData
 from pyanaconda.modules.common.structures.validation import ValidationReport
+from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ui.categories.system import SystemCategory
 from pyanaconda.ui.lib.storage import find_partitioning, reset_storage, \
     select_default_disks, apply_disk_selection, get_disks_summary, apply_partitioning, \
@@ -86,12 +87,10 @@ class StorageSpoke(NormalTUISpoke):
         return "storage-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Don't run the storage spoke on dir installations."""
-        if not NormalTUISpoke.should_run(environment, data):
-            return False
-
-        return not conf.target.is_directory
+        return is_module_available(STORAGE) \
+            and not conf.target.is_directory
 
     def __init__(self, data, storage, payload):
         super().__init__(data, storage, payload)

@@ -672,9 +672,9 @@ class GraphicalUserInterface(UserInterface):
         return self._orderActionClasses(standalones, hubs)
 
     def _instantiateAction(self, actionClass):
-        # Check if this action is to be shown in the supported environments.
+        # Check if this action is to be shown.
         if self._is_standalone_class(actionClass):
-            if not any(actionClass.should_run(environ, self.data) for environ in flags.environs):
+            if not actionClass.should_run(None, self.data):
                 return None
 
         # Instantiate an action on-demand, passing the arguments defining our

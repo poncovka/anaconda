@@ -17,14 +17,13 @@
 # Red Hat, Inc.
 #
 from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.core.constants import FIRSTBOOT_ENVIRON, PASSWORD_SET, PASSWORD_POLICY_USER
+from pyanaconda.core.constants import PASSWORD_SET, PASSWORD_POLICY_USER
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import N_, _
 from pyanaconda.core.regexes import GECOS_VALID
 from pyanaconda.modules.common.constants.services import USERS
 from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ui.categories.user_settings import UserSettingsCategory
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.ui.tui.tuiobject import Dialog, PasswordDialog, report_if_failed, report_check_func
 from pyanaconda.ui.lib.users import get_user_list, set_user_list
@@ -40,7 +39,7 @@ __all__ = ["UserSpoke"]
 FULLNAME_ERROR_MSG = N_("Full name can't contain the ':' character")
 
 
-class UserSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
+class UserSpoke(NormalTUISpoke):
     """
        .. inheritance-diagram:: UserSpoke
           :parts: 3
@@ -54,25 +53,11 @@ class UserSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
         return "user-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(USERS):
-            return False
-
-        if FirstbootSpokeMixIn.should_run(environment, data):
-            return True
-
-        # the user spoke should run always in the anaconda and in firstboot only
-        # when doing reconfig or if no user has been created in the installation
-        users_module = USERS.get_proxy()
-        user_list = get_user_list(users_module)
-        if environment == FIRSTBOOT_ENVIRON and data and not user_list:
-            return True
-
-        return False
+        return is_module_available(USERS)
 
     def __init__(self, data, storage, payload):
-        FirstbootSpokeMixIn.__init__(self)
         NormalTUISpoke.__init__(self, data, storage, payload)
 
         self.initialize_start()

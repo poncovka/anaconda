@@ -29,9 +29,7 @@ from pyanaconda.ui.gui.spokes import NormalSpoke
 from pyanaconda.ui.categories.user_settings import UserSettingsCategory
 from pyanaconda.ui.gui.helpers import GUISpokeInputCheckHandler
 from pyanaconda.ui.gui.utils import set_password_visibility
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda.ui.communication import hubQ
-from pyanaconda.ui.lib.services import is_reconfiguration_mode
 
 from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
@@ -39,7 +37,7 @@ log = get_module_logger(__name__)
 __all__ = ["PasswordSpoke"]
 
 
-class PasswordSpoke(FirstbootSpokeMixIn, NormalSpoke, GUISpokeInputCheckHandler):
+class PasswordSpoke(NormalSpoke, GUISpokeInputCheckHandler):
     """
        .. inheritance-diagram:: PasswordSpoke
           :parts: 3
@@ -62,12 +60,9 @@ class PasswordSpoke(FirstbootSpokeMixIn, NormalSpoke, GUISpokeInputCheckHandler)
         return "root-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(USERS):
-            return False
-
-        return FirstbootSpokeMixIn.should_run(environment, data)
+        return is_module_available(USERS)
 
     def __init__(self, *args):
         NormalSpoke.__init__(self, *args)
@@ -177,13 +172,7 @@ class PasswordSpoke(FirstbootSpokeMixIn, NormalSpoke, GUISpokeInputCheckHandler)
     @property
     def status(self):
         if self._users_module.IsRootAccountLocked:
-            # reconfig mode currently allows re-enabling a locked root account if
-            # user sets a new root password
-            if is_reconfiguration_mode() and not self.root_enabled:
-                return _("Disabled, set password to enable.")
-            else:
-                return _("Root account is disabled.")
-
+            return _("Root account is disabled.")
         elif self._users_module.IsRootPasswordSet:
             return _("Root password is set")
         else:

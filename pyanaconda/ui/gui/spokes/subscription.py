@@ -81,7 +81,7 @@ class SubscriptionSpoke(NormalSpoke):
         return "subscription-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """The Subscription spoke should run only if the Subscription module is available."""
         return is_module_available(SUBSCRIPTION)
 

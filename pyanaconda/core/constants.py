@@ -142,9 +142,6 @@ GEOLOC_TIMEOUT = 3
 # timeout for the network connection used for geolocation (in seconds)
 GEOLOC_CONNECTION_TIMEOUT = 5
 
-ANACONDA_ENVIRON = "anaconda"
-FIRSTBOOT_ENVIRON = "firstboot"
-
 # Tainted hardware
 TAINT_SUPPORT_REMOVED = 27
 TAINT_HARDWARE_UNSUPPORTED = 28

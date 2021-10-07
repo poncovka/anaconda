@@ -23,12 +23,9 @@ from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.ntp import NTPServerStatusCache
 from pyanaconda.ui.categories.localization import LocalizationCategory
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
-from pyanaconda.ui.common import FirstbootSpokeMixIn
 from pyanaconda import timezone
 from pyanaconda import ntp
-from pyanaconda.core import constants
 from pyanaconda.core.i18n import N_, _
-from pyanaconda.flags import flags
 
 from collections import namedtuple
 
@@ -50,7 +47,7 @@ PROMPT_BACK_KEY = 'b'
 CallbackTimezoneArgs = namedtuple("CallbackTimezoneArgs", ["region", "timezone"])
 
 
-class TimeSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
+class TimeSpoke(NormalTUISpoke):
     helpFile = "DateTimeSpoke.txt"
     category = LocalizationCategory
 
@@ -60,12 +57,9 @@ class TimeSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
         return "date-time-configuration"
 
     @classmethod
-    def should_run(cls, environment, data):
+    def should_run(cls, *args, **kwargs):
         """Should the spoke run?"""
-        if not is_module_available(TIMEZONE):
-            return False
-
-        return FirstbootSpokeMixIn.should_run(environment, data)
+        return is_module_available(TIMEZONE)
 
     def __init__(self, data, storage, payload):
         NormalTUISpoke.__init__(self, data, storage, payload)
@@ -82,20 +76,16 @@ class TimeSpoke(FirstbootSpokeMixIn, NormalTUISpoke):
 
     def initialize(self):
         self.initialize_start()
-        # We get the initial NTP servers (if any):
-        # - from kickstart when running inside of Anaconda
-        #   during the installation
-        # - from config files when running in Initial Setup
-        #   after the installation
-        if constants.ANACONDA_ENVIRON in flags.environs:
-            self._ntp_servers = TimeSourceData.from_structure_list(
-                self._timezone_module.TimeSources
-            )
-        elif constants.FIRSTBOOT_ENVIRON in flags.environs:
-            self._ntp_servers = ntp.get_servers_from_config()
-        else:
-            log.error("tui time spoke: unsupported environment configuration %s,"
-                      "can't decide where to get initial NTP servers", flags.environs)
+
+        self._ntp_servers = TimeSourceData.from_structure_list(
+            self._timezone_module.TimeSources
+        )
+
+        if not self._ntp_servers:
+            try:
+                self._ntp_servers = ntp.get_servers_from_config()
+            except ntp.NTPconfigError:
+                log.warning("Failed to load NTP servers configuration")
 
         # check if the newly added NTP servers work fine
         for server in self._ntp_servers:
