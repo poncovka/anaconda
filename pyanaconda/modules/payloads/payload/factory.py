@@ -37,10 +37,6 @@ class PayloadFactory(object):
                 LiveImageModule
             return LiveImageModule()
 
-        if payload_type == PayloadType.LIVE_OS:
-            from pyanaconda.modules.payloads.payload.live_os.live_os import LiveOSModule
-            return LiveOSModule()
-
         if payload_type == PayloadType.DNF:
             from pyanaconda.modules.payloads.payload.dnf.dnf import DNFModule
             return DNFModule()

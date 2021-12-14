@@ -85,10 +85,7 @@ class Anaconda(object):
             if payload_type == PAYLOAD_TYPE_RPM_OSTREE:
                 from pyanaconda.payload.rpmostreepayload import RPMOSTreePayload
                 klass = RPMOSTreePayload
-            elif self.opts.liveinst:
-                from pyanaconda.payload.live import LiveOSPayload
-                klass = LiveOSPayload
-            elif payload_type == PAYLOAD_TYPE_LIVE_IMAGE:
+            elif self.opts.liveinst or payload_type == PAYLOAD_TYPE_LIVE_IMAGE:
                 from pyanaconda.payload.live import LiveImagePayload
                 klass = LiveImagePayload
             else:

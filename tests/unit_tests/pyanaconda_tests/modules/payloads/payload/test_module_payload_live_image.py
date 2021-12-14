@@ -19,12 +19,14 @@
 #
 import unittest
 
+from pyanaconda.modules.common.errors.payload import IncompatibleSourceError
+
 from tests.unit_tests.pyanaconda_tests import patch_dbus_publish_object
 from tests.unit_tests.pyanaconda_tests.modules.payloads.payload.module_payload_shared import \
     PayloadKickstartSharedTest, PayloadSharedTest
 
 from pyanaconda.modules.payloads.payloads import PayloadsService
-from pyanaconda.modules.payloads.constants import PayloadType, SourceType
+from pyanaconda.modules.payloads.constants import PayloadType, SourceType, SourceState
 from pyanaconda.modules.payloads.payloads_interface import PayloadsInterface
 from pyanaconda.modules.payloads.payload.live_image.live_image import LiveImageModule
 from pyanaconda.modules.payloads.payload.live_image.live_image_interface import \
@@ -129,11 +131,31 @@ class LiveImageInterfaceTestCase(unittest.TestCase):
     def test_type(self):
         self.shared_tests.check_type(PayloadType.LIVE_IMAGE)
 
+    def _prepare_source(self):
+        """Prepare a default source."""
+        return self.shared_tests.prepare_source(SourceType.LIVE_OS_IMAGE)
+
+    @patch_dbus_publish_object
+    def test_set_sources(self, publisher):
+        """Test if set source API of LiveOS payload."""
+        sources = [self._prepare_source()]
+        self.shared_tests.set_and_check_sources(sources)
+
+    @patch_dbus_publish_object
+    def test_set_multiple_sources_fail(self, publisher):
+        """Test LiveOS payload can't set multiple sources."""
+        sources = [self._prepare_source(), self._prepare_source()]
+        self.shared_tests.set_and_check_sources(sources, exception=IncompatibleSourceError)
+
 
 class LiveImageModuleTestCase(unittest.TestCase):
 
     def setUp(self):
         self.module = LiveImageModule()
+
+    def _create_source(self, state=SourceState.READY):
+        """Create a new source with a mocked state."""
+        return PayloadSharedTest.prepare_source(SourceType.LIVE_OS_IMAGE, state)
 
     def test_calculate_required_space(self):
         """Test the calculate_required_space method."""
@@ -143,6 +165,14 @@ class LiveImageModuleTestCase(unittest.TestCase):
         self.module.add_source(source)
 
         assert self.module.calculate_required_space() == 1024 * 1024 * 1024
+
+    def test_install_with_task(self):
+        """Test the install_with_tasks method."""
+        source = self._create_source()
+        self.module.set_sources([source])
+
+        tasks = self.module.install_with_tasks()
+        assert len(tasks) == 1
 
     def test_install_with_task_from_tar(self):
         """Test Live Image install with tasks from tarfile."""

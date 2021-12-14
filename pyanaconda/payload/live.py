@@ -15,9 +15,16 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pyanaconda.modules.common.task import sync_run_task
+
+from pyanaconda.modules.common.constants.services import PAYLOADS
+
+from pyanaconda.ui.lib.payload import get_source
+
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.core.constants import PAYLOAD_TYPE_LIVE_IMAGE, SOURCE_TYPE_LIVE_IMAGE
+from pyanaconda.core.constants import PAYLOAD_TYPE_LIVE_IMAGE, SOURCE_TYPE_LIVE_IMAGE, \
+    SOURCE_TYPE_LIVE_OS_IMAGE
 from pyanaconda.modules.common.structures.live_image import LiveImageConfigurationData
 from pyanaconda.payload.migrated import MigratedDBusPayload
 
@@ -34,20 +41,29 @@ class LiveImagePayload(MigratedDBusPayload):
 
         :param opts: a namespace of options
         """
-        source_proxy = self.get_source_proxy()
-        source_data = LiveImageConfigurationData.from_structure(
-            source_proxy.Configuration
-        )
+        if opts.liveinst:
+            # Create the LiveOS image source.
+            source_proxy = get_source(self.proxy, SOURCE_TYPE_LIVE_OS_IMAGE)
 
-        if opts.proxy:
-            source_data.proxy = opts.proxy
+            task_path = source_proxy.DetectImageWithTask()
+            task_proxy = PAYLOADS.get_proxy(task_path)
+            sync_run_task(task_proxy)
+        else:
+            # Configure the image or tar source.
+            source_proxy = self.get_source_proxy()
+            source_data = LiveImageConfigurationData.from_structure(
+                source_proxy.Configuration
+            )
 
-        if not conf.payload.verify_ssl:
-            source_data.ssl_verification_enabled = conf.payload.verify_ssl
+            if opts.proxy:
+                source_data.proxy = opts.proxy
 
-        source_data.SetConfiguration(
-            LiveImageConfigurationData.to_structure(source_data)
-        )
+            if not conf.payload.verify_ssl:
+                source_data.ssl_verification_enabled = conf.payload.verify_ssl
+
+            source_proxy.SetConfiguration(
+                LiveImageConfigurationData.to_structure(source_data)
+            )
 
     @property
     def type(self):

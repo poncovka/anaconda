@@ -17,19 +17,20 @@
 #
 import tempfile
 import unittest
+import os
 import pytest
 
 from unittest.mock import patch, Mock
-
 from dasbus.typing import get_variant, Str, Bool
 from requests import RequestException
 
 from pyanaconda.modules.common.errors.payload import SourceSetupError
-
 from pyanaconda.core.constants import SOURCE_TYPE_LIVE_IMAGE
+from pyanaconda.core.util import join_paths, touch
 from pyanaconda.modules.common.constants.interfaces import PAYLOAD_SOURCE_LIVE_IMAGE
 from pyanaconda.modules.common.structures.live_image import LiveImageConfigurationData
 from pyanaconda.modules.payloads.constants import SourceType, SourceState
+from pyanaconda.modules.payloads.payload.live_image.utils import get_kernel_version_list
 from pyanaconda.modules.payloads.source.live_image.initialization import \
     SetUpLocalImageSourceTask, SetUpRemoteImageSourceTask, SetupImageResult
 from pyanaconda.modules.payloads.source.live_image.live_image import LiveImageSourceModule
@@ -292,3 +293,16 @@ class SetUpRemoteImageSourceTaskTestCase(unittest.TestCase):
         # Check the result.
         assert isinstance(result, SetupImageResult)
         assert result == SetupImageResult(4000)
+
+
+class LiveImageUtilsTestCase(unittest.TestCase):
+
+    def test_get_kernel_version_list(self):
+        """Test the get_kernel_version_list method."""
+        with tempfile.TemporaryDirectory() as tmp:
+            # Create a fake kernel file.
+            os.makedirs(join_paths(tmp, "boot"))
+            kernel_file = join_paths(tmp, "boot", "vmlinuz-1.2-3.x86_64")
+            touch(kernel_file)
+
+            assert get_kernel_version_list(tmp) == ["1.2-3.x86_64"]

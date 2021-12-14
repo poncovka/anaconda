@@ -50,6 +50,7 @@ class LiveImageModule(PayloadBase):
     def supported_source_types(self):
         """Get list of sources supported by Live Image module."""
         return [
+            SourceType.LIVE_OS_IMAGE,
             SourceType.LIVE_IMAGE,
             SourceType.LIVE_TAR,
         ]

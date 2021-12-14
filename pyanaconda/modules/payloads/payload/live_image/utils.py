@@ -15,13 +15,35 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+import glob
+import os
 import tarfile
 
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.payload import ProxyString, ProxyStringError
 from pyanaconda.modules.payloads.base.utils import sort_kernel_version_list
 
 log = get_module_logger(__name__)
+
+
+def get_kernel_version_list(root_path):
+    """Get a list of installed kernel versions.
+
+    :param root_path: a path to the system root
+    :return: a list of kernel versions
+    """
+    efi_dir = conf.bootloader.efi_dir
+    files = glob.glob(root_path + "/boot/vmlinuz-*")
+    files.extend(glob.glob(root_path + "/boot/efi/EFI/{}/vmlinuz-*".format(efi_dir)))
+
+    kernel_version_list = [
+        f.split("/")[-1][8:] for f in files
+        if os.path.isfile(f) and "-rescue-" not in f
+    ]
+
+    sort_kernel_version_list(kernel_version_list)
+    return kernel_version_list
 
 
 def get_kernel_version_list_from_tar(tarfile_path):

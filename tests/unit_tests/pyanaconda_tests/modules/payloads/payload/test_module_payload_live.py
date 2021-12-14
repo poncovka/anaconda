@@ -34,7 +34,7 @@ from pyanaconda.modules.common.structures.live_image import LiveImageConfigurati
 from pyanaconda.modules.payloads.payload.live_image.download_progress import DownloadProgress
 from pyanaconda.modules.payloads.payload.live_image.installation import VerifyImageChecksumTask, \
     InstallFromImageTask, InstallFromTarTask, DownloadImageTask, MountImageTask, RemoveImageTask
-from pyanaconda.modules.payloads.payload.live_os.utils import get_kernel_version_list
+from pyanaconda.modules.payloads.payload.live_image.utils import get_kernel_version_list
 
 
 class LiveUtilsTestCase(unittest.TestCase):

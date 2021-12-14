@@ -21,7 +21,7 @@ from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
 from pyanaconda.modules.payloads.source.utils import MountPointGenerator
 from pyanaconda.modules.payloads.payload.live_image.installation import DownloadImageTask, \
     VerifyImageChecksumTask, MountImageTask, InstallFromImageTask, RemoveImageTask
-from pyanaconda.modules.payloads.payload.live_os.utils import get_kernel_version_list
+from pyanaconda.modules.payloads.payload.live_image.utils import get_kernel_version_list
 
 __all__ = ["InstallLiveImageTask"]
 

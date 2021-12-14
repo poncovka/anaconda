@@ -20,7 +20,7 @@ import pytest
 
 from unittest.mock import patch
 
-from pyanaconda.core.constants import PAYLOAD_TYPE_LIVE_OS, PAYLOAD_TYPE_DNF, SOURCE_TYPE_CDROM
+from pyanaconda.core.constants import PAYLOAD_TYPE_DNF, SOURCE_TYPE_CDROM, PAYLOAD_TYPE_LIVE_IMAGE
 from pyanaconda.modules.common.constants.services import PAYLOADS
 from pyanaconda.ui.lib.payload import create_payload, get_payload, create_source, set_source, \
     get_source, set_up_sources, tear_down_sources
@@ -37,10 +37,10 @@ class PayloadUITestCase(unittest.TestCase):
         payloads_proxy.CreatePayload.return_value = "/my/path"
 
         payload_proxy = PAYLOADS.get_proxy("/my/path")
-        payload_proxy.Type = PAYLOAD_TYPE_LIVE_OS
+        payload_proxy.Type = PAYLOAD_TYPE_LIVE_IMAGE
 
-        assert create_payload(PAYLOAD_TYPE_LIVE_OS) == payload_proxy
-        payloads_proxy.CreatePayload.assert_called_once_with(PAYLOAD_TYPE_LIVE_OS)
+        assert create_payload(PAYLOAD_TYPE_LIVE_IMAGE) == payload_proxy
+        payloads_proxy.CreatePayload.assert_called_once_with(PAYLOAD_TYPE_LIVE_IMAGE)
         payloads_proxy.ActivatePayload.assert_called_once_with("/my/path")
 
     @patch_dbus_get_proxy_with_cache
@@ -51,14 +51,14 @@ class PayloadUITestCase(unittest.TestCase):
         payloads_proxy.CreatePayload.return_value = "/my/path2"
 
         payload_proxy_1 = PAYLOADS.get_proxy("/my/path1")
-        payload_proxy_1.Type = PAYLOAD_TYPE_LIVE_OS
+        payload_proxy_1.Type = PAYLOAD_TYPE_LIVE_IMAGE
 
         payload_proxy_2 = PAYLOADS.get_proxy("/my/path2")
         payload_proxy_2.Type = PAYLOAD_TYPE_DNF
 
         # Get the active payload.
-        assert get_payload(PAYLOAD_TYPE_LIVE_OS) == payload_proxy_1
-        assert get_payload(PAYLOAD_TYPE_LIVE_OS) == payload_proxy_1
+        assert get_payload(PAYLOAD_TYPE_LIVE_IMAGE) == payload_proxy_1
+        assert get_payload(PAYLOAD_TYPE_LIVE_IMAGE) == payload_proxy_1
         payloads_proxy.ActivatePayload.assert_not_called()
 
         # Or create a new one.

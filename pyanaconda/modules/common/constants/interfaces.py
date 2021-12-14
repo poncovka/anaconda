@@ -69,11 +69,6 @@ PAYLOAD_LIVE_IMAGE = DBusInterfaceIdentifier(
     basename="LiveImage"
 )
 
-PAYLOAD_LIVE_OS = DBusInterfaceIdentifier(
-    namespace=PAYLOAD_NAMESPACE,
-    basename="LiveOS"
-)
-
 PAYLOAD_RPM_OSTREE = DBusInterfaceIdentifier(
     namespace=PAYLOAD_NAMESPACE,
     basename="RPMOSTree"

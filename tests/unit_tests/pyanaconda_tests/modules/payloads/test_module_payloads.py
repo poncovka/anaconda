@@ -44,7 +44,6 @@ from pyanaconda.modules.payloads.payloads_interface import PayloadsInterface
 from pyanaconda.modules.payloads.payloads import PayloadsService
 from pyanaconda.modules.payloads.payload.dnf.dnf import DNFModule
 from pyanaconda.modules.payloads.payload.live_image.live_image import LiveImageModule
-from pyanaconda.modules.payloads.payload.live_os.live_os import LiveOSModule
 from pyanaconda.modules.payloads.source.live_os.live_os import LiveOSSourceModule
 
 
@@ -113,18 +112,6 @@ class PayloadsInterfaceTestCase(TestCase):
         publisher.assert_called_once()
 
     @patch_dbus_publish_object
-    def test_create_live_os_payload(self, publisher):
-        """Test creation and publishing of the Live OS payload module."""
-        payload_path = self.payload_interface.CreatePayload(PayloadType.LIVE_OS.value)
-        assert self.payload_interface.CreatedPayloads == [payload_path]
-
-        self.payload_interface.ActivatePayload(payload_path)
-        assert self.payload_interface.ActivePayload == payload_path
-
-        assert isinstance(PayloadContainer.from_object_path(payload_path), LiveOSModule)
-        publisher.assert_called_once()
-
-    @patch_dbus_publish_object
     def test_create_live_image_payload(self, publisher):
         """Test creation and publishing of the Live image payload module."""
         payload_path = self.payload_interface.CreatePayload(PayloadType.LIVE_IMAGE.value)
@@ -149,7 +136,7 @@ class PayloadsInterfaceTestCase(TestCase):
         assert self.payload_interface.CreatedPayloads == [path_1]
         assert self.payload_interface.ActivePayload == ""
 
-        path_2 = self.payload_interface.CreatePayload(PayloadType.LIVE_OS.value)
+        path_2 = self.payload_interface.CreatePayload(PayloadType.LIVE_IMAGE.value)
         assert self.payload_interface.CreatedPayloads == [path_1, path_2]
         assert self.payload_interface.ActivePayload == ""
 

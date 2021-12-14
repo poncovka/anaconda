@@ -17,17 +17,19 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.i18n import _
 from pyanaconda.core.signal import Signal
 from pyanaconda.modules.payloads.base.utils import get_dir_size
 from pyanaconda.modules.payloads.constants import SourceType, SourceState
+from pyanaconda.modules.payloads.source.live_os.installation import InstallLiveOSTask
 from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
 from pyanaconda.modules.payloads.source.source_base import PayloadSourceBase, MountingSourceMixin
 from pyanaconda.modules.payloads.source.live_os.live_os_interface import LiveOSSourceInterface
 from pyanaconda.modules.payloads.source.live_os.initialization import SetUpLiveOSSourceTask, \
     DetectLiveOSImageTask
 
-from pyanaconda.anaconda_loggers import get_module_logger
 log = get_module_logger(__name__)
 
 
@@ -118,6 +120,18 @@ class LiveOSSourceModule(PayloadSourceBase, MountingSourceMixin):
             SetUpLiveOSSourceTask(
                 image_path=self.image_path,
                 target_mount=self.mount_point
+            )
+        ]
+
+    def install_with_tasks(self):
+        """Install the installation source.
+
+        :return: a list of installation tasks
+        """
+        return [
+            InstallLiveOSTask(
+                sysroot=conf.target.system_root,
+                mount_point=self.mount_point,
             )
         ]
 
