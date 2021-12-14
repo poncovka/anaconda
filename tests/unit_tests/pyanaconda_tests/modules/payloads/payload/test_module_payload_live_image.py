@@ -57,7 +57,7 @@ class LiveImageKSTestCase(unittest.TestCase):
         # Use live disk image installation
         liveimg --url="http://my/super/path"
         """
-        self.shared_tests.check_kickstart(ks_in, ks_out="", ks_tmp=ks_out)
+        self.shared_tests.check_kickstart(ks_in, ks_out)
         self._check_source_types(SourceType.LIVE_IMAGE)
 
     def test_liveimg_tar_kickstart(self):
@@ -69,7 +69,7 @@ class LiveImageKSTestCase(unittest.TestCase):
         # Use live disk image installation
         liveimg --url="http://my/super/path.tar"
         """
-        self.shared_tests.check_kickstart(ks_in, ks_out="", ks_tmp=ks_out)
+        self.shared_tests.check_kickstart(ks_in, ks_out)
         self._check_source_types(SourceType.LIVE_TAR)
 
     def test_liveimg_proxy_kickstart(self):
@@ -81,7 +81,7 @@ class LiveImageKSTestCase(unittest.TestCase):
         # Use live disk image installation
         liveimg --url="http://my/super/path" --proxy="http://ultimate/proxy"
         """
-        self.shared_tests.check_kickstart(ks_in, ks_out="", ks_tmp=ks_out)
+        self.shared_tests.check_kickstart(ks_in, ks_out)
 
     def test_liveimg_checksum_kickstart(self):
         """Test the liveimg checksum parameter."""
@@ -92,7 +92,7 @@ class LiveImageKSTestCase(unittest.TestCase):
         # Use live disk image installation
         liveimg --url="http://my/super/path" --checksum="BATBATBATMAN!"
         """
-        self.shared_tests.check_kickstart(ks_in, ks_out="", ks_tmp=ks_out)
+        self.shared_tests.check_kickstart(ks_in, ks_out)
 
     def test_liveimg_noverifyssl_kickstart(self):
         """Test the liveimg noverifyssl parameter."""
@@ -103,7 +103,7 @@ class LiveImageKSTestCase(unittest.TestCase):
         # Use live disk image installation
         liveimg --url="http://my/super/path" --noverifyssl
         """
-        self.shared_tests.check_kickstart(ks_in, ks_out="", ks_tmp=ks_out)
+        self.shared_tests.check_kickstart(ks_in, ks_out)
 
     def test_liveimg_complex_kickstart(self):
         """Test the liveimg all parameters."""
@@ -114,7 +114,7 @@ class LiveImageKSTestCase(unittest.TestCase):
         # Use live disk image installation
         liveimg --url="http://my/super/path" --proxy="http://NO!!!!!" --noverifyssl --checksum="ABCDEFG"
         """
-        self.shared_tests.check_kickstart(ks_in, ks_out="", ks_tmp=ks_out)
+        self.shared_tests.check_kickstart(ks_in, ks_out)
 
 
 class LiveImageInterfaceTestCase(unittest.TestCase):
