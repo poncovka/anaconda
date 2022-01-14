@@ -908,3 +908,5 @@ class DNFManager(object):
                 continue
 
         return ""
+
+    def write_repository(self):

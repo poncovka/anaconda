@@ -24,9 +24,11 @@ from pyanaconda.core import util
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import RPM_LANGUAGES_NONE, RPM_LANGUAGES_ALL, MULTILIB_POLICY_BEST
 from pyanaconda.core.i18n import _
+from pyanaconda.core.path import join_paths
 from pyanaconda.modules.common.errors.installation import PayloadInstallationError, \
     NonCriticalInstallationError
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData
+from pyanaconda.modules.common.structures.payload import RepoConfigurationData
 from pyanaconda.modules.common.task import Task
 from pyanaconda.modules.payloads.payload.dnf.requirements import collect_remote_requirements, \
     collect_language_requirements, collect_platform_requirements, \
@@ -241,6 +243,113 @@ class InstallPackagesTask(Task):
         """Run the task."""
         self.report_progress(_("Preparing transaction from installation source"))
         self._dnf_manager.install_packages(self.report_progress)
+
+
+class WriteRepositoriesTask(Task):
+    """The installation task for writing the custom repositories."""
+
+    def __init__(self, sysroot, dnf_manager, repositories):
+        """Create a new task.
+
+        :param str sysroot: a path to the system root
+        :param DNFManager dnf_manager: a DNF manager
+        :param [RepoConfigurationData] repositories: a list of repo data
+        """
+        super().__init__()
+        self._sysroot = sysroot
+        self._dnf_manager = dnf_manager
+        self._repositories = repositories
+
+    @property
+    def name(self):
+        return "Write repositories"
+
+    def run(self):
+        """Run the task.
+
+        Write selected repositories to target system.
+        """
+        for repo_data in self._repositories:
+
+
+        for ks_repo in self.data.repo.dataList():
+            repo_id = ks_repo.name
+
+            if not ks_repo.install:
+                continue
+
+            if ks_repo.baseurl.startswith("nfs://"):
+                log.info("Skip writing the NFS '%s' repository to target system.", repo_id)
+                continue
+
+            repo_data =
+
+            self._write_dnf_repo(ks_repo)
+
+    def _write_dnf_repo(self, ks_repo):
+        """Write a repo object to a DNF repo.conf file.
+
+        """
+        repo_id = ks_repo.name
+        log.info("Writing %s.repo to target system.", repo_id)
+
+        try:
+            repo = self._base.repos[repo_id]
+        except (dnf.exceptions.RepoError, KeyError):
+            return
+
+        if not repo:
+            return
+
+        if any([repo.baseurl, repo.mirrorlist, repo.metalink]):
+            log.error(
+                "The '%s' repo has no baseurl, "
+                "mirrorlist or metalink", repo.id
+            )
+            return
+
+        repo_path = join_paths(
+            self._sysroot,
+            "/etc/yum.repos.d/",
+            repo.id + ".repo"
+        )
+
+        with open(repo_path, "w") as f:
+            f.write("[%s]\n" % repo.id)
+            f.write("name=%s\n" % repo.id)
+
+            if repo.enabled:
+                f.write("enabled=1\n")
+            else:
+                f.write("enabled=0\n")
+
+            if repo.mirrorlist:
+                f.write("mirrorlist=%s\n" % repo.mirrorlist)
+            elif repo.metalink:
+                f.write("metalink=%s\n" % repo.metalink)
+            elif repo.baseurl:
+                f.write("baseurl=%s\n" % repo.baseurl[0])
+
+            # kickstart repo modifiers
+            if ks_repo.noverifyssl:
+                f.write("sslverify=0\n")
+
+            if ks_repo.proxy:
+                try:
+                    proxy = ProxyString(ks_repo.proxy)
+                    f.write("proxy=%s\n" % proxy.url)
+                except ProxyStringError as e:
+                    log.error("Failed to parse proxy for _writeInstallConfig %s: %s",
+                              ks_repo.proxy, e)
+
+            if ks_repo.cost:
+                f.write("cost=%d\n" % ks_repo.cost)
+
+            if ks_repo.includepkgs:
+                f.write("include=%s\n" % ",".join(ks_repo.includepkgs))
+
+            if ks_repo.excludepkgs:
+                f.write("exclude=%s\n" % ",".join(ks_repo.excludepkgs))
 
 
 class ImportRPMKeysTask(Task):
