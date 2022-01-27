@@ -25,7 +25,6 @@ from pyanaconda.modules.common.constants.services import STORAGE, USERS, SERVICE
     SECURITY, LOCALIZATION, TIMEZONE, BOSS, SUBSCRIPTION
 from pyanaconda.modules.common.task import sync_run_task, Task as InstallationTask
 from pyanaconda.modules.common.util import is_module_available
-from pyanaconda.progress import progress_message, progress_step, progress_complete, progress_init
 from pyanaconda import flags
 from pyanaconda.core import util
 from pyanaconda.core.path import open_with_perm
@@ -36,7 +35,6 @@ from pyanaconda.threading import threadMgr
 from pyanaconda.kickstart import runPostScripts, runPreInstallScripts
 from pyanaconda.kexec import setup_kexec
 from pyanaconda.installation_tasks import Task, TaskQueue, DBusTask
-from pyanaconda.progress import progressQ
 from pykickstart.constants import SNAPSHOT_WHEN_POST_INSTALL
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -66,11 +64,17 @@ class RunInstallationTask(InstallationTask):
         super().__init__()
         self._payload = payload
         self._ksdata = ksdata
+        self._total_steps = 0
 
     @property
     def name(self):
         """Name of the task"""
         return "Run the installation queue."
+
+    @property
+    def steps(self):
+        """Total number of steps."""
+        return self._total_steps
 
     def run(self):
         """Run the task."""
@@ -79,17 +83,21 @@ class RunInstallationTask(InstallationTask):
             ksdata=self._ksdata,
         )
 
+    def _queue_started_cb(self, task):
+        """The installation queue was started."""
+        self.report_progress(task.status_message)
+
+    def _task_completed_cb(self, task):
+        """The installation task was completed."""
+        self.report_progress("", step_size=1)
+
     def _prepare_configuration(self, payload, ksdata):
         """Configure the installed system."""
         configuration_queue = TaskQueue("Configuration queue")
 
         # connect progress reporting
-        configuration_queue.queue_started.connect(
-            lambda x: progress_message(x.status_message)
-        )
-        configuration_queue.task_completed.connect(
-            lambda x: progress_step(x.name)
-        )
+        configuration_queue.queue_started.connect(self._queue_started_cb)
+        configuration_queue.task_completed.connect(self._task_completed_cb)
 
         # add installation tasks for the Subscription DBus module
         if is_module_available(SUBSCRIPTION):
@@ -274,7 +282,7 @@ class RunInstallationTask(InstallationTask):
         # This should be the only thread running, wait for the others to finish if not.
         if threadMgr.running > 1:
             # show a progress message
-            progressQ.send_message(
+            self.report_progress(
                 N_("Waiting for %s threads to finish") % (threadMgr.running - 1)
             )
             for message in ("Thread %s is running" % n for n in threadMgr.names):
@@ -289,9 +297,10 @@ class RunInstallationTask(InstallationTask):
            installing packages onto those filesystems.
         """
         installation_queue = TaskQueue("Installation queue")
+
         # connect progress reporting
-        installation_queue.queue_started.connect(lambda x: progress_message(x.status_message))
-        installation_queue.task_completed.connect(lambda x: progress_step(x.name))
+        installation_queue.queue_started.connect(self._queue_started_cb)
+        installation_queue.task_completed.connect(self._task_completed_cb)
 
         # Save system time to HW clock.
         # - this used to be before waiting on threads, but I don't think that's needed
@@ -467,10 +476,10 @@ class RunInstallationTask(InstallationTask):
         queue.append(self._prepare_configuration(payload, ksdata))
 
         # Set the progress reporting callback of the payload class.
-        payload._progress_cb = lambda step, msg: progress_message(msg)
+        payload._progress_cb = self.report_progress
 
         # notify progress tracking about the number of steps
-        progress_init(queue.task_count)
+        self._total_steps = queue.task_count
 
         # log contents of the main task queue
         log.info(queue.summary)
@@ -480,6 +489,7 @@ class RunInstallationTask(InstallationTask):
         queue_counter = util.item_counter(queue.queue_count)
         task_started_counter = util.item_counter(queue.task_count)
         task_completed_counter = util.item_counter(queue.task_count)
+
         queue.queue_started.connect(
             lambda x: log.info("Queue started: %s (%s)", x.name, next(queue_counter))
         )
@@ -495,7 +505,7 @@ class RunInstallationTask(InstallationTask):
         queue.start()
 
         # done
-        progress_complete()
+        self.report_progress(N_("Complete!"), step_number=self.steps)
 
         # this message is automatically detected by QE tools, do not change it lightly
         log.info(
