@@ -16,15 +16,13 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-
-import sys
+from time import sleep
 
 from pyanaconda.flags import flags
 from pyanaconda.core.i18n import N_, _
 from pyanaconda.core import util
 from pyanaconda.core.constants import IPMI_FINISHED
 from pyanaconda.core.configuration.anaconda import conf
-
 from pyanaconda.ui.tui.spokes import StandaloneTUISpoke
 from pyanaconda.ui.tui.hubs.summary import SummaryHub
 
@@ -61,74 +59,58 @@ class ProgressSpoke(StandaloneTUISpoke):
         # this spoke is never completed, initially
         return False
 
-    def _update_progress(self):
-        """Handle progress updates from install thread."""
+    def _on_progress_changed(self, step, message):
+        """Handle a new progress report."""
+        if message:
+            # Print a new line in case we've done a step.
+            if self._stepped:
+                print('')
 
-        from pyanaconda.progress import progressQ
-        import queue
+            # Print the progress message.
+            # It should already be translated.
+            print(message, flush=True)
 
-        q = progressQ.q
+            # Don't print a new line before the next message.
+            self._stepped = False
+        else:
+            # Instead of updating a progress bar, we just
+            # print a pip but print it without a new line.
+            print('.', flush=True, end='')
 
-        # Grab all messages may have appeared since last time this method ran.
-        while True:
-            # Attempt to get a message out of the queue for how we should update
-            # the progress bar.  If there's no message, don't error out.
-            # Also flush the communication Queue at least once a second and
-            # process it's events so we can react to async evens (like a thread
-            # throwing an exception)
-            while True:
-                try:
-                    (code, args) = q.get(timeout=1)
-                    break
-                except queue.Empty:
-                    pass
-                finally:
-                    loop = App.get_event_loop()
-                    loop.process_signals()
-
-            if code == progressQ.PROGRESS_CODE_INIT:
-                # Text mode doesn't have a finite progress bar
-                pass
-            elif code == progressQ.PROGRESS_CODE_STEP:
-                # Instead of updating a progress bar, we just print a pip
-                # but print it without a new line.
-                print('.', flush=True, end='')
-                # Use _stepped as an indication to if we need a newline before
-                # the next message
-                self._stepped = True
-            elif code == progressQ.PROGRESS_CODE_MESSAGE:
-                # This should already be translated
-                if self._stepped:
-                    # Get a new line in case we've done a step before
-                    self._stepped = False
-                    print('')
-                # Print the progress message.
-                print(args[0], flush=True)
-            elif code == progressQ.PROGRESS_CODE_COMPLETE:
-                # There shouldn't be any more progress updates, so return
-                q.task_done()
-
-                if self._stepped:
-                    print('')
-                return True
-            elif code == progressQ.PROGRESS_CODE_QUIT:
-                sys.exit(args[0])
-
-            q.task_done()
-        return True
+            # Use _stepped as an indication to if we need
+            # a newline before the next message.
+            self._stepped = True
 
     def show_all(self):
         super().show_all()
         from pyanaconda.installation import RunInstallationTask
 
+        # Start the installation task.
         task = RunInstallationTask(
             payload=self.payload,
             ksdata=self.data
         )
+        task.progress_changed_signal.connect(
+            self._on_progress_changed
+        )
         task.start()
 
-        # This will run until we're all done with the install thread.
-        self._update_progress()
+        # This will run until the task is finished.
+        while task.is_running:
+            sleep(1)
+
+            # Also flush the communication Queue at least once a second and
+            # process it's events so we can react to async evens (like a thread
+            # throwing an exception)
+            loop = App.get_event_loop()
+            loop.process_signals()
+
+        # Print a new line after the last step.
+        if self._stepped:
+            print('')
+
+        # Finish the installation task. Re-raise tracebacks if any.
+        task.finish()
 
         util.ipmi_report(IPMI_FINISHED)
 
