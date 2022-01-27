@@ -59,7 +59,6 @@ from pyanaconda.payload.errors import PayloadError, PayloadSetupError
 from pyanaconda.payload.image import find_first_iso_image, find_optical_install_media
 from pyanaconda.modules.payloads.payload.dnf.tree_info import TreeInfoMetadata, NoTreeInfoError, \
     TreeInfoMetadataError
-from pyanaconda.progress import progress_message
 from pyanaconda.ui.lib.payload import get_payload, get_source, create_source, set_source, \
     set_up_sources, tear_down_sources
 
@@ -475,7 +474,7 @@ class DNFPayload(Payload):
         self._base.read_comps(arch_filter=True)
 
     def install(self):
-        progress_message(N_('Starting package installation process'))
+        self._progress_cb(0, N_('Starting package installation process'))
 
         # Get the packages configuration and selection data.
         configuration = self.get_packages_configuration()
