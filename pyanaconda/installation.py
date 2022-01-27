@@ -466,6 +466,9 @@ class RunInstallationTask(InstallationTask):
         queue.append(self._prepare_installation(payload, ksdata))
         queue.append(self._prepare_configuration(payload, ksdata))
 
+        # Set the progress reporting callback of the payload class.
+        payload._progress_cb = lambda step, msg: progress_message(msg)
+
         # notify progress tracking about the number of steps
         progress_init(queue.task_count)
 
