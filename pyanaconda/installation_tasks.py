@@ -27,7 +27,6 @@ from pyanaconda.modules.common.task import sync_run_task
 import time
 
 from pyanaconda.anaconda_loggers import get_module_logger
-from pyanaconda.progress import progress_message
 
 log = get_module_logger(__name__)
 
@@ -545,4 +544,8 @@ class DBusTask(Task):
         self._msg_counter += 1
 
         if self._msg_counter > 1:
-            progress_message(msg)
+            self._progress_cb(0, msg)
+
+    def _progress_cb(self, step, message):
+        """Callback for task progress reporting."""
+        log.info(message)

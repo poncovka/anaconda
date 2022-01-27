@@ -83,9 +83,18 @@ class RunInstallationTask(InstallationTask):
             ksdata=self._ksdata,
         )
 
+    def _progress_report_cb(self, step, message):
+        """Handle a progress report of a task."""
+        self.report_progress(message)
+
     def _queue_started_cb(self, task):
         """The installation queue was started."""
         self.report_progress(task.status_message)
+
+    def _task_started_cb(self, task):
+        """The installation task has started."""
+        if isinstance(task, DBusTask):
+            task._progress_cb = self._progress_report_cb
 
     def _task_completed_cb(self, task):
         """The installation task was completed."""
@@ -476,7 +485,10 @@ class RunInstallationTask(InstallationTask):
         queue.append(self._prepare_configuration(payload, ksdata))
 
         # Set the progress reporting callback of the payload class.
-        payload._progress_cb = self.report_progress
+        payload._progress_cb = self._progress_report_cb
+
+        # Handle the progress reporting of DBus tasks.
+        queue.task_started.connect(self._task_started_cb)
 
         # notify progress tracking about the number of steps
         self._total_steps = queue.task_count
