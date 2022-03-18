@@ -102,6 +102,7 @@ class DNFManager(object):
         self._ignore_broken_packages = False
         self._download_location = None
         self._md_hashes = {}
+        self._disabled_system_repositories = set()
 
     @property
     def _base(self):
@@ -891,6 +892,44 @@ class DNFManager(object):
         else:
             repo.disable()
             log.info("The '%s' repository is disabled.", repo_id)
+
+    def read_system_repositories(self):
+        """Read the system repositories.
+
+        Read the repositories from the installation environment and disable them.
+        The disabled repositories can be restored with restore_system_repositories.
+        """
+        # Make sure that there are no repositories set yet. There is a simple solution
+        # to that, be we don't need it at this moment.
+        if self.repositories:
+            raise RuntimeError("The DNF repo cache is not cleared.")
+
+        # Read in all the repos from the installation environment, make a note of which
+        # are enabled, and then disable them all. If the user gave us a method, we want
+        # to use that instead of the default repos.
+        log.debug("Read system repositories.")
+        self._base.read_all_repos()
+
+        # Repo files are always loaded from the system.
+        # When reloaded their state needs to be synchronized with the user configuration.
+        # So we disable them now and enable them later if required.
+        log.debug("Disable system repositories.")
+
+        for repo_id in self.enabled_repositories:
+            self.set_repository_enabled(repo_id, False)
+            self._disabled_system_repositories.add(repo_id)
+
+    def restore_system_repositories(self):
+        """Restore the system repositories.
+
+        Enable repositories from the installation environment that disabled by
+        read_system_repositories.
+        """
+        log.debug("Restore system repositories.")
+
+        while self._disabled_system_repositories:
+            repo_id = self._disabled_system_repositories.pop()
+            self.set_repository_enabled(repo_id, True)
 
     def load_repository(self, repo_id):
         """Download repo metadata.
