@@ -629,30 +629,14 @@ class DNFPayload(Payload):
             mirrorlist = data.url if data.type == URL_TYPE_MIRRORLIST else ""
             metalink = data.url if data.type == URL_TYPE_METALINK else ""
 
+            # Process the treeinfo metadata.
+            treeinfo_base_repo_url = self._load_treeinfo_metadata(
+                data, disabled_treeinfo_repo_names
+            )
+
+            base_repo_url = treeinfo_base_repo_url or install_tree_url
+
             # Fallback to the installation root.
-            base_repo_url = install_tree_url
-
-            try:
-                tree_info_metadata = TreeInfoMetadata()
-                tree_info_metadata.load_data(data)
-
-                self._dnf_manager.configure_substitution(
-                    tree_info_metadata.release_version
-                )
-
-                base_repo_url = tree_info_metadata.get_base_repo_url()
-
-                self._load_treeinfo_repositories(
-                    tree_info_metadata,
-                    base_repo_url,
-                    disabled_treeinfo_repo_names,
-                    data
-                )
-            except NoTreeInfoError as e:
-                log.debug("No treeinfo metadata to use: %s", str(e))
-            except TreeInfoMetadataError as e:
-                log.warning("Couldn't use treeinfo metadata: %s", str(e))
-
             try:
                 base_ksrepo = self.data.RepoData(
                     name=constants.BASE_REPO_NAME,
@@ -855,6 +839,37 @@ class DNFPayload(Payload):
         url = "file://" + install_root_dir
 
         return url
+
+    def _load_treeinfo_metadata(self, data, repo_names_to_disable):
+        """Load treeinfo metadata.
+
+        :param data: repo configuration data
+        :return: an URL of the base repository
+        """
+        base_repo_url = None
+
+        try:
+            tree_info_metadata = TreeInfoMetadata()
+            tree_info_metadata.load_data(data)
+
+            self._dnf_manager.configure_substitution(
+                tree_info_metadata.release_version
+            )
+
+            base_repo_url = tree_info_metadata.get_base_repo_url()
+
+            self._load_treeinfo_repositories(
+                tree_info_metadata,
+                base_repo_url,
+                repo_names_to_disable,
+                data
+            )
+        except NoTreeInfoError as e:
+            log.debug("No treeinfo metadata to use: %s", str(e))
+        except TreeInfoMetadataError as e:
+            log.warning("Couldn't use treeinfo metadata: %s", str(e))
+
+        return base_repo_url
 
     def _load_treeinfo_repositories(self, tree_info_metadata, base_repo_url,
                                     repo_names_to_disable, data):
