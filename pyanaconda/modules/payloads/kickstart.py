@@ -22,7 +22,7 @@ from pykickstart.sections import PackageSection
 from pykickstart.constants import GROUP_DEFAULT
 
 from pyanaconda.core.constants import URL_TYPE_BASEURL, URL_TYPE_MIRRORLIST, URL_TYPE_METALINK, \
-    DNF_DEFAULT_REPO_COST, REPO_ORIGIN_TREEINFO
+    DNF_DEFAULT_REPO_COST, REPO_ORIGIN_TREEINFO, REPO_ORIGIN_SYSTEM
 from pyanaconda.core.kickstart import KickstartSpecification, commands as COMMANDS
 from pyanaconda.kickstart import RepoData
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
@@ -55,9 +55,9 @@ def convert_ks_repo_to_repo_data(ks_data):
         repo_data.type = URL_TYPE_METALINK
     else:
         # Handle the `repo --name=updates` use case.
-        # FIXME: Find a better solution for this use case.
+        repo_data.origin = REPO_ORIGIN_SYSTEM
         repo_data.url = ""
-        repo_data.type = "NONE"
+        repo_data.type = ""
 
     repo_data.proxy = ks_data.proxy or ""
     repo_data.cost = ks_data.cost or DNF_DEFAULT_REPO_COST

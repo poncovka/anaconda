@@ -47,7 +47,8 @@ from pyanaconda.core import constants
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
     SOURCE_TYPE_URL, SOURCE_TYPE_CDROM, URL_TYPE_BASEURL, URL_TYPE_MIRRORLIST, \
-    URL_TYPE_METALINK, SOURCE_REPO_FILE_TYPES, SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL
+    URL_TYPE_METALINK, SOURCE_REPO_FILE_TYPES, SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL, \
+    REPO_ORIGIN_SYSTEM
 from pyanaconda.core.i18n import _
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
 from pyanaconda.flags import flags
@@ -411,8 +412,13 @@ class DNFPayload(Payload):
         enabled = ksrepo.enabled
 
         # An existing repository can be only enabled or disabled.
-        if self._is_existing_repo_configuration(data):
-            self._dnf_manager.set_repository_enabled(data.name, enabled)
+        # The user is trying to do "repo --name=updates" in a kickstart file.
+        # We can only enable or disable the already existing on-disk repo config.
+        if data.origin == REPO_ORIGIN_SYSTEM:
+            try:
+                self._dnf_manager.set_repository_enabled(data.name, enabled)
+            except UnknownRepositoryError:
+                log.warning("Couldn't enable the system repository.")
             return
 
         # Set up the NFS source with a substituted URL.
@@ -425,14 +431,6 @@ class DNFPayload(Payload):
 
         # Add a new repository.
         self._dnf_manager.add_repository(data)
-
-    def _is_existing_repo_configuration(self, data):
-        """Is it a configuration of an existing repository?
-
-        The user is trying to do "repo --name=updates" in a kickstart file.
-        We can only enable or disable the already existing on-disk repo config.
-        """
-        return not data.url and data.name in self._dnf_manager.repositories
 
     def _remove_repo(self, repo_id):
         repos = self.data.repo.dataList()
@@ -712,6 +710,8 @@ class DNFPayload(Payload):
                                         "metalink set and is not one of "
                                         "the pre-defined repositories" %
                                         ksrepo.name)
+
+
 
             self._add_repo_to_dnf(ksrepo)
 
