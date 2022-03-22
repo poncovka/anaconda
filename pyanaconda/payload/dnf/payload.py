@@ -908,7 +908,6 @@ class DNFPayload(Payload):
             if repo.name in disabled_names:
                 repo.enabled = False
 
-            repo.treeinfo_origin = True
             log.debug("Adding new treeinfo repository: %s enabled: %s",
                       repo.name, repo.enabled)
 

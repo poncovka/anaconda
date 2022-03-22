@@ -22,7 +22,7 @@ from glob import glob
 from itertools import count
 
 from pyanaconda.anaconda_loggers import get_module_logger
-from pyanaconda.core.constants import URL_TYPE_BASEURL
+from pyanaconda.core.constants import URL_TYPE_BASEURL, REPO_ORIGIN_TREEINFO
 from pyanaconda.core.path import join_paths
 from pyanaconda.core.util import execWithRedirect
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
@@ -84,6 +84,7 @@ def generate_treeinfo_repositories(repo_data: RepoConfigurationData, tree_info_m
         repo.enabled = repo_md.enabled
         repo.url = repo_md.path
 
+        repo.origin = REPO_ORIGIN_TREEINFO
         repo.type = URL_TYPE_BASEURL
         repo.installation_enabled = False
 

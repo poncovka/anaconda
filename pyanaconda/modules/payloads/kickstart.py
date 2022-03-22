@@ -22,7 +22,7 @@ from pykickstart.sections import PackageSection
 from pykickstart.constants import GROUP_DEFAULT
 
 from pyanaconda.core.constants import URL_TYPE_BASEURL, URL_TYPE_MIRRORLIST, URL_TYPE_METALINK, \
-    DNF_DEFAULT_REPO_COST
+    DNF_DEFAULT_REPO_COST, REPO_ORIGIN_TREEINFO
 from pyanaconda.core.kickstart import KickstartSpecification, commands as COMMANDS
 from pyanaconda.kickstart import RepoData
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
@@ -40,6 +40,9 @@ def convert_ks_repo_to_repo_data(ks_data):
     repo_data = RepoConfigurationData()
     repo_data.name = ks_data.name
     repo_data.enabled = ks_data.enabled
+
+    if ks_data.treeinfo_origin:
+        repo_data.origin = REPO_ORIGIN_TREEINFO
 
     if ks_data.baseurl:
         repo_data.url = ks_data.baseurl
@@ -82,6 +85,9 @@ def convert_repo_data_to_ks_repo(repo_data):
     ks_data = RepoData()
     ks_data.name = repo_data.name
     ks_data.enabled = repo_data.enabled
+
+    if repo_data.origin == REPO_ORIGIN_TREEINFO:
+        ks_data.treeinfo_origin = True
 
     if repo_data.type == URL_TYPE_BASEURL:
         ks_data.baseurl = repo_data.url
