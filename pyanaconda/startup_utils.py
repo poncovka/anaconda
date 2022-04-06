@@ -79,6 +79,24 @@ def setup_environment():
     else:
         os.environ["DISPLAY"] = ":%s" % constants.X_DISPLAY_NUMBER
 
+    # Look for a locale in the environment. If the variable is set up but
+    # empty it doesn't count, and some programs (KDE) actually do this.
+    locale = None
+
+    for varname in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+        if varname in os.environ and os.environ[varname]:
+            locale = os.environ[varname]
+            break
+
+    # Save the locale in the environment
+    if locale:
+        os.environ["LANG"] = locale
+
+    # Cleanup the rest of the environment variables
+    for varname in ("LANGUAGE", "LC_ALL", "LC_MESSAGES"):
+        if varname in os.environ:
+            del os.environ[varname]
+
 
 def gtk_warning(title, reason):
     """A simple warning dialog for use during early startup of the Anaconda GUI.
@@ -525,7 +543,7 @@ def initialize_locale(opts, text_mode):
     """
     from pyanaconda import localization
 
-    locale_option = None
+    locale = None
     localization_proxy = None
 
     if is_module_available(LOCALIZATION):
@@ -538,9 +556,16 @@ def initialize_locale(opts, text_mode):
 
         # Setup the locale environment
         if localization_proxy.LanguageKickstarted:
-            locale_option = localization_proxy.Language
+            locale = localization_proxy.Language
 
-    localization.setup_locale_environment(locale_option, text_mode=text_mode)
+    # Look for a locale in the environment or firmware if it is not set.
+    locale = locale \
+        or localization.get_environment_language() \
+        or localization.get_firmware_language() \
+        or constants.DEFAULT_LANG
+
+    # Save the locale in the environment
+    os.environ["LANG"] = locale
 
     # Now that LANG is set, do something with it
     localization.setup_locale(os.environ["LANG"], localization_proxy, text_mode=text_mode)

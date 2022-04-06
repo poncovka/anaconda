@@ -517,6 +517,26 @@ def get_firmware_language(text_mode=False):
     return locales[0]
 
 
+def get_environment_language():
+    """Return the environment language information (if any).
+
+    :return: a locale string or None
+    """
+    lang = os.environ.get("LANG")
+
+    if not is_supported_locale(lang):
+        log.debug("LANG='%s' is unsupported.", lang)
+        return None
+
+    locales = get_language_locales(lang)
+    if not locales:
+        log.debug("No locales found for LANG='%s'.", lang)
+        return None
+
+    log.debug("Using LANG='%s' ('%s') as our language.", lang, locales[0])
+    return locales[0]
+
+
 _DateFieldSpec = namedtuple("DateFieldSpec", ["format", "suffix"])
 
 
@@ -617,67 +637,3 @@ def set_console_font(font):
     else:
         log.error("setting console font to %s failed", font)
         return False
-
-
-def setup_locale_environment(locale=None, text_mode=False, prefer_environment=False):
-    """Clean and configure the local environment variables.
-
-    This function will attempt to determine the desired locale and configure
-    the process environment (os.environ) in the least surprising way. If a
-    locale argument is provided, it will be attempted first. After that, this
-    function will attempt to use the language environment variables in a manner
-    similar to gettext(3) (in order, $LANGUAGE, $LC_ALL, $LC_MESSAGES, $LANG),
-    followed by the UEFI PlatformLang, followed by a default.
-
-    When this function returns, $LANG will be set, and $LANGUAGE, $LC_ALL,
-    and $LC_MESSAGES will not be set, because they get in the way when changing
-    the language after startup.
-
-    This function must be run before any threads are started. This function
-    modifies the process environment, which is not thread-safe.
-
-    :param str locale: locale to setup if provided
-    :param bool text_mode: if the locale is being setup for text mode
-    :param bool prefer_environment: whether the process environment, if available, overrides the locale parameter
-    :return: None
-    :rtype: None
-    """
-    # pylint: disable=environment-modify
-
-    # Look for a locale in the environment. If the variable is setup but
-    # empty it doesn't count, and some programs (KDE) actually do this.
-    # If prefer_environment is set, the environment locale can override
-    # the parameter passed in. This can be used, for example, by initial-setup,
-    # to prefer the possibly-more-recent environment settings before falling back
-    # to a locale set at install time and saved in the kickstart.
-    if not locale or prefer_environment:
-        for varname in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
-            if varname in os.environ and os.environ[varname]:
-                locale = os.environ[varname]
-                break
-
-    # Look for a locale in the firmware if there was nothing in the environment
-    if not locale:
-        locale = get_firmware_language(text_mode)
-
-    # parse the locale using langtable
-    if locale:
-        try:
-            env_langs = get_language_locales(locale)
-            # the first language is the best match
-            locale = env_langs[0]
-        except (InvalidLocaleSpec, IndexError):
-            log.error("Invalid locale '%s' given on command line, kickstart or environment", locale)
-            locale = None
-
-    # If langtable returned no locales, or if nothing was configured, fall back to the default
-    if not locale:
-        locale = constants.DEFAULT_LANG
-
-    # Save the locale in the environment
-    os.environ["LANG"] = locale
-
-    # Cleanup the rest of the environment variables
-    for varname in ("LANGUAGE", "LC_ALL", "LC_MESSAGES"):
-        if varname in os.environ:
-            del os.environ[varname]
