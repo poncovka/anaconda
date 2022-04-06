@@ -47,6 +47,39 @@ stdout_log = get_stdout_logger()
 log = get_module_logger(__name__)
 
 
+def setup_environment():
+    """Setup contents of os.environ according to Anaconda needs.
+
+    This method is run before any threads are started, so this is the one
+    point where it's ok to modify the environment.
+    """
+    # pylint: disable=environment-modify
+
+    # Silly GNOME stuff
+    if "HOME" in os.environ and not "XAUTHORITY" in os.environ:
+        os.environ["XAUTHORITY"] = os.environ["HOME"] + "/.Xauthority"
+    os.environ["HOME"] = "/tmp"
+    os.environ["LC_NUMERIC"] = "C"
+    os.environ["GCONF_GLOBAL_LOCKS"] = "1"
+
+    # In theory, this gets rid of our LVM file descriptor warnings
+    os.environ["LVM_SUPPRESS_FD_WARNINGS"] = "1"
+
+    # make sure we have /sbin and /usr/sbin in our path
+    os.environ["PATH"] += ":/sbin:/usr/sbin"
+
+    # we can't let the LD_PRELOAD hang around because it will leak into
+    # rpm %post and the like.  ick :/
+    if "LD_PRELOAD" in os.environ:
+        del os.environ["LD_PRELOAD"]
+
+    # Go ahead and set $DISPLAY whether we're going to use X or not
+    if "DISPLAY" in os.environ:
+        flags.preexisting_x11 = True
+    else:
+        os.environ["DISPLAY"] = ":%s" % constants.X_DISPLAY_NUMBER
+
+
 def gtk_warning(title, reason):
     """A simple warning dialog for use during early startup of the Anaconda GUI.
 

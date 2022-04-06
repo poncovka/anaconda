@@ -119,39 +119,6 @@ def parse_arguments(argv=None, boot_cmdline=None):
     return (namespace, ap.removed_no_inst_bootargs)
 
 
-def setup_environment():
-    """Setup contents of os.environ according to Anaconda needs.
-
-    This method is run before any threads are started, so this is the one
-    point where it's ok to modify the environment.
-    """
-    # pylint: disable=environment-modify
-
-    # Silly GNOME stuff
-    if "HOME" in os.environ and not "XAUTHORITY" in os.environ:
-        os.environ["XAUTHORITY"] = os.environ["HOME"] + "/.Xauthority"
-    os.environ["HOME"] = "/tmp"
-    os.environ["LC_NUMERIC"] = "C"
-    os.environ["GCONF_GLOBAL_LOCKS"] = "1"
-
-    # In theory, this gets rid of our LVM file descriptor warnings
-    os.environ["LVM_SUPPRESS_FD_WARNINGS"] = "1"
-
-    # make sure we have /sbin and /usr/sbin in our path
-    os.environ["PATH"] += ":/sbin:/usr/sbin"
-
-    # we can't let the LD_PRELOAD hang around because it will leak into
-    # rpm %post and the like.  ick :/
-    if "LD_PRELOAD" in os.environ:
-        del os.environ["LD_PRELOAD"]
-
-    # Go ahead and set $DISPLAY whether we're going to use X or not
-    if "DISPLAY" in os.environ:
-        flags.preexisting_x11 = True
-    else:
-        os.environ["DISPLAY"] = ":%s" % constants.X_DISPLAY_NUMBER
-
-
 if __name__ == "__main__":
     # check if the CLI help is requested and return it at once,
     # without importing random stuff and spamming stdout
@@ -280,7 +247,7 @@ if __name__ == "__main__":
     # function in isys.
     isys.installSyncSignalHandlers()
 
-    setup_environment()
+    startup_utils.setup_environment()
 
     # make sure we have /var/log soon, some programs fail to start without it
     path.make_directories("/var/log")
