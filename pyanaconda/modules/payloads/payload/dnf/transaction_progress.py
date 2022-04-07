@@ -20,57 +20,23 @@ import dnf.callback
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.i18n import _
-from pyanaconda.modules.common.errors.installation import PayloadInstallationError
 
 log = get_module_logger(__name__)
 
-__all__ = ["process_transaction_progress", "TransactionProgress"]
+__all__ = ["TransactionError", "TransactionProgress"]
 
 
-def process_transaction_progress(queue, callback):
-    """Process the transaction progress.
-
-    When the installation works correctly it will get 'install'
-    updates followed by a 'done' message and then a 'quit' message.
-    If the installation fails it will send 'quit' without 'done'.
-
-    :param queue: a process shared queue
-    :param callback: a callback for progress reporting
-    :raise PayloadInstallationError: if the transaction fails
-    """
-    (token, msg) = queue.get()
-
-    while token:
-        if token == 'install':
-            callback(_("Installing {}").format(msg))
-        elif token == 'configure':
-            callback(_("Configuring {}").format(msg))
-        elif token == 'verify':
-            callback(_("Verifying {}").format(msg))
-        elif token == 'log':
-            log.info(msg)
-        elif token == 'post':
-            callback(_("Performing post-installation setup tasks"))
-        elif token == 'done':
-            break  # Installation finished successfully
-        elif token == 'quit':
-            raise RuntimeError("The transaction process has ended abruptly: " + msg)
-        elif token == 'error':
-            raise PayloadInstallationError("An error occurred during the transaction: " + msg)
-
-        (token, msg) = queue.get()
+class TransactionError(Exception):
+    """The transaction has failed."""
 
 
 class TransactionProgress(dnf.callback.TransactionProgress):
     """The class for receiving information about an ongoing transaction."""
 
-    def __init__(self, queue):
-        """Create a new instance.
-
-        :param queue: a process shared queue
-        """
+    def __init__(self, callback):
+        """Create a new instance."""
         super().__init__()
-        self._queue = queue
+        self._callback = callback
         self._last_ts = None
         self._postinst_phase = False
         self.cnt = 0
@@ -97,55 +63,43 @@ class TransactionProgress(dnf.callback.TransactionProgress):
             msg = '%s.%s (%d/%d)' % \
                 (package.name, package.arch, ts_done, ts_total)
             self.cnt += 1
-            self._queue.put(('install', msg))
+            self._report(_("Installing {}").format(msg))
 
             # Log the exact package nevra, build time and checksum
             nevra = "%s-%s.%s" % (package.name, package.evr, package.arch)
-            log_msg = "Installed: %s %s %s" % (nevra, package.buildtime, package.returnIdSum()[1])
-            self._queue.put(('log', log_msg))
+            log.info("Installed: %s %s %s" % (nevra, package.buildtime, package.returnIdSum()[1]))
 
         elif action == dnf.transaction.TRANS_POST:
-            self._queue.put(('post', None))
-            log_msg = "Post installation setup phase started."
-            self._queue.put(('log', log_msg))
+            self._report(_("Performing post-installation setup tasks"))
+            log.info("Post installation setup phase started.")
             self._postinst_phase = True
 
         elif action == dnf.transaction.PKG_SCRIPTLET:
             # Log the exact package nevra, build time and checksum
             nevra = "%s-%s.%s" % (package.name, package.evr, package.arch)
-            log_msg = "Configuring (running scriptlet for): %s %s %s" % (nevra, package.buildtime,
-                                                                         package.returnIdSum()[1])
-            self._queue.put(('log', log_msg))
+            log.info("Configuring (running scriptlet for): %s %s %s" % (
+                nevra, package.buildtime, package.returnIdSum()[1])
+            )
 
             # only show progress in UI for post-installation scriptlets
             if self._postinst_phase:
                 msg = '%s.%s' % (package.name, package.arch)
-                self._queue.put(('configure', msg))
+                self._report(_("Configuring {}").format(msg))
 
         elif action == dnf.transaction.PKG_VERIFY:
             msg = '%s.%s (%d/%d)' % (package.name, package.arch, ts_done, ts_total)
-            self._queue.put(('verify', msg))
+            self._report(_("Verifying {}").format(msg))
 
             # Log the exact package nevra, build time and checksum
             nevra = "%s-%s.%s" % (package.name, package.evr, package.arch)
-            log_msg = "Verifying: %s %s %s" % (nevra, package.buildtime, package.returnIdSum()[1])
-            self._queue.put(('log', log_msg))
+            log.info("Verifying: %s %s %s" % (nevra, package.buildtime, package.returnIdSum()[1]))
 
-            # Once the last package is verified the transaction is over
-            if ts_done == ts_total:
-                self._queue.put(('done', None))
+    def _report(self, message):
+        self._callback(message)
 
     def error(self, message):
         """Report an error that occurred during the transaction.
 
         :param message: a string that describes the error
         """
-        self._queue.put(('error', message))
-
-    def quit(self, message):
-        """Report the end of the transaction and close the queue.
-
-        :param message: the reason why the transaction ended
-        """
-        self._queue.put(('quit', message))
-        self._queue.close()
+        raise TransactionError(message)

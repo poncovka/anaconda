@@ -17,7 +17,6 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-import multiprocessing
 import shutil
 import threading
 import traceback
@@ -47,7 +46,7 @@ from pyanaconda.modules.common.structures.payload import RepoConfigurationData
 from pyanaconda.modules.payloads.constants import DNF_REPO_DIRS
 from pyanaconda.modules.payloads.payload.dnf.download_progress import DownloadProgress
 from pyanaconda.modules.payloads.payload.dnf.transaction_progress import TransactionProgress, \
-    process_transaction_progress
+    TransactionError
 from pyanaconda.modules.payloads.payload.dnf.utils import get_product_release_version, \
     calculate_hash
 
@@ -667,53 +666,25 @@ class DNFManager(object):
         :param timeout: a time out of a failed process in seconds
         :raise PayloadInstallationError: if the installation fails
         """
-        queue = multiprocessing.Queue()
-        display = TransactionProgress(queue)
-        process = multiprocessing.Process(
-            target=self._run_transaction,
-            args=(self._base, display)
-        )
-
-        # Start the transaction.
-        log.debug("Starting the transaction process...")
-        process.start()
+        log.debug("Run the transaction.")
 
         try:
-            # Report the progress.
-            process_transaction_progress(queue, callback)
-
-            # Wait for the transaction to end.
-            process.join()
+            display = TransactionProgress(callback)
+            self._base.do_transaction(display)
+        except TransactionError as e:
+            raise PayloadInstallationError(
+                "An error occurred during the transaction: "
+                + str(e)
+            )
+        except BaseException as e:
+            raise RuntimeError(
+                "The transaction process has ended abruptly: "
+                + str(e) + traceback.format_exc()
+            )
         finally:
-            # Kill the transaction after the timeout.
-            process.join(timeout)
-            process.kill()
-            log.debug("The transaction process exited with %s.", process.exitcode)
-
-    @staticmethod
-    def _run_transaction(base, display):
-        """Run the DNF transaction.
-
-        Execute the DNF transaction and catch any errors. An error
-        doesn't always raise a BaseException, so presence of 'quit'
-        without a preceding 'done' message also indicates a problem.
-
-        :param base: the DNF base
-        :param display: the DNF progress-reporting object
-        """
-        log.debug("Running the transaction...")
-        exit_reason = None
-
-        try:
-            base.do_transaction(display)
-            exit_reason = "DNF done"
-        except BaseException as e:  # pylint: disable=broad-except
-            log.error("The transaction has ended abruptly: %s", str(e))
-            exit_reason = str(e) + traceback.format_exc()
-        finally:
+            self._base.close()
             log.debug("The transaction has ended.")
-            base.close()  # Always close this base.
-            display.quit(exit_reason or "DNF quit")
+            log.debug("The DNF base has been closed.")
 
     @property
     def repositories(self):

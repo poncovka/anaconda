@@ -838,7 +838,6 @@ class DNFPayload(Payload):
         task.run()
 
         # We don't need the mother base anymore. Close it.
-        self._base.close()
         super().post_install()
 
         # rpm needs importing installed certificates manually, see rhbz#748320 and rhbz#185800
