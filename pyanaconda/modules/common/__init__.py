@@ -50,9 +50,9 @@ def init(log_filename=None, log_stream=sys.stderr):
         handlers=handlers
     )
 
-    import locale
     from pyanaconda.core.constants import DEFAULT_LANG
-    locale.setlocale(locale.LC_ALL, DEFAULT_LANG)
+    from pyanaconda.core.localization import set_locale
+    set_locale(DEFAULT_LANG)
 
     from pyanaconda.core.configuration.anaconda import conf
     from pyanaconda.anaconda_loggers import get_module_logger
