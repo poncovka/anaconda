@@ -24,7 +24,7 @@ from dasbus.error import DBusError
 from pyanaconda.core.constants import THREAD_STORAGE, THREAD_PAYLOAD, THREAD_PAYLOAD_RESTART, \
     THREAD_WAIT_FOR_CONNECTING_NM, THREAD_SUBSCRIPTION, PAYLOAD_TYPE_DNF, \
     THREAD_STORAGE_WATCHER, THREAD_EXECUTE_STORAGE
-from pyanaconda.core.i18n import _, N_
+from pyanaconda.core.i18n import _
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.payload.errors import PayloadError
 from pyanaconda.errors import errorHandler, ERROR_RAISE
@@ -41,9 +41,7 @@ class PayloadState(IntEnum):
     STARTED = 0
     WAITING_STORAGE = 1
     WAITING_NETWORK = 2
-    VERIFYING_AVAILABILITY = 3
-    DOWNLOADING_PKG_METADATA = 4
-    DOWNLOADING_GROUP_METADATA = 5
+    SETTING_PAYLOAD = 3
     FINISHED = 6
 
     # Error
@@ -72,9 +70,6 @@ class PayloadManager(object):
     THREAD_PAYLOAD constant, if you need to wait for it or something. The
     thread should be started using payloadMgr.restart_thread.
     """
-    # Error strings
-    ERROR_SETUP = N_("Failed to set up installation source")
-    ERROR_MD = N_("Error downloading package metadata")
 
     def __init__(self):
         self._event_lock = threading.Lock()
@@ -113,7 +108,7 @@ class PayloadManager(object):
             elif event_id <= self._thread_state:
                 func()
 
-    def restart_thread(self, payload, fallback=False, checkmount=True, onlyOnChange=False):
+    def restart_thread(self, payload, **kwargs):
         """Start or restart the payload thread.
 
         This method starts a new thread to restart the payload thread, so
@@ -121,11 +116,8 @@ class PayloadManager(object):
         thread. If there is already a payload thread restart pending, this method
         has no effect.
 
-        :param payload.Payload payload: The payload instance
-        :param bool fallback: Whether to fall back to the default repo in case of error
-        :param bool checkmount: Whether to check for valid mounted media
-        :param bool onlyOnChange: Restart thread only if existing repositories changed.
-                                  This won't restart thread even when a new repository was added!!
+        :param payload.Payload payload: the payload instance
+        :param kwargs: additional arguments for the payload setup
         """
         log.debug("Restarting payload thread")
 
@@ -137,7 +129,8 @@ class PayloadManager(object):
         threadMgr.add(AnacondaThread(
             name=THREAD_PAYLOAD_RESTART,
             target=self._restart_thread,
-            args=(payload, fallback, checkmount, onlyOnChange)
+            args=(payload, ),
+            kwargs=kwargs
         ))
 
     @property
@@ -145,7 +138,7 @@ class PayloadManager(object):
         """Is the payload thread running right now?"""
         return threadMgr.exists(THREAD_PAYLOAD_RESTART) or threadMgr.exists(THREAD_PAYLOAD)
 
-    def _restart_thread(self, payload, fallback, checkmount, onlyOnChange):
+    def _restart_thread(self, payload, **kwargs):
         # Wait for the old thread to finish
         threadMgr.wait(THREAD_PAYLOAD)
 
@@ -153,7 +146,8 @@ class PayloadManager(object):
         threadMgr.add(AnacondaThread(
             name=THREAD_PAYLOAD,
             target=self._run_thread,
-            args=(payload, fallback, checkmount, onlyOnChange)
+            args=(payload, ),
+            kwargs=kwargs
         ))
 
     def _set_state(self, event_id):
@@ -168,7 +162,7 @@ class PayloadManager(object):
             for func in self._event_listeners[event_id]:
                 func()
 
-    def _run_thread(self, payload, fallback, checkmount, onlyOnChange):
+    def _run_thread(self, payload, **kwargs):
         # This is the thread entry
         # Set the initial state
         self._error = None
@@ -189,60 +183,24 @@ class PayloadManager(object):
         # Wait for subscription
         threadMgr.wait(THREAD_SUBSCRIPTION)
 
-        # Non-package payloads do everything in the setup method.
-        # There is no UI support that could handle the error state,
-        # so we need to handle or raise the error directly.
+        # Set up the payload.
+        self._set_state(PayloadState.SETTING_PAYLOAD)
+
         try:
-            payload.setup()
+            payload.setup(**kwargs)
         except (DBusError, PayloadError) as e:
-            # Handle an error.
-            if errorHandler.cb(e) == ERROR_RAISE:
-                raise
-
-        # If this is a non-package Payload, we're done
-        if payload.type != PAYLOAD_TYPE_DNF:
-            self._set_state(PayloadState.FINISHED)
-            return
-
-        # Test if any repository changed from the last update
-        if onlyOnChange:
-            log.debug("Testing repositories availability")
-            self._set_state(PayloadState.VERIFYING_AVAILABILITY)
-            if payload.dnf_manager.verify_repomd_hashes():
-                log.debug("Payload isn't restarted, repositories are still available.")
-                self._set_state(PayloadState.FINISHED)
+            # Handle the error from a DNF payload.
+            if payload.type == PAYLOAD_TYPE_DNF:
+                self._error = str(e)
+                self._set_state(PayloadState.ERROR)
+                payload.unsetup()
                 return
 
-        # Keep setting up package-based repositories
-        # Download package metadata
-        self._set_state(PayloadState.DOWNLOADING_PKG_METADATA)
-
-        # FIXME: This import is a temporary workaround. Use a DBus error instead.
-        from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManagerError
-
-        try:
-            payload.update_base_repo(fallback=fallback, checkmount=checkmount)
-        except (OSError, DBusError, PayloadError, DNFManagerError) as e:
-            log.error("PayloadError: %s", e)
-            self._error = self.ERROR_SETUP
-            self._set_state(PayloadState.ERROR)
-            payload.unsetup()
-            return
-
-        # Gather the group data
-        self._set_state(PayloadState.DOWNLOADING_GROUP_METADATA)
-        payload.dnf_manager.load_packages_metadata()
-
-        # Check if that failed
-        if not payload.is_ready():
-            log.error("No base repo configured")
-            self._error = self.ERROR_MD
-            self._set_state(PayloadState.ERROR)
-            payload.unsetup()
-            return
-
-        # run payload specific post configuration tasks
-        payload.dnf_manager.load_repomd_hashes()
+            # Handle the error from a non-package payload.
+            # There is no UI support that could handle the error state,
+            # so we need to handle or raise the error directly.
+            elif errorHandler.cb(e) == ERROR_RAISE:
+                raise e
 
         self._set_state(PayloadState.FINISHED)
 

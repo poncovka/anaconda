@@ -77,7 +77,7 @@ class MigratedDBusPayload(Payload, metaclass=ABCMeta):
         """Do the sources require a network?"""
         return self.service_proxy.IsNetworkRequired()
 
-    def setup(self):
+    def setup(self, **kwargs):
         """Set up the sources."""
         set_up_sources(self.proxy)
 

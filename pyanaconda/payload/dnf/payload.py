@@ -18,11 +18,12 @@
 #
 import dnf.exceptions
 import dnf.repo
+from dasbus.error import DBusError
+from pyanaconda.flags import flags
 
-from pyanaconda.core.path import join_paths
 from pyanaconda.modules.common.errors.installation import NonCriticalInstallationError, \
     InstallationError
-from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
+from pyanaconda.modules.common.errors.payload import UnknownRepositoryError
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
     PackagesSelectionData
@@ -33,36 +34,29 @@ from pyanaconda.modules.payloads.payload.dnf.installation import ImportRPMKeysTa
     SetRPMMacrosTask, DownloadPackagesTask, InstallPackagesTask, PrepareDownloadLocationTask, \
     CleanUpDownloadLocationTask, ResolvePackagesTask, UpdateDNFConfigurationTask, \
     WriteRepositoriesTask
+from pyanaconda.modules.payloads.payload.dnf.reload import ReloadRepositoriesTask
 from pyanaconda.modules.payloads.payload.dnf.repositories import \
-    generate_driver_disk_repositories, generate_treeinfo_repositories
+    generate_driver_disk_repositories
 from pyanaconda.modules.payloads.payload.dnf.utils import get_kernel_version_list, \
     calculate_required_space
-from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager, DNFManagerError, \
-    MetadataError
-from pyanaconda.modules.payloads.source.harddrive.initialization import SetUpHardDriveSourceTask
+from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager
 from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
-from pyanaconda.modules.payloads.source.nfs.initialization import SetUpNFSSourceTask
+from pyanaconda.payload.errors import PayloadError
+from pyanaconda.payload.image import find_optical_install_media
 from pyanaconda.payload.source import SourceFactory, PayloadSourceTypeUnrecognized
-
 from pyanaconda.anaconda_loggers import get_packaging_logger
 from pyanaconda.core import constants
 from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
-    SOURCE_TYPE_URL, SOURCE_TYPE_CDROM, URL_TYPE_BASEURL, SOURCE_REPO_FILE_TYPES, \
-    SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL, REPO_ORIGIN_SYSTEM
+from pyanaconda.core.constants import PAYLOAD_TYPE_DNF, SOURCE_TYPE_URL, URL_TYPE_BASEURL, \
+    SOURCE_REPO_FILE_TYPES, SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL, SOURCE_TYPE_CDROM
 from pyanaconda.core.i18n import _
-from pyanaconda.core.payload import parse_hdd_url
 from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
-from pyanaconda.flags import flags
 from pyanaconda.modules.common.constants.services import SUBSCRIPTION
 from pyanaconda.modules.payloads.source.utils import has_network_protocol
 from pyanaconda.modules.common.util import is_module_available
 from pyanaconda.payload.base import Payload
-from pyanaconda.payload.image import find_optical_install_media
-from pyanaconda.modules.payloads.payload.dnf.tree_info import TreeInfoMetadata, NoTreeInfoError, \
-    TreeInfoMetadataError
-from pyanaconda.ui.lib.payload import get_payload, get_source, create_source, set_source, \
-    set_up_sources, tear_down_sources
+from pyanaconda.ui.lib.payload import get_payload, get_source, set_source, tear_down_sources, \
+    create_source, set_up_sources
 
 __all__ = ["DNFPayload"]
 
@@ -75,16 +69,12 @@ class DNFPayload(Payload):
         super().__init__()
         self.data = data
 
-        # A list of verbose error strings
-        self.verbose_errors = []
-
         # Get a DBus payload to use.
         self._payload_proxy = get_payload(self.type)
 
         self.tx_id = None
 
         self._dnf_manager = DNFManager()
-        self._updates_enabled = True
 
         # List of internal mount points.
         self._mount_points = []
@@ -295,8 +285,88 @@ class DNFPayload(Payload):
         """Is the payload complete?"""
         return self.source_type not in SOURCE_REPO_FILE_TYPES or self.is_ready()
 
-    def setup(self):
-        self.verbose_errors = []
+    def setup(self, fallback=False, checkmount=True, onlyOnChange=False):
+        """
+
+        :param bool fallback: Whether to fall back to the default repo in case of error
+        :param bool checkmount: Whether to check for valid mounted media
+        :param bool onlyOnChange: Restart thread only if existing repositories changed.
+                                  This won't restart thread even when a new repository was added!!
+        """
+        if self._verify_availability(onlyOnChange):
+            return
+
+        self.tx_id = None
+        self._set_up_sources(checkmount)
+        self._set_up_repositories(fallback)
+
+    def _verify_availability(self, onlyOnChange):
+        """Test if any repository changed from the last update."""
+        if not onlyOnChange:
+            return False
+
+        log.debug("Testing repositories availability")
+        if not self.dnf_manager.verify_repomd_hashes():
+            return False
+
+        log.debug("Payload isn't restarted, repositories are still available.")
+        return True
+
+    def _set_up_sources(self, checkmount):
+        log.debug("Tearing down sources")
+        tear_down_sources(self.proxy)
+        self._tear_down_additional_sources()
+
+        # Change the default source to CDROM if there is a valid install media.
+        # FIXME: Set up the default source earlier.
+        if checkmount and self._is_source_default() and find_optical_install_media():
+            source_proxy = create_source(SOURCE_TYPE_CDROM)
+            set_source(self.proxy, source_proxy)
+
+        set_up_sources(self.proxy)
+
+    def _set_up_repositories(self, fallback):
+        try:
+            self._reload_repositories()
+        except (DBusError, PayloadError) as e:
+            # Fail if the fallback is not enabled.
+            if not fallback:
+                raise e
+
+            # If this is a kickstart install, just return now as we normally do not
+            # want to read the on media repo files in such a case. On the other hand,
+            # the local repo files are a valid use case if the system is subscribed
+            # and the CDN is selected as the installation source.
+            if flags.automatedInstall and not self._is_cdn_set_up():
+                raise e
+
+            # We already use the default source.
+            if self.source_type == conf.payload.default_source:
+                raise e
+
+            # Fallback to the default source
+            #
+            # This is at the moment CDN on RHEL
+            # and closest mirror everywhere else.
+            self._create_default_source()
+            self._reload_repositories()
+
+    def _reload_repositories(self):
+        task = ReloadRepositoriesTask(self._dnf_manager)
+        task.progress_changed_signal.connect()
+
+        try:
+            task.run()
+        finally:
+            self._mount_points.extend(task._mount_points)
+            self._validation_report = task._validation_report
+            self.data.repo.repoList = list(map(convert_repo_data_to_ks_repo, task._repositories))
+
+    def _create_default_source(self):
+        tear_down_sources(self.proxy)
+        source_proxy = create_source(conf.payload.default_source)
+        set_source(self.proxy, source_proxy)
+        set_up_sources(self.proxy)
 
     def unsetup(self):
         self._configure()
@@ -376,74 +446,6 @@ class DNFPayload(Payload):
 
         return repo
 
-    def _handle_system_repository(self, data):
-        """Handle a system repository.
-
-        The user is trying to do "repo --name=updates" in a kickstart file.
-        We can only enable or disable the already existing on-disk repo config.
-
-        :raise: SourceSetupError if the system repository is not available
-        """
-        try:
-            self._dnf_manager.set_repository_enabled(data.name, data.enabled)
-        except UnknownRepositoryError:
-            msg = "The '{}' repository is not one of the pre-defined repositories."
-            raise SourceSetupError(msg.format(data.name)) from None
-
-    def _set_up_additional_repository(self, data):
-        """Set up sources for the additional repository."""
-        # Check the validity of the repository.
-        if not data.url:
-            msg = "The '{}' repository has no mirror, baseurl or metalink set."
-            raise SourceSetupError(msg.format(data.name)) from None
-
-        # Set up the NFS source with a substituted URL.
-        elif data.url.startswith("nfs://"):
-            device_mount = self._create_mount_point(
-                constants.MOUNT_DIR,
-                data.name + "-nfs-device"
-            )
-            iso_mount = self._create_mount_point(
-                constants.MOUNT_DIR,
-                data.name + "-nfs-iso"
-            )
-            task = SetUpNFSSourceTask(
-                device_mount=device_mount,
-                iso_mount=iso_mount,
-                url=self._dnf_manager.substitute(data.url)
-            )
-            mount_point = task.run()
-            data.url = "file://" + mount_point
-
-        # Set up the HDD source.
-        elif data.url.startswith("hd:"):
-            device_mount = self._create_mount_point(
-                ISO_DIR + "-" + data.name + "-hdd-device"
-            )
-            iso_mount = self._create_mount_point(
-                INSTALL_TREE + "-" + data.name + "-hdd-iso"
-            )
-
-            partition, directory = parse_hdd_url(data.url)
-
-            task = SetUpHardDriveSourceTask(
-                device_mount=device_mount,
-                iso_mount=iso_mount,
-                partition=partition,
-                directory=directory,
-            )
-            result = task.run()
-            data.url = "file://" + result.install_tree_path
-
-    def _create_mount_point(self, *paths):
-        """Create a mount point from specified paths.
-
-        FIXME: This is a temporary workaround.
-        """
-        mount_point = join_paths(*paths)
-        self._mount_points.append(mount_point)
-        return mount_point
-
     def _tear_down_additional_sources(self):
         """Tear down sources of additional repositories.
 
@@ -463,6 +465,7 @@ class DNFPayload(Payload):
 
         :param bool state: True to enable updates, False to disable.
         """
+        # FIXME: Set the closest mirror source.
         self._updates_enabled = state
 
     def _set_repo_enabled(self, repo_id, enabled):
@@ -538,268 +541,6 @@ class DNFPayload(Payload):
               will be created.
         """
         return self.source_type == conf.payload.default_source
-
-    def update_base_repo(self, fallback=True, checkmount=True):
-        """Update the base repository from the DBus source."""
-        log.debug("Tearing down sources")
-        tear_down_sources(self.proxy)
-        self._tear_down_additional_sources()
-
-        log.debug("Preparing the DNF base")
-        self.tx_id = None
-        self._dnf_manager.clear_cache()
-        self._dnf_manager.reset_substitution()
-        self._dnf_manager.configure_proxy(self._get_proxy_url())
-        self._dnf_manager.read_system_repositories()
-
-        log.info("Configuring the base repo")
-        # Find the source and its type.
-        source_proxy = self.get_source_proxy()
-        source_type = source_proxy.Type
-
-        # Change the default source to CDROM if there is a valid install media.
-        # FIXME: Set up the default source earlier.
-        if checkmount and self._is_source_default() and find_optical_install_media():
-            source_type = SOURCE_TYPE_CDROM
-            source_proxy = create_source(source_type)
-            set_source(self.proxy, source_proxy)
-
-        # Set up the source.
-        set_up_sources(self.proxy)
-
-        # Add a new repo.
-        if source_type not in SOURCE_REPO_FILE_TYPES:
-            try:
-                self._add_base_repository()
-            except DNFManagerError as e:
-                # Fail if the fallback is not enabled.
-                if not fallback:
-                    raise e
-
-                # Fallback to the default source
-                #
-                # This is at the moment CDN on RHEL
-                # and closest mirror everywhere else.
-                tear_down_sources(self.proxy)
-
-                source_type = conf.payload.default_source
-                source_proxy = create_source(source_type)
-                set_source(self.proxy, source_proxy)
-
-                set_up_sources(self.proxy)
-
-        # We need to check this again separately in case REPO_FILES were set above.
-        if source_type in SOURCE_REPO_FILE_TYPES:
-            # Remove all treeinfo repositories.
-            self._remove_treeinfo_repositories()
-
-            # If this is a kickstart install, just return now as we normally do not
-            # want to read the on media repo files in such a case. On the other hand,
-            # the local repo files are a valid use case if the system is subscribed
-            # and the CDN is selected as the installation source.
-            if flags.automatedInstall and not self._is_cdn_set_up():
-                return
-
-            # Otherwise, fall back to the default repos that we disabled above
-            self._enable_system_repositories()
-
-        self._include_additional_repositories()
-        self._validate_enabled_repositories()
-
-    def _add_base_repository(self):
-        """Add the base repository.
-
-        Try to add a valid base repository to the DNF base.
-
-        :raise: DNFManagerError if the repo is invalid
-        """
-        # Get the repo configuration of the first source.
-        data = RepoConfigurationData.from_structure(
-            self.proxy.GetRepoConfigurations()[0]
-        )
-
-        log.debug("Using the repo configuration: %s", data)
-        data.name = constants.BASE_REPO_NAME
-
-        # Process the treeinfo metadata.
-        treeinfo_base_repo_url = self._reload_treeinfo_metadata(data)
-
-        if treeinfo_base_repo_url:
-            data.type = URL_TYPE_BASEURL
-            data.url = treeinfo_base_repo_url
-
-        log.debug("Add the base repository at %s.", data.url)
-
-        try:
-            self._dnf_manager.add_repository(data)
-            self._dnf_manager.load_repository(data.name)
-        except DNFManagerError as e:
-            log.error("The base repository is invalid: %s", str(e))
-            self._dnf_manager.remove_repository(data.name)
-            raise e
-
-    def _enable_system_repositories(self):
-        """Enable system repositories.
-
-        * Restore previously disabled system repositories.
-        * Enable or disable system repositories based on the current configuration.
-        """
-        self._dnf_manager.restore_system_repositories()
-
-        log.debug("Enable or disable updates repositories.")
-        self._set_repositories_enabled(conf.payload.updates_repositories, self._updates_enabled)
-
-        log.debug("Disable repositories based on the Anaconda configuration file.")
-        self._set_repositories_enabled(conf.payload.disabled_repositories, False)
-
-        if constants.isFinal:
-            log.debug("Disable rawhide repositories.")
-            self._set_repositories_enabled(["*rawhide*"], False)
-
-    def _set_repositories_enabled(self, patterns, enabled):
-        """Enable or disable matching repositories.
-
-        :param patterns: a list of patterns to match the repo ids
-        :param enabled: True to enable, False to disable
-        """
-        repo_ids = set()
-
-        for pattern in patterns:
-            repo_ids.update(self._dnf_manager.get_matching_repositories(pattern))
-
-        for repo_id in sorted(repo_ids):
-            self.dnf_manager.set_repository_enabled(repo_id, enabled)
-
-    def _include_additional_repositories(self):
-        """Add additional repositories to DNF."""
-        for ks_repo in self.data.repo.dataList():
-            # Convert the repository.
-            data = convert_ks_repo_to_repo_data(ks_repo)
-            log.debug("Add the '%s' repository (%s).", data.name, data)
-
-            # A system repository can be only enabled or disabled.
-            if data.origin == REPO_ORIGIN_SYSTEM:
-                self._handle_system_repository(data)
-                return
-
-            # Set up additional sources.
-            self._set_up_additional_repository(data)
-
-            # Add a new repository.
-            self._dnf_manager.add_repository(data)
-
-            # Load an enabled repository to check its validity.
-            self._dnf_manager.load_repository(data.name)
-
-    def _validate_enabled_repositories(self):
-        """Validate all enabled repositories.
-
-        Collect error messages about invalid repositories.
-        All invalid repositories are disabled.
-
-        The user repositories are validated when we add them
-        to DNF, so this covers invalid system repositories.
-        """
-        for repo_id in self.dnf_manager.enabled_repositories:
-            try:
-                self.dnf_manager.load_repository(repo_id)
-            except MetadataError as e:
-                self.verbose_errors.append(str(e))
-
-    def _reload_treeinfo_metadata(self, repo_data):
-        """Reload treeinfo metadata.
-
-        :param RepoConfigurationData repo_data: configuration data of the base repo
-        :return: a URL of the base repository
-        """
-        log.debug("Reload treeinfo metadata.")
-        base_repo_url = None
-
-        # Remove previous treeinfo repositories.
-        removed_repos = self._remove_treeinfo_repositories()
-        disabled_names = [r.name for r in removed_repos if not r.enabled]
-
-        # Collect URLs of existing repositories.
-        existing_urls = [r.baseurl for r in self.data.repo.dataList() if r.baseurl]
-
-        try:
-            # Load the treeinfo metadata.
-            tree_info_metadata = TreeInfoMetadata()
-            tree_info_metadata.load_data(repo_data)
-
-            # Set up the substitutions.
-            self._dnf_manager.configure_substitution(
-                tree_info_metadata.release_version
-            )
-
-            # Get the new base repo URL.
-            base_repo_url = tree_info_metadata.get_base_repo_url()
-            existing_urls.append(base_repo_url)
-
-            # Add the treeinfo repositories.
-            repositories = generate_treeinfo_repositories(
-                repo_data,
-                tree_info_metadata
-            )
-
-            self._add_treeinfo_repositories(
-                repositories=repositories,
-                disabled_names=disabled_names,
-                existing_urls=existing_urls,
-            )
-        except NoTreeInfoError as e:
-            log.debug("No treeinfo metadata to use: %s", str(e))
-        except TreeInfoMetadataError as e:
-            log.warning("Couldn't use treeinfo metadata: %s", str(e))
-
-        return base_repo_url
-
-    def _add_treeinfo_repositories(self, repositories, disabled_names, existing_urls):
-        """Add the treeinfo repositories.
-
-        :param [RepoConfigurationData] repositories: configuration data of treeinfo repositories
-        :param [str] disabled_names: a list of repository names that should be disabled
-        :param [str] existing_urls: a list of repository URLs that already exist
-        """
-        log.debug("Add treeinfo repositories.")
-
-        for repo in repositories:
-            # Skip existing repositories.
-            if repo.url in existing_urls:
-                continue
-
-            # Disable if previously disabled.
-            if repo.name in disabled_names:
-                repo.enabled = False
-
-            log.debug("Add the '%s' treeinfo repository: %s", repo.name, repo)
-
-            # Add the repository to user repositories,
-            # so it'll appear in the output ks file.
-            ks_repo = convert_repo_data_to_ks_repo(repo)
-            self.data.repo.dataList().append(ks_repo)
-
-    def _remove_treeinfo_repositories(self):
-        """Remove all old treeinfo repositories before loading new ones.
-
-        Find all repositories added from treeinfo file and remove them.
-        After this step new repositories will be loaded from the new link.
-
-        :return: list of repositories that were removed
-        """
-        log.debug("Remove treeinfo repositories.")
-        removed_repos = []
-
-        for ks_repo in list(self.data.repo.dataList()):
-            if not ks_repo.treeinfo_origin:
-                continue
-
-            self.data.repo.dataList().remove(ks_repo)
-            removed_repos.append(ks_repo)
-
-            log.debug("Removed the '%s' treeinfo repository.", ks_repo.name)
-
-        return removed_repos
 
     def post_install(self):
         """Perform post-installation tasks."""
