@@ -17,7 +17,6 @@
 #
 import os
 import signal
-from collections import namedtuple
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core import glib, constants
@@ -54,8 +53,6 @@ REPO_PROTO = {
     PROTOCOL_NFS:   "nfs://",
     PROTOCOL_FILE:  "file://"
 }
-
-RepoChecks = namedtuple("RepoChecks", ["name_check", "url_check", "proxy_check"])
 
 
 def validate_proxy(proxy_string, username_set, password_set):

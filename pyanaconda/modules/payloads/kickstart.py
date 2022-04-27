@@ -53,7 +53,7 @@ def convert_ks_repo_to_repo_data(ks_data):
     else:
         # Handle the `repo --name=updates` use case.
         repo_data.url = ""
-        repo_data.type = "NONE"
+        repo_data.type = ""
 
     if ks_data.treeinfo_origin:
         repo_data.origin = REPO_ORIGIN_TREEINFO
