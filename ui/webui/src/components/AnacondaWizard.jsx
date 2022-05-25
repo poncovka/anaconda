@@ -94,6 +94,7 @@ const getSteps = ({
 
 export const AnacondaWizard = ({ onAddErrorNotification, title }) => {
     const [isFormValid, setIsFormValid] = useState(true);
+    const [isInProgress, setIsInProgress] = useState(false);
 
     const stepsOrder = [
         {
@@ -139,7 +140,12 @@ export const AnacondaWizard = ({ onAddErrorNotification, title }) => {
 
     return (
         <Wizard
-          footer={<Footer isFormValid={isFormValid} setStepNotification={setStepNotification} />}
+          footer={<Footer
+            isFormValid={isFormValid}
+            setStepNotification={setStepNotification}
+            isInProgress={isInProgress}
+            setIsInProgress={setIsInProgress}
+          />}
           hideClose
           mainAriaLabel={`${title} content`}
           navAriaLabel={`${title} steps`}
@@ -152,8 +158,7 @@ export const AnacondaWizard = ({ onAddErrorNotification, title }) => {
     );
 };
 
-const Footer = ({ isFormValid, setStepNotification }) => {
-    const [isInProgress, setIsInProgress] = useState(false);
+const Footer = ({ isFormValid, setStepNotification, isInProgress, setIsInProgress }) => {
     const [nextWaitsConfirmation, setNextWaitsConfirmation] = useState(false);
     const [quitWaitsConfirmation, setQuitWaitsConfirmation] = useState(false);
 
@@ -214,7 +219,6 @@ const Footer = ({ isFormValid, setStepNotification }) => {
                                       isInProgress ||
                                       nextWaitsConfirmation
                                   }
-                                  isLoading={isInProgress}
                                   onClick={() => goToStep(activeStep, onNext)}>
                                     {nextButtonText}
                                 </Button>

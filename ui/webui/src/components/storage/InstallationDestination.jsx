@@ -57,7 +57,7 @@ import {
 } from "../../apis/payloads";
 
 import {
-    FormGroupHelpPopover
+    FormGroupHelpPopover, sleep
 } from "../Common.jsx";
 
 const _ = cockpit.gettext;
@@ -297,11 +297,13 @@ export const applyDefaultStorage = ({ onFail, onSuccess }) => {
     let partitioning;
     // CLEAR_PARTITIONS_ALL = 1
     return setInitializationMode({ mode: 1 })
+            .then(() => sleep({ seconds: 5 }))
             .then(() => setInitializeLabelsEnabled({ enabled: true }))
             .then(() => setBootloaderDrive({ drive: "" }))
             .then(() => createPartitioning({ method: "AUTOMATIC" }))
             .then(res => {
                 partitioning = res[0];
+
                 return partitioningConfigureWithTask({ partitioning });
             })
             .then(tasks => {
