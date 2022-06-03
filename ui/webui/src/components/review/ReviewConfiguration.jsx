@@ -25,7 +25,7 @@ import {
     DataListCell,
     DescriptionList, DescriptionListGroup,
     DescriptionListTerm, DescriptionListDescription,
-    Modal, ModalVariant,
+    Modal, ModalVariant, Stack,
 } from "@patternfly/react-core";
 
 import {
@@ -69,7 +69,10 @@ export const ReviewConfiguration = ({ idPrefix }) => {
     }
 
     return (
-        <>
+        <Stack hasGutter>
+            <Title headingLevel="h2">
+                {_("Review and install")}
+            </Title>
             <DescriptionList isHorizontal>
                 <DescriptionListGroup>
                     <DescriptionListTerm>
@@ -104,7 +107,7 @@ export const ReviewConfiguration = ({ idPrefix }) => {
                     </DataListItem>
                 ))}
             </DataList>
-        </>
+        </Stack>
     );
 };
 

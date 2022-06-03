@@ -18,15 +18,15 @@ import cockpit from "cockpit";
 import React, { useEffect, useState } from "react";
 
 import {
-    Alert,
-    Button,
+    Alert, Bullseye,
+    Button, EmptyState, EmptyStateIcon,
     Flex,
     FlexItem,
     Form,
     FormGroup,
-    Label,
-    Text,
-    TextVariants,
+    Label, Spinner, Stack,
+    Text, TextContent,
+    TextVariants, Title,
 } from "@patternfly/react-core";
 
 import { EmptyStatePanel } from "cockpit-components-empty-state.jsx";
@@ -113,6 +113,8 @@ const LocalStandardDisks = ({ idPrefix, onAddErrorNotification }) => {
                         selectedDisks: props[0].SelectedDisks.v,
                         usableDisks,
                     });
+
+                    // FIXME: This is an issue
                     setDisks(usableDisks.reduce((acc, cur) => ({ ...acc, [cur]: defaultDisks.includes(cur) }), {}));
 
                     // Show disks data
@@ -255,7 +257,7 @@ const LocalStandardDisks = ({ idPrefix, onAddErrorNotification }) => {
     );
 };
 
-export const InstallationDestination = ({ idPrefix, onAddErrorNotification }) => {
+export const InstallationDestination = ({ idPrefix, onAddErrorNotification, stepNotification, isInProgress }) => {
     const [requiredSize, setRequiredSize] = useState(0);
 
     useEffect(() => {
@@ -269,26 +271,56 @@ export const InstallationDestination = ({ idPrefix, onAddErrorNotification }) =>
 
     return (
         <>
-            <Text component={TextVariants.p}>{
-                cockpit.format(_(
-                    "Select the device(s) to install to. The installation requires " +
+            {isInProgress &&
+            <Bullseye>
+                <EmptyState>
+                    <EmptyStateIcon variant="container" component={Spinner} />
+                    <Title size="lg" headingLevel="h4">
+                        {_("Checking disks")}
+                    </Title>
+                    <TextContent>
+                        <Text component={TextVariants.p}>
+                            {_("This may take a moment")}
+                        </Text>
+                    </TextContent>
+                </EmptyState>
+            </Bullseye>}
+            {!isInProgress &&
+            <Stack hasGutter>
+                <Title headingLevel="h2">
+                    {_("Installation destination")}
+                </Title>
+                <TextContent>
+                    <Text component={TextVariants.p}>{
+                        cockpit.format(_(
+                            "Select the device(s) to install to. The installation requires " +
                     "$0 of available space. Storage will be automatically partitioned."
-                ), cockpit.format_bytes(requiredSize))
-            }
-            </Text>
-            <Alert
-              isInline
-              variant="info"
-              title={_("Selected disks will be erased at at install")}
-            >
-                <p>
-                    {_("To prevent loss, backup the data.")}
-                </p>
-            </Alert>
-            <LocalStandardDisks
-              idPrefix={idPrefix}
-              onAddErrorNotification={onAddErrorNotification}
-            />
+                        ), cockpit.format_bytes(requiredSize))
+                    }
+                    </Text>
+                </TextContent>
+                {stepNotification &&
+                     (stepNotification.step === "installation-destination") &&
+                     <Alert
+                       isInline
+                       title={stepNotification.message}
+                       variant="danger"
+                     />}
+
+                <Alert
+                  isInline
+                  variant="info"
+                  title={_("Selected disks will be erased at at install")}
+                >
+                    <p>
+                        {_("To prevent loss, backup the data.")}
+                    </p>
+                </Alert>
+                <LocalStandardDisks
+                  idPrefix={idPrefix}
+                  onAddErrorNotification={onAddErrorNotification}
+                />
+            </Stack>}
         </>
     );
 };

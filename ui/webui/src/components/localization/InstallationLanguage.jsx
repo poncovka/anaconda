@@ -27,10 +27,12 @@ import {
     SelectVariant,
     Text,
     TextVariants,
+    TextContent,
+    Title,
+    Stack,
 } from "@patternfly/react-core";
 
 import { EmptyStatePanel } from "cockpit-components-empty-state.jsx";
-
 import { AddressContext } from "../Common.jsx";
 
 import {
@@ -201,24 +203,29 @@ LanguageSelector.contextType = AddressContext;
 
 export const InstallationLanguage = ({ idPrefix, setIsFormValid, onAddErrorNotification }) => {
     return (
-        <>
-            <Text component={TextVariants.p}>{_(
-                "Select the language you would like to use. This language " +
-                "will also be selected for your installed system."
-            )}
-            </Text>
-            <Form>
-                <FormGroup
-                  label={_("Language")}
-                  isRequired
-                >
-                    <LanguageSelector
-                      idPrefix={idPrefix}
-                      setIsFormValid={setIsFormValid}
-                      onAddErrorNotification={onAddErrorNotification}
-                    />
-                </FormGroup>
-            </Form>
-        </>
+        <Stack hasGutter>
+            <TextContent>
+                <Title headingLevel="h2">
+                    {_("Welcome to the Anaconda installer")}
+                </Title>
+                <Text component={TextVariants.p}>{_(
+                    "Select the language you would like to use. This language " +
+                    "will also be selected for your installed system."
+                )}
+                </Text>
+                <Form>
+                    <FormGroup
+                      label={_("Language")}
+                      isRequired
+                    >
+                        <LanguageSelector
+                          idPrefix={idPrefix}
+                          setIsFormValid={setIsFormValid}
+                          onAddErrorNotification={onAddErrorNotification}
+                        />
+                    </FormGroup>
+                </Form>
+            </TextContent>
+        </Stack>
     );
 };

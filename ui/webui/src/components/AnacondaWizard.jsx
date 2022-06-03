@@ -15,75 +15,49 @@
  * along with This program; If not, see <http://www.gnu.org/licenses/>.
  */
 import cockpit from "cockpit";
-
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import {
     ActionList,
-    Alert,
     Button,
     Modal,
     ModalVariant,
     Stack,
-    TextContent,
-    Title,
     Wizard,
     WizardFooter,
     WizardContextConsumer,
 } from "@patternfly/react-core";
 
-import { AddressContext } from "./Common.jsx";
 import { InstallationDestination, applyDefaultStorage } from "./storage/InstallationDestination.jsx";
 import { InstallationLanguage } from "./localization/InstallationLanguage.jsx";
 import { InstallationProgress } from "./installation/InstallationProgress.jsx";
 import { ReviewConfiguration, ReviewConfigurationConfirmModal } from "./review/ReviewConfiguration.jsx";
-
 import { exitGui } from "../helpers/exit.js";
-
 import { usePageLocation } from "hooks";
 
 const _ = cockpit.gettext;
 
 const getSteps = ({
-    address,
     currentStepId,
     onAddErrorNotification,
     setIsFormValid,
+    isInProgress,
     stepNotification,
     stepsOrder
 }) => {
-    const wrapWithContext = (children, label) => {
-        return (
-            <Stack hasGutter>
-                <TextContent>
-                    <Title headingLevel="h2">
-                        {label}
-                    </Title>
-                    {stepNotification &&
-                     (stepNotification.step === currentStepId) &&
-                     <Alert
-                       isInline
-                       title={stepNotification.message}
-                       variant="danger"
-                     />}
-                    {children}
-                </TextContent>
-            </Stack>
-        );
-    };
-
     return stepsOrder.map((s, idx) => {
         const Renderer = s.component;
-
         return ({
             id: s.id,
             name: s.label,
-            component: wrapWithContext(
+            component: (
                 <Renderer
                   idPrefix={s.id}
                   setIsFormValid={setIsFormValid}
-                  onAddErrorNotification={onAddErrorNotification} />,
-                s.title || s.label
+                  isInProgress={isInProgress}
+                  onAddErrorNotification={onAddErrorNotification}
+                  stepNotification={stepNotification}
+                />
             ),
             stepNavItemProps: { id: s.id },
             canJumpTo: idx <= stepsOrder.findIndex(s => s.id === currentStepId),
@@ -101,7 +75,6 @@ export const AnacondaWizard = ({ onAddErrorNotification, title }) => {
             component: InstallationLanguage,
             id: "installation-language",
             label: _("Welcome"),
-            title: _("Welcome to the Anaconda installer")
         },
         {
             component: InstallationDestination,
@@ -118,17 +91,15 @@ export const AnacondaWizard = ({ onAddErrorNotification, title }) => {
             id: "installation-progress",
         }
     ];
-
-    const address = useContext(AddressContext);
     const { path } = usePageLocation();
     const currentStepId = path[0] || "installation-language";
 
     const [stepNotification, setStepNotification] = useState();
 
     const steps = getSteps({
-        address,
         currentStepId,
         setIsFormValid,
+        isInProgress,
         onAddErrorNotification,
         stepNotification,
         stepsOrder
@@ -197,6 +168,10 @@ const Footer = ({ isFormValid, setStepNotification, isInProgress, setIsInProgres
                             : _("Next")
                     );
 
+                    if (isInProgress) {
+                        return null;
+                    }
+
                     return (
                         <Stack hasGutter>
                             {activeStep.id === "installation-review" &&
@@ -207,17 +182,15 @@ const Footer = ({ isFormValid, setStepNotification, isInProgress, setIsInProgres
                               setNextWaitsConfirmation={setNextWaitsConfirmation}
                             />}
                             {quitWaitsConfirmation &&
-                            <QuitInstallationConfirmModal
-                              exitGui={exitGui}
-                              setQuitWaitsConfirmation={setQuitWaitsConfirmation}
-                            />}
+                                <QuitInstallationConfirmModal
+                                  exitGui={exitGui}
+                                  setQuitWaitsConfirmation={setQuitWaitsConfirmation}
+                                />}
                             <ActionList>
                                 <Button
                                   variant="primary"
                                   isDisabled={
-                                      !isFormValid ||
-                                      isInProgress ||
-                                      nextWaitsConfirmation
+                                      !isFormValid || nextWaitsConfirmation
                                   }
                                   onClick={() => goToStep(activeStep, onNext)}>
                                     {nextButtonText}

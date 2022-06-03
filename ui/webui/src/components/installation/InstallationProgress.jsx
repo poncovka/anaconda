@@ -22,7 +22,7 @@ import {
     Button,
     Flex,
     TextContent,
-    ProgressStepper, ProgressStep,
+    ProgressStepper, ProgressStep, Title, Stack,
 } from "@patternfly/react-core";
 import { CheckCircleIcon, ExclamationCircleIcon } from "@patternfly/react-icons";
 
@@ -128,49 +128,56 @@ export class InstallationProgress extends React.Component {
         }
 
         return (
-            <div className={idPrefix + "-status-" + status}>
-                <EmptyStatePanel
-                  icon={icon}
-                  loading={!icon}
-                  paragraph={
-                      <Flex direction={{ default: "column" }}>
-                          <TextContent>
-                              {statusMessage}
-                          </TextContent>
-                          <ProgressStepper isCenterAligned>
-                              {progressSteps.map((progressStep, index) => {
-                                  let variant = "pending";
-                                  let ariaLabel = _("pending step");
-                                  if (index < currentProgressStep) {
-                                      variant = "success";
-                                      ariaLabel = _("completed step");
-                                  } else if (index === currentProgressStep) {
-                                      variant = status === "danger" ? status : "info";
-                                      ariaLabel = _("current step");
-                                  }
-                                  return (
-                                      <ProgressStep
-                                        aria-label={ariaLabel}
-                                        id={idPrefix + "-step-" + index}
-                                        isCurrent={index === currentProgressStep}
-                                        titleId={progressStep.id}
-                                        key={index}
-                                        variant={variant}
-                                      >
-                                          {progressStep.title}
-                                      </ProgressStep>
-                                  );
-                              })}
-                          </ProgressStepper>
-                      </Flex>
-                  }
-                  secondary={
-                      status === "success" &&
-                      <Button onClick={exitGui}>{_("Reboot")}</Button>
-                  }
-                  title={title}
-                />
-            </div>
+            <Stack hasGutter>
+                <TextContent>
+                    <Title headingLevel="h2">
+                        {_("Welcome to the Anaconda installer")}
+                    </Title>
+                    <div className={idPrefix + "-status-" + status}>
+                        <EmptyStatePanel
+                          icon={icon}
+                          loading={!icon}
+                          paragraph={
+                              <Flex direction={{ default: "column" }}>
+                                  <TextContent>
+                                      {statusMessage}
+                                  </TextContent>
+                                  <ProgressStepper isCenterAligned>
+                                      {progressSteps.map((progressStep, index) => {
+                                          let variant = "pending";
+                                          let ariaLabel = _("pending step");
+                                          if (index < currentProgressStep) {
+                                              variant = "success";
+                                              ariaLabel = _("completed step");
+                                          } else if (index === currentProgressStep) {
+                                              variant = status === "danger" ? status : "info";
+                                              ariaLabel = _("current step");
+                                          }
+                                          return (
+                                              <ProgressStep
+                                                aria-label={ariaLabel}
+                                                id={idPrefix + "-step-" + index}
+                                                isCurrent={index === currentProgressStep}
+                                                titleId={progressStep.id}
+                                                key={index}
+                                                variant={variant}
+                                              >
+                                                  {progressStep.title}
+                                              </ProgressStep>
+                                          );
+                                      })}
+                                  </ProgressStepper>
+                              </Flex>
+                          }
+                          secondary={
+                              status === "success" &&
+                              <Button onClick={exitGui}>{_("Reboot")}</Button>
+                          }
+                          title={title}
+                        />
+                    </div>
+                </TextContent>
+            </Stack>
         );
     }
 }
