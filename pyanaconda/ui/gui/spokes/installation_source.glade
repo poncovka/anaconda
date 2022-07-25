@@ -99,10 +99,9 @@
                             <child>
                               <object class="GtkRadioButton" id="autodetectRadioButton">
                                 <property name="label" translatable="yes" context="GUI|Software Source">_Auto-detected installation media:</property>
+                                <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
-                                <property name="no-show-all">True</property>
-                                <property name="margin-left">12</property>
                                 <property name="use-underline">True</property>
                                 <property name="xalign">0</property>
                                 <property name="draw-indicator">True</property>
@@ -117,10 +116,10 @@
                             <child>
                               <!-- n-columns=3 n-rows=2 -->
                               <object class="GtkGrid" id="autodetectBox">
-                                <property name="sensitive">False</property>
-                                <property name="can-focus">False</property>
-                                <property name="no-show-all">True</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
                                 <property name="margin-left">24</property>
+                                <property name="column-spacing">6</property>
                                 <child>
                                   <object class="GtkLabel" id="autodetectDeviceLabel">
                                     <property name="visible">True</property>
@@ -181,7 +180,6 @@
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
                                 <property name="no-show-all">True</property>
-                                <property name="margin-left">12</property>
                                 <property name="use-underline">True</property>
                                 <property name="xalign">0</property>
                                 <property name="draw-indicator">True</property>
@@ -199,7 +197,6 @@
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
                                 <property name="no-show-all">True</property>
-                                <property name="margin-left">12</property>
                                 <property name="use-underline">True</property>
                                 <property name="xalign">0</property>
                                 <property name="active">True</property>
@@ -218,7 +215,6 @@
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
                                 <property name="no-show-all">True</property>
-                                <property name="margin-left">12</property>
                                 <property name="use-underline">True</property>
                                 <property name="xalign">0</property>
                                 <property name="active">True</property>
@@ -323,7 +319,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkRadioButton" id="closestMirrotRadioButton">
+                              <object class="GtkRadioButton" id="closestMirrorRadioButton">
                                 <property name="label" translatable="yes" context="GUI|Software Source">Closest mirror</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
@@ -387,7 +383,6 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
-                                <property name="margin-left">12</property>
                                 <property name="use-underline">True</property>
                                 <property name="xalign">0</property>
                                 <property name="active">True</property>
@@ -793,8 +788,9 @@
                                         <property name="tooltip-text" translatable="yes">Protocol for the repository URL.</property>
                                         <property name="active">0</property>
                                         <items>
-                                          <item id="URL" translatable="yes">URL (requires network)</item>
-                                          <item id="NFS" translatable="yes">NFS (requires network)</item>
+                                          <item id="URL" translatable="yes">Network location</item>
+                                          <item id="NFS" translatable="yes">NFS location</item>
+                                          <item id="OTHER" translatable="yes">Other location</item>
                                         </items>
                                         <signal name="changed" handler="on_repoProtocolComboBox_changed" swapped="no"/>
                                       </object>
