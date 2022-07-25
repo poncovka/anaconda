@@ -115,7 +115,7 @@
                               </packing>
                             </child>
                             <child>
-                              <!-- n-columns=3 n-rows=3 -->
+                              <!-- n-columns=3 n-rows=2 -->
                               <object class="GtkGrid" id="autodetectBox">
                                 <property name="sensitive">False</property>
                                 <property name="can-focus">False</property>
@@ -161,15 +161,6 @@
                                     <property name="top-attach">0</property>
                                     <property name="height">2</property>
                                   </packing>
-                                </child>
-                                <child>
-                                  <placeholder/>
-                                </child>
-                                <child>
-                                  <placeholder/>
-                                </child>
-                                <child>
-                                  <placeholder/>
                                 </child>
                                 <child>
                                   <placeholder/>
@@ -223,7 +214,7 @@
                             </child>
                             <child>
                               <object class="GtkRadioButton" id="isoRadioButton">
-                                <property name="label" translatable="yes" context="GUI|Software Source">ISO file on a device:</property>
+                                <property name="label" translatable="yes" context="GUI|Software Source">Device with an ISO file</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
                                 <property name="no-show-all">True</property>
@@ -329,7 +320,7 @@
                                 <property name="active">0</property>
                                 <items>
                                   <item id="True" translatable="yes">Install the latest available software updates</item>
-                                  <item id="False" translatable="yes">Install the default versions provided by the installation source (above) only</item>
+                                  <item id="False" translatable="yes">Install the default versions</item>
                                 </items>
                               </object>
                               <packing>
@@ -387,7 +378,7 @@
                                     </child>
                                     <child>
                                       <object class="GtkButton" id="proxyButton">
-                                        <property name="label" translatable="yes" context="GUI|Software Source">_Proxy configuration</property>
+                                        <property name="label" translatable="yes" context="GUI|Software Source">Configure proxy</property>
                                         <property name="use-action-appearance">False</property>
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
@@ -423,9 +414,6 @@
                                     <property name="fill">True</property>
                                     <property name="position">0</property>
                                   </packing>
-                                </child>
-                                <child>
-                                  <placeholder/>
                                 </child>
                               </object>
                               <packing>
@@ -487,7 +475,7 @@
                                   <object class="GtkLabel" id="label3">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes" context="GUI|Software Source">Directory:</property>
+                                    <property name="label" translatable="yes" context="GUI|Software Source">Path:</property>
                                     <property name="use-underline">True</property>
                                   </object>
                                   <packing>
@@ -530,6 +518,7 @@
                                     <property name="has-tooltip">True</property>
                                     <property name="tooltip-markup" translatable="yes">This field is optional.</property>
                                     <property name="tooltip-text" translatable="yes">This field is optional.</property>
+                                    <property name="placeholder-text" translatable="yes">Not required</property>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>
@@ -543,9 +532,6 @@
                                 <property name="fill">True</property>
                                 <property name="position">12</property>
                               </packing>
-                            </child>
-                            <child>
-                              <placeholder/>
                             </child>
                             <child>
                               <object class="GtkLabel" id="label11">
@@ -700,26 +686,13 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <!-- n-columns=2 n-rows=9 -->
+                                  <!-- n-columns=2 n-rows=8 -->
                                   <object class="GtkGrid" id="repoEntryBox">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="hexpand">True</property>
                                     <property name="row-spacing">6</property>
                                     <property name="column-spacing">6</property>
-                                    <child>
-                                      <object class="GtkEntry" id="repoUrlEntry">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">True</property>
-                                        <property name="tooltip-markup" translatable="yes">URL for the repository, without protocol.</property>
-                                        <property name="tooltip-text" translatable="yes">URL for the repository, without protocol.</property>
-                                        <signal name="changed" handler="on_repoUrl_changed" swapped="no"/>
-                                      </object>
-                                      <packing>
-                                        <property name="left-attach">1</property>
-                                        <property name="top-attach">1</property>
-                                      </packing>
-                                    </child>
                                     <child>
                                       <object class="GtkLabel" id="label14">
                                         <property name="visible">True</property>
@@ -738,7 +711,7 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxText" id="additionalRepoComboBox">
+                                      <object class="GtkComboBoxText" id="additionalSourceComboBox">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
                                         <property name="tooltip-markup" translatable="yes">Protocol for the repository URL.</property>
@@ -747,7 +720,6 @@
                                         <items>
                                           <item id="URL" translatable="yes">URL (requires network)</item>
                                           <item id="NFS" translatable="yes">NFS (requires network)</item>
-                                          <item id="Other" translatable="yes">Other</item>
                                         </items>
                                         <signal name="changed" handler="on_repoProtocolComboBox_changed" swapped="no"/>
                                       </object>
@@ -805,7 +777,7 @@
                                       <object class="GtkLabel" id="label7">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="label" translatable="yes" context="GUI|Software Source">Directory:</property>
+                                        <property name="label" translatable="yes" context="GUI|Software Source">Path:</property>
                                         <property name="use-underline">True</property>
                                         <property name="mnemonic-widget">repoNameEntry</property>
                                         <property name="xalign">0</property>
@@ -881,6 +853,7 @@
                                       <object class="GtkEntry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="placeholder-text" translatable="yes">Not required</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -902,7 +875,6 @@
                                       <object class="GtkComboBoxText" id="urlTypeComboBox1">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="halign">start</property>
                                         <property name="active">0</property>
                                         <items>
                                           <item id="BASEURL" translatable="yes">Repository URL</item>
@@ -919,7 +891,7 @@
                                       <object class="GtkLabel" id="label12">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="label" translatable="yes" context="GUI|Software Source">Proxy configuration:</property>
+                                        <property name="label" translatable="yes" context="GUI|Software Source">Proxy:</property>
                                         <property name="use-underline">True</property>
                                         <property name="mnemonic-widget">repoNameEntry</property>
                                         <property name="xalign">0</property>
@@ -930,49 +902,19 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkBox" id="proxyBox">
+                                      <object class="GtkButton" id="proxyButton2">
+                                        <property name="label" translatable="yes" context="GUI|Software Source">Configure proxy</property>
+                                        <property name="use-action-appearance">False</property>
                                         <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="spacing">8</property>
-                                        <child>
-                                          <object class="GtkLabel">
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">False</property>
-                                            <property name="label" translatable="yes">http://proxy</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">True</property>
-                                            <property name="position">0</property>
-                                          </packing>
-                                        </child>
-                                        <child>
-                                          <object class="GtkButton" id="proxyButton2">
-                                            <property name="label" translatable="yes" context="GUI|Software Source">Edit</property>
-                                            <property name="use-action-appearance">False</property>
-                                            <property name="visible">True</property>
-                                            <property name="can-focus">True</property>
-                                            <property name="receives-default">True</property>
-                                            <property name="halign">start</property>
-                                            <property name="use-underline">True</property>
-                                          </object>
-                                          <packing>
-                                            <property name="expand">False</property>
-                                            <property name="fill">True</property>
-                                            <property name="position">1</property>
-                                          </packing>
-                                        </child>
+                                        <property name="can-focus">True</property>
+                                        <property name="receives-default">True</property>
+                                        <property name="halign">start</property>
+                                        <property name="use-underline">True</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
                                         <property name="top-attach">7</property>
                                       </packing>
-                                    </child>
-                                    <child>
-                                      <placeholder/>
-                                    </child>
-                                    <child>
-                                      <placeholder/>
                                     </child>
                                   </object>
                                   <packing>
