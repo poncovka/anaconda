@@ -238,13 +238,27 @@
                                 <property name="margin-left">24</property>
                                 <property name="spacing">6</property>
                                 <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Device:</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
                                   <object class="GtkComboBox" id="isoPartitionCombo">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="valign">start</property>
                                     <property name="model">partitionStore</property>
                                     <child>
-                                      <object class="GtkCellRendererText" id="partitionRenderer"/>
+                                      <object class="GtkCellRendererText" id="partitionRenderer">
+                                        <property name="ellipsize">end</property>
+                                      </object>
                                       <attributes>
                                         <attribute name="text">1</attribute>
                                       </attributes>
@@ -253,7 +267,19 @@
                                   <packing>
                                     <property name="expand">True</property>
                                     <property name="fill">True</property>
-                                    <property name="position">0</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Path:</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">2</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -269,7 +295,7 @@
                                   <packing>
                                     <property name="expand">False</property>
                                     <property name="fill">True</property>
-                                    <property name="position">2</property>
+                                    <property name="position">3</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -286,7 +312,7 @@
                                   <packing>
                                     <property name="expand">False</property>
                                     <property name="fill">True</property>
-                                    <property name="position">3</property>
+                                    <property name="position">4</property>
                                   </packing>
                                 </child>
                               </object>
@@ -298,7 +324,7 @@
                             </child>
                             <child>
                               <object class="GtkRadioButton" id="closestMirrotRadioButton">
-                                <property name="label" translatable="yes" context="GUI|Software Source">Closest mirror (requires network)</property>
+                                <property name="label" translatable="yes" context="GUI|Software Source">Closest mirror</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
@@ -314,14 +340,40 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkComboBoxText" id="updatesComboBox">
+                              <object class="GtkBox">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
-                                <property name="active">0</property>
-                                <items>
-                                  <item id="True" translatable="yes">Install the latest available software updates</item>
-                                  <item id="False" translatable="yes">Install the default versions</item>
-                                </items>
+                                <property name="margin-left">24</property>
+                                <property name="spacing">6</property>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Updates:</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkComboBoxText" id="updatesComboBox1">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="halign">start</property>
+                                    <property name="active">0</property>
+                                    <items>
+                                      <item id="True" translatable="yes">Install the latest available software updates</item>
+                                      <item id="False" translatable="yes">Install the default versions</item>
+                                    </items>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -331,7 +383,7 @@
                             </child>
                             <child>
                               <object class="GtkRadioButton" id="networkRadioButton">
-                                <property name="label" translatable="yes" context="GUI|Software Source">URL (requires network)</property>
+                                <property name="label" translatable="yes" context="GUI|Software Source">Network location</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
                                 <property name="receives-default">False</property>
@@ -345,69 +397,20 @@
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">9</property>
+                                <property name="position">10</property>
                               </packing>
                             </child>
                             <child>
                               <object class="GtkBox" id="networkBox">
                                 <property name="visible">True</property>
-                                <property name="sensitive">False</property>
                                 <property name="can-focus">False</property>
                                 <property name="margin-left">24</property>
-                                <property name="orientation">vertical</property>
                                 <property name="spacing">6</property>
                                 <child>
-                                  <!-- n-columns=3 n-rows=1 -->
-                                  <object class="GtkGrid" id="urlBox">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="row-spacing">6</property>
-                                    <property name="column-spacing">6</property>
-                                    <child>
-                                      <object class="GtkEntry" id="urlEntry">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">True</property>
-                                        <property name="hexpand">True</property>
-                                        <property name="placeholder-text" translatable="yes">http:// or https:// or ftp://</property>
-                                        <signal name="changed" handler="on_urlEntry_changed" swapped="no"/>
-                                      </object>
-                                      <packing>
-                                        <property name="left-attach">0</property>
-                                        <property name="top-attach">0</property>
-                                      </packing>
-                                    </child>
-                                    <child>
-                                      <object class="GtkButton" id="proxyButton">
-                                        <property name="label" translatable="yes" context="GUI|Software Source">Configure proxy</property>
-                                        <property name="use-action-appearance">False</property>
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">True</property>
-                                        <property name="receives-default">True</property>
-                                        <property name="use-underline">True</property>
-                                        <signal name="clicked" handler="on_proxy_clicked" swapped="no"/>
-                                      </object>
-                                      <packing>
-                                        <property name="left-attach">2</property>
-                                        <property name="top-attach">0</property>
-                                      </packing>
-                                    </child>
-                                    <child>
-                                      <object class="GtkComboBoxText" id="urlTypeComboBox">
-                                        <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
-                                        <property name="halign">start</property>
-                                        <property name="active">0</property>
-                                        <items>
-                                          <item id="BASEURL" translatable="yes">Repository URL</item>
-                                          <item id="MIRRORLIST" translatable="yes">Mirrorlist</item>
-                                          <item id="METALINK" translatable="yes">Metalink</item>
-                                        </items>
-                                      </object>
-                                      <packing>
-                                        <property name="left-attach">1</property>
-                                        <property name="top-attach">0</property>
-                                      </packing>
-                                    </child>
+                                    <property name="label" translatable="yes">URL:</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -415,23 +418,76 @@
                                     <property name="position">0</property>
                                   </packing>
                                 </child>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">True</property>
-                                <property name="position">10</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkRadioButton" id="nfsRadioButton">
-                                <property name="label" translatable="yes" context="GUI|Software Source">NFS (requires network)</property>
-                                <property name="can-focus">True</property>
-                                <property name="receives-default">False</property>
-                                <property name="no-show-all">True</property>
-                                <property name="use-underline">True</property>
-                                <property name="xalign">0</property>
-                                <property name="draw-indicator">True</property>
-                                <property name="group">isoRadioButton</property>
+                                <child>
+                                  <object class="GtkEntry" id="urlEntry1">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
+                                    <property name="placeholder-text" translatable="yes">http:// or https:// or ftp://</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">URL type:</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkComboBoxText" id="urlTypeComboBox2">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="halign">start</property>
+                                    <property name="active">0</property>
+                                    <items>
+                                      <item id="BASEURL" translatable="yes">Repository URL</item>
+                                      <item id="MIRRORLIST" translatable="yes">Mirrorlist</item>
+                                      <item id="METALINK" translatable="yes">Metalink</item>
+                                    </items>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">3</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Proxy:</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">4</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkButton" id="proxyButton1">
+                                    <property name="label" translatable="yes" context="GUI|Software Source">Configure proxy</property>
+                                    <property name="use-action-appearance">False</property>
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="receives-default">True</property>
+                                    <property name="use-underline">True</property>
+                                  </object>
+                                  <packing>
+                                    <property name="expand">False</property>
+                                    <property name="fill">True</property>
+                                    <property name="position">5</property>
+                                  </packing>
+                                </child>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -440,9 +496,28 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox" id="nfsOptsBox1">
-                                <property name="can-focus">False</property>
-                                <property name="no-show-all">True</property>
+                              <object class="GtkRadioButton" id="nfsRadioButton">
+                                <property name="label" translatable="yes" context="GUI|Software Source">NFS location</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">False</property>
+                                <property name="use-underline">True</property>
+                                <property name="xalign">0</property>
+                                <property name="active">True</property>
+                                <property name="draw-indicator">True</property>
+                                <property name="group">isoRadioButton</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">12</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkBox" id="nfsBox">
+                                <property name="visible">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="margin-left">24</property>
                                 <property name="spacing">6</property>
                                 <child>
                                   <object class="GtkLabel" id="label2">
@@ -530,7 +605,7 @@
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">12</property>
+                                <property name="position">13</property>
                               </packing>
                             </child>
                             <child>
@@ -547,7 +622,7 @@
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">True</property>
-                                <property name="position">14</property>
+                                <property name="position">15</property>
                               </packing>
                             </child>
                             <child>
@@ -711,7 +786,7 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxText" id="additionalSourceComboBox">
+                                      <object class="GtkComboBoxText" id="repoProtocolComboBox">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
                                         <property name="tooltip-markup" translatable="yes">Protocol for the repository URL.</property>
@@ -927,7 +1002,7 @@
                               <packing>
                                 <property name="expand">True</property>
                                 <property name="fill">True</property>
-                                <property name="position">15</property>
+                                <property name="position">16</property>
                               </packing>
                             </child>
                           </object>

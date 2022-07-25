@@ -325,12 +325,6 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
 
         for device_name in find_potential_hdiso_sources():
             device_info = get_hdiso_source_info(self._device_tree, device_name)
-
-            # With the label in here, the combo box can appear really long thus pushing
-            # the "pick an image" and the "verify" buttons off the screen.
-            if device_info["label"] != "":
-                device_info["label"] = "\n" + device_info["label"]
-
             device_desc = get_hdiso_source_description(device_info)
             store.append([device_name, device_desc])
 
@@ -476,6 +470,9 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
         self._repo_store[repo_model_path][REPO_ENABLED_COL] = enabled
         self._repo_store[repo_model_path][REPO_OBJ].enabled = enabled
 
+    def on_urlEntry_changed(self, editable, data=None):
+        pass
+
     def on_addRepo_clicked(self, button):
         """ Add a new repository
         """
@@ -490,6 +487,16 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
         itr = self._repo_store.append([True, repo.name, repo])
         self._repo_selection.select_iter(itr)
         self._repo_entry_box.set_sensitive(True)
+
+    def on_removeRepo_clicked(self, button):
+        """Remove the selected repository"""
+
+    def on_resetRepos_clicked(self, button):
+        """ Revert to the default list of repositories"""
+
+    def on_repoNameEntry_changed(self, entry):
+        """ repo name changed
+        """
 
     def on_repoStore_row_changed(self, model, path, itr, user_data=None):
         pass
