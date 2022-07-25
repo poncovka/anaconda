@@ -273,9 +273,6 @@ class SourceSpoke(NormalSpoke, GUISpokeInputCheckHandler, SourceSwitchHandler):
                 device_name = self._get_device_name(device_spec)
                 self._show_autodetect_box(device_name, device_spec)
 
-        # Enable the SE/HMC option.
-        gtk_call_once(self._hmc_button.set_no_show_all, False)
-
         self._ready = True
         # Wait to make sure the other threads are done before sending ready, otherwise
         # the spoke may not be set sensitive by _handleCompleteness in the hub.
