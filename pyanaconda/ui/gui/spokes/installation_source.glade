@@ -3,12 +3,6 @@
 <interface>
   <requires lib="gtk+" version="3.0"/>
   <requires lib="AnacondaWidgets" version="1.0"/>
-  <object class="GtkOffscreenWindow">
-    <property name="can-focus">False</property>
-    <child>
-      <placeholder/>
-    </child>
-  </object>
   <object class="GtkListStore" id="partitionStore">
     <columns>
       <!-- column-name device -->
@@ -331,7 +325,6 @@
                                   <item translatable="yes">Install the default versions from the closest mirror</item>
                                   <item id="URL" translatable="yes">Install from a specified URL</item>
                                   <item id="NFS" translatable="yes">Install from a NFS server</item>
-                                  <item translatable="yes">Install from the closest mirror</item>
                                 </items>
                               </object>
                               <packing>
@@ -468,7 +461,6 @@
                                   <item translatable="yes">Install the default versions from the closest mirror</item>
                                   <item id="URL" translatable="yes">Install from a specified URL</item>
                                   <item id="NFS" translatable="yes">Install from a NFS server</item>
-                                  <item translatable="yes">Install from the closest mirror</item>
                                 </items>
                               </object>
                               <packing>
@@ -478,47 +470,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkBox" id="nfsBox2">
-                                <property name="visible">True</property>
-                                <property name="can-focus">False</property>
-                                <property name="margin-left">24</property>
-                                <property name="spacing">6</property>
-                                <child>
-                                  <object class="GtkLabel" id="label13">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes" context="GUI|Software Source">Updates:</property>
-                                    <property name="use-underline">True</property>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">0</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkComboBoxText" id="updatesComboBox2">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="margin-left">24</property>
-                                    <property name="active">0</property>
-                                    <items>
-                                      <item id="True" translatable="yes">Install the latest available software updates</item>
-                                      <item id="False" translatable="yes">Install the default versions</item>
-                                    </items>
-                                  </object>
-                                  <packing>
-                                    <property name="expand">True</property>
-                                    <property name="fill">True</property>
-                                    <property name="position">1</property>
-                                  </packing>
-                                </child>
-                              </object>
-                              <packing>
-                                <property name="expand">False</property>
-                                <property name="fill">True</property>
-                                <property name="position">12</property>
-                              </packing>
+                              <placeholder/>
                             </child>
                             <child>
                               <placeholder/>
@@ -551,7 +503,6 @@
                                   <item translatable="yes">Install the default versions from the closest mirror</item>
                                   <item id="URL" translatable="yes">Install from a specified URL</item>
                                   <item id="NFS" translatable="yes">Install from a NFS server</item>
-                                  <item translatable="yes">Install from the closest mirror</item>
                                 </items>
                               </object>
                               <packing>
@@ -841,9 +792,9 @@
                                         <property name="tooltip-text" translatable="yes">Protocol for the repository URL.</property>
                                         <property name="active">0</property>
                                         <items>
-                                          <item id="URL" translatable="yes">Network location</item>
-                                          <item id="NFS" translatable="yes">NFS location</item>
-                                          <item id="OTHER" translatable="yes">Other location</item>
+                                          <item id="URL" translatable="yes">Install from a specified URL</item>
+                                          <item id="NFS" translatable="yes">Install from a NFS server</item>
+                                          <item id="OTHER" translatable="yes">Install from another source</item>
                                         </items>
                                         <signal name="changed" handler="on_repoProtocolComboBox_changed" swapped="no"/>
                                       </object>
