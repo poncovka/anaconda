@@ -90,6 +90,15 @@ class BootLoaderFactory(object):
             from pyanaconda.modules.storage.bootloader.extlinux import EXTLINUX
             return EXTLINUX
 
+        if name == "SDBOOT":
+            platform_class = platform.platform.__class__
+            if platform_class is platform.Aarch64EFI:
+                from pyanaconda.modules.storage.bootloader.efi import Aarch64EFISystemdBoot
+                return Aarch64EFISystemdBoot
+            if platform_class is platform.EFI:
+                from pyanaconda.modules.storage.bootloader.efi import X64EFISystemdBoot
+                return X64EFISystemdBoot
+
         return None
 
     @classmethod
