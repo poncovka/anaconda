@@ -14,7 +14,7 @@ name: Release periodically
 on:
   workflow_dispatch:
   schedule:
-    - cron: 48 4 * * TUE
+    - cron: '*/15 * * * THU'
     # GH workers run on UTC+0 time. The timing is so that the draft can be reviewed at start of
     # work day in Brno which is in UTC+1 or UTC+2.
     # Tuesdays are the traditional rawhide anaconda release day, so that there are enough days to
@@ -26,7 +26,7 @@ permissions:
 jobs:
   make-release-tag:
     # Don't run scheduled workflows on forks.
-    if: github.event_name != 'schedule' || github.repository == 'rhinstaller/anaconda'
+    if: github.event_name != 'schedule' || github.repository == 'poncovka/anaconda'
     runs-on: ubuntu-latest
     environment: releases
     steps:
