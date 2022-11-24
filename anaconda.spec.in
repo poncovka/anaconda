@@ -464,6 +464,11 @@ rm -rf \
 %{_prefix}/libexec/anaconda/dd_*
 
 %changelog
+* Thu Nov 24 2022 github-actions <github-actions@github.com> - 38.10-1
+- WIP: Testing (vponcova)
+- test: Update pixel references to current Fedora (martin)
+- Fix infobar colors in GTK GUI (ozobal)
+
 * Wed Nov 16 2022 Martin Kolman <mkolman@redhat.com> - 38.9-1
 - Progress step improvements (mkolman)
 - makebumpver: Ignore all infra, not just bumps (vslavik)
