@@ -509,10 +509,10 @@ class BootloaderModule(KickstartBaseModule):
         """
         return [
             RecreateInitrdsTask(
+                storage=self.storage,
                 payload_type=payload_type,
                 kernel_versions=kernel_versions,
                 sysroot=conf.target.system_root,
-                storage=self.storage
             ),
             FixBTRFSBootloaderTask(
                 storage=self.storage,

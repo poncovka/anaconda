@@ -173,7 +173,7 @@ class CreateBLSEntriesTask(Task):
 class RecreateInitrdsTask(Task):
     """Installation task that recreates the initrds."""
 
-    def __init__(self, payload_type, kernel_versions, sysroot, storage):
+    def __init__(self, storage, payload_type, kernel_versions, sysroot):
         """Create a new task."""
         super().__init__()
         self._storage = storage
