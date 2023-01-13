@@ -16,94 +16,48 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from pyanaconda.core.path import join_paths
-from pyanaconda.modules.common.errors.installation import NonCriticalInstallationError, \
-    InstallationError
-from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
-from pyanaconda.modules.common.structures.payload import RepoConfigurationData
+from dasbus.typing import unwrap_variant
+
+from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.core.configuration.anaconda import conf
+from pyanaconda.core.constants import PAYLOAD_TYPE_DNF, \
+    SOURCE_TYPE_URL, SOURCE_TYPE_REPO_PATH, \
+    MULTILIB_POLICY_ALL, DRACUT_REPO_DIR
+from pyanaconda.modules.common.constants.services import PAYLOADS
+from pyanaconda.modules.common.errors.payload import SourceSetupError
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
     PackagesSelectionData
+from pyanaconda.modules.common.structures.payload import RepoConfigurationData
 from pyanaconda.modules.common.structures.validation import ValidationReport
-from pyanaconda.modules.payloads.payload.dnf.initialization import configure_dnf_logging
-from pyanaconda.modules.payloads.payload.dnf.installation import ImportRPMKeysTask, \
-    SetRPMMacrosTask, DownloadPackagesTask, InstallPackagesTask, PrepareDownloadLocationTask, \
-    CleanUpDownloadLocationTask, ResolvePackagesTask, UpdateDNFConfigurationTask, \
-    WriteRepositoriesTask
+from pyanaconda.modules.common.task import sync_run_task
+from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManagerError
 from pyanaconda.modules.payloads.payload.dnf.repositories import \
-    generate_driver_disk_repositories, generate_treeinfo_repositories
-from pyanaconda.modules.payloads.payload.dnf.tear_down import ResetDNFManagerTask
-from pyanaconda.modules.payloads.payload.dnf.utils import get_kernel_version_list, \
-    calculate_required_space
-from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager, DNFManagerError, \
-    MetadataError
-from pyanaconda.modules.payloads.source.harddrive.initialization import SetUpHardDriveSourceTask
+    generate_driver_disk_repositories
+from pyanaconda.payload.manager import payloadMgr as payload_manager
 from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
-from pyanaconda.modules.payloads.source.nfs.initialization import SetUpNFSSourceTask
 from pyanaconda.modules.payloads.source.utils import verify_valid_repository
+from pyanaconda.payload.migrated import MigratedDBusPayload
 from pyanaconda.payload.source import SourceFactory, PayloadSourceTypeUnrecognized
-from pyanaconda.anaconda_loggers import get_packaging_logger
-from pyanaconda.core import constants
-from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
-    SOURCE_TYPE_URL, URL_TYPE_BASEURL, SOURCE_REPO_FILE_TYPES, SOURCE_TYPE_REPO_PATH, \
-    SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL, REPO_ORIGIN_SYSTEM, SOURCE_TYPE_CLOSEST_MIRROR, \
-    REPO_ORIGIN_TREEINFO, DRACUT_REPO_DIR
-from pyanaconda.core.i18n import _
-from pyanaconda.core.payload import parse_hdd_url
-from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
-from pyanaconda.flags import flags
-from pyanaconda.modules.common.constants.services import SUBSCRIPTION
-from pyanaconda.modules.common.util import is_module_available
-from pyanaconda.payload.base import Payload
-from pyanaconda.modules.payloads.payload.dnf.tree_info import TreeInfoMetadata, NoTreeInfoError, \
-    TreeInfoMetadataError
-from pyanaconda.ui.lib.payload import get_payload, get_source, create_source, set_source, \
-    set_up_sources, tear_down_sources
+from pyanaconda.ui.lib.payload import create_source, set_source, set_up_sources, tear_down_sources
+from pyanaconda.ui.lib.software import check_software_selection
 
 __all__ = ["DNFPayload"]
 
-log = get_packaging_logger()
+log = get_module_logger(__name__)
 
 
-class DNFPayload(Payload):
+class DNFPayload(MigratedDBusPayload):
+    """The DNF payload class."""
 
     def __init__(self, data):
         super().__init__()
-        self.data = data
-
-        # Validation report from the payload setup.
         self._report = ValidationReport()
-
-        # Get a DBus payload to use.
-        self._payload_proxy = get_payload(self.type)
-
-        self.tx_id = None
-
-        self._dnf_manager = DNFManager()
-
-        # List of internal mount points.
-        self._mount_points = []
-
-        # Configure the DNF logging.
-        configure_dnf_logging()
+        self._software_validation_required = True
 
     @property
-    def dnf_manager(self):
-        """The DNF manager."""
-        return self._dnf_manager
-
-    @property
-    def _base(self):
-        """Return a DNF base.
-
-        FIXME: This is a temporary property.
-        """
-        return self._dnf_manager._base
-
-    @property
-    def report(self):
-        """The latest report from the payload setup."""
-        return self._report
+    def type(self):
+        """The DBus type of the payload."""
+        return PAYLOAD_TYPE_DNF
 
     def set_from_opts(self, opts):
         """Set the payload from the Anaconda cmdline options.
@@ -249,28 +203,6 @@ class DNFPayload(Payload):
             configuration.multilib_policy = MULTILIB_POLICY_ALL
             self.set_packages_configuration(configuration)
 
-    @property
-    def type(self):
-        """The DBus type of the payload."""
-        return PAYLOAD_TYPE_DNF
-
-    def get_source_proxy(self):
-        """Get the DBus proxy of the RPM source.
-
-        The default source for the DNF payload is set via
-        the default_source option in the payload section
-        of the Anaconda config file.
-
-        :return: a DBus proxy
-        """
-        return get_source(self.proxy)
-
-    @property
-    def source_type(self):
-        """The DBus type of the source."""
-        source_proxy = self.get_source_proxy()
-        return source_proxy.Type
-
     def get_repo_configurations(self) -> [RepoConfigurationData]:
         """Get a list of DBus repo configurations."""
         return RepoConfigurationData.from_structure_list(
@@ -306,150 +238,10 @@ class DNFPayload(Payload):
 
     def is_ready(self):
         """Is the payload ready?"""
-        enabled_repos = self._dnf_manager.enabled_repositories
-
-        # If CDN is used as the installation source and we have
-        # a subscription attached then any of the enabled repos
-        # should be fine as the base repo.
-        # If CDN is used but subscription has not been attached
-        # there will be no redhat.repo file to parse and we
-        # don't need to do anything.
-        if self.source_type == SOURCE_TYPE_CDN:
-            return self._is_cdn_set_up() and enabled_repos
-
-        # Otherwise, a base repository has to be enabled.
-        return any(map(self._is_base_repo, enabled_repos))
-
-    def _is_cdn_set_up(self):
-        """Is the CDN source set up?"""
-        if not self.source_type == SOURCE_TYPE_CDN:
+        if payload_manager.is_running:
             return False
 
-        if not is_module_available(SUBSCRIPTION):
-            return False
-
-        subscription_proxy = SUBSCRIPTION.get_proxy()
-        return subscription_proxy.IsSubscriptionAttached
-
-    def _is_base_repo(self, repo_id):
-        """Is it a base repository?"""
-        return repo_id == constants.BASE_REPO_NAME \
-            or repo_id in constants.DEFAULT_REPOS
-
-    def unsetup(self):
-        self._dnf_manager.reset_base()
-        tear_down_sources(self.proxy)
-
-    @property
-    def needs_network(self):
-        """Do the sources require a network?"""
-        return self.service_proxy.IsNetworkRequired()
-
-    def bump_tx_id(self):
-        if self.tx_id is None:
-            self.tx_id = 1
-        else:
-            self.tx_id += 1
-        return self.tx_id
-
-    def _get_proxy_url(self):
-        """Get a proxy of the current source.
-
-        :return: a proxy or None
-        """
-        source_proxy = self.get_source_proxy()
-        source_type = source_proxy.Type
-
-        if source_type != SOURCE_TYPE_URL:
-            return None
-
-        data = RepoConfigurationData.from_structure(
-            source_proxy.RepoConfiguration
-        )
-
-        return data.proxy
-
-    ###
-    # METHODS FOR WORKING WITH REPOSITORIES
-    ###
-
-    def _handle_system_repository(self, data):
-        """Handle a system repository.
-
-        The user is trying to do "repo --name=updates" in a kickstart file.
-        We can only enable or disable the already existing on-disk repo config.
-
-        :raise: SourceSetupError if the system repository is not available
-        """
-        try:
-            self._dnf_manager.set_repository_enabled(data.name, data.enabled)
-        except UnknownRepositoryError:
-            msg = "The '{}' repository is not one of the pre-defined repositories."
-            raise SourceSetupError(msg.format(data.name)) from None
-
-    def _set_up_additional_repository(self, data):
-        """Set up sources for the additional repository."""
-        # Check the validity of the repository.
-        if not data.url:
-            msg = _("The '{repository_name}' repository has no mirror, baseurl or metalink set.")
-            raise SourceSetupError(msg.format(repository_name=data.name)) from None
-
-        # There is nothing to set up for sources natively supported by DNF.
-        if any(data.url.startswith(p) for p in ["file:", "http:", "https:", "ftp:"]):
-            return
-
-        # Set up the NFS source with a substituted URL.
-        if data.url.startswith("nfs:"):
-            device_mount = self._create_mount_point(
-                constants.MOUNT_DIR,
-                data.name + "-nfs-device"
-            )
-            iso_mount = self._create_mount_point(
-                constants.MOUNT_DIR,
-                data.name + "-nfs-iso"
-            )
-            task = SetUpNFSSourceTask(
-                device_mount=device_mount,
-                iso_mount=iso_mount,
-                url=self._dnf_manager.substitute(data.url)
-            )
-            mount_point = task.run()
-            data.url = "file://" + mount_point
-            return
-
-        # Set up the HDD source.
-        if data.url.startswith("hd:"):
-            device_mount = self._create_mount_point(
-                ISO_DIR + "-" + data.name + "-hdd-device"
-            )
-            iso_mount = self._create_mount_point(
-                INSTALL_TREE + "-" + data.name + "-hdd-iso"
-            )
-
-            partition, directory = parse_hdd_url(data.url)
-
-            task = SetUpHardDriveSourceTask(
-                device_mount=device_mount,
-                iso_mount=iso_mount,
-                partition=partition,
-                directory=directory,
-            )
-            result = task.run()
-            data.url = "file://" + result.install_tree_path
-            return
-
-        # Otherwise, raise an error.
-        msg = _("The '{repository_name}' repository uses an unsupported protocol.")
-        raise SourceSetupError(msg.format(repository_name=data.name)) from None
-
-    def _create_mount_point(self, *paths):
-        """Create a mount point from specified paths.
-
-        FIXME: This is a temporary workaround.
-        """
-        mount_point = join_paths(*paths)
-        self._mount_points.append(mount_point)
-        return mount_point
+        return self.proxy.GetEnabledRepositories()
 
     def _tear_down_additional_sources(self):
         """Tear down sources of additional repositories.
@@ -462,58 +254,9 @@ class DNFPayload(Payload):
             task.run()
 
     @property
-    def space_required(self):
-        return calculate_required_space(self._dnf_manager)
-
-    def install(self):
-        self._progress_cb(0, _('Starting package installation process'))
-
-        # Get the packages configuration and selection data.
-        configuration = self.get_packages_configuration()
-        selection = self.get_packages_selection()
-
-        # Add the rpm macros to the global transaction environment
-        task = SetRPMMacrosTask(configuration)
-        task.run()
-
-        try:
-            # Resolve packages.
-            task = ResolvePackagesTask(self._dnf_manager, selection)
-            task.run()
-        except NonCriticalInstallationError as e:
-            # FIXME: This is a temporary workaround.
-            # Allow users to handle the error. If they don't want
-            # to continue with the installation, raise a different
-            # exception to make sure that we will not run the error
-            # handler again.
-            if error_handler.cb(e) == ERROR_RAISE:
-                raise InstallationError(str(e)) from e
-
-        # Set up the download location.
-        task = PrepareDownloadLocationTask(self._dnf_manager)
-        task.run()
-
-        # Download the packages.
-        task = DownloadPackagesTask(self._dnf_manager)
-        task.progress_changed_signal.connect(self._progress_cb)
-        task.run()
-
-        # Install the packages.
-        task = InstallPackagesTask(self._dnf_manager)
-        task.progress_changed_signal.connect(self._progress_cb)
-        task.run()
-
-        # Clean up the download location.
-        task = CleanUpDownloadLocationTask(self._dnf_manager)
-        task.run()
-
-    def _is_source_default(self):
-        """Report if the current source type is the default source type.
-
-        NOTE: If no source was set previously a new default one
-              will be created.
-        """
-        return self.source_type == conf.payload.default_source
+    def report(self):
+        """The latest report from the payload setup."""
+        return self._report
 
     # pylint: disable=arguments-differ
     def setup(self, report_progress, only_on_change=False):
@@ -522,318 +265,48 @@ class DNFPayload(Payload):
         :param function report_progress: a callback for a progress reporting
         :param bool only_on_change: restart thread only if existing repositories changed
         """
-        self._report = ValidationReport()
-
-        # Test if any repository changed from the last update
+        # Test if any repository changed from the last update.
         if only_on_change:
             log.debug("Testing repositories availability")
-            if self.dnf_manager.verify_repomd_hashes():
+            task_path = self.proxy.VerifyRepomdHashesWithTask()
+            task_proxy = PAYLOADS.get_proxy(task_path)
+            sync_run_task(task_proxy)
+
+            result = unwrap_variant(task_proxy.GetResult())
+            report = ValidationReport.from_structure(result)
+
+            if not report.is_valid():
                 log.debug("Payload isn't restarted, repositories are still available.")
                 return
 
-        # Download package metadata
-        report_progress(_("Downloading package metadata..."))
+        # It will be necessary to validate the software selection again.
+        self._software_validation_required = True
+
+        # Set up repositories and download their metadata.
+        self._report = ValidationReport()
 
         try:
-            self._update_base_repo()
+            log.debug("Tearing down sources")
+            tear_down_sources(self.proxy)
+
+            log.debug("Setting up sources")
+            set_up_sources(self.proxy)
+
         except (OSError, SourceSetupError, DNFManagerError) as e:
             self._report.error_messages.append(str(e))
             raise SourceSetupError(str(e)) from e
 
-        # Gather the group data
-        report_progress(_("Downloading group metadata..."))
-        self.dnf_manager.load_packages_metadata()
-
-        # Check if that failed
-        if not self.is_ready():
-            msg = _("No base repository is configured.")
-            self._report.error_messages.append(msg)
-            raise SourceSetupError(msg)
-
-        # run payload specific post configuration tasks
-        self.dnf_manager.load_repomd_hashes()
-
-    def _update_base_repo(self):
-        """Update the base repository from the DBus source."""
-        log.debug("Tearing down sources")
-        tear_down_sources(self.proxy)
-        self._tear_down_additional_sources()
-
-        log.debug("Preparing the DNF base")
-        self.tx_id = None
-
-        self._dnf_manager.clear_cache()
-        self._dnf_manager.reset_substitution()
-        self._dnf_manager.configure_base(self.get_packages_configuration())
-        self._dnf_manager.configure_proxy(self._get_proxy_url())
-        self._dnf_manager.dump_configuration()
-        self._dnf_manager.read_system_repositories()
-
-        log.info("Configuring the base repo")
-
-        # Set up the source.
-        set_up_sources(self.proxy)
-
-        # Set up the base repo.
-        if self.source_type not in SOURCE_REPO_FILE_TYPES:
-            self._add_base_repository()
-        else:
-            # Remove all treeinfo repositories.
-            self._remove_treeinfo_repositories()
-
-            # If this is a kickstart install, just return now as we normally do not
-            # want to read the on media repo files in such a case. On the other hand,
-            # the local repo files are a valid use case if the system is subscribed
-            # and the CDN is selected as the installation source.
-            if flags.automatedInstall and not self._is_cdn_set_up():
-                return
-
-            # Otherwise, fall back to the default repos that we disabled above
-            self._enable_system_repositories()
-
-        self._include_additional_repositories()
-        self._validate_enabled_repositories()
-
-    def _add_base_repository(self):
-        """Add the base repository.
-
-        Try to add a valid base repository to the DNF base.
-
-        :raise: DNFManagerError if the repo is invalid
-        """
-        # Get the repo configuration of the first source.
-        data = RepoConfigurationData.from_structure(
-            self.proxy.GetRepoConfigurations()[0]
-        )
-
-        log.debug("Using the repo configuration: %s", data)
-        data.name = constants.BASE_REPO_NAME
-
-        # Process the treeinfo metadata.
-        treeinfo_base_repo_url = self._reload_treeinfo_metadata(data)
-
-        if treeinfo_base_repo_url:
-            data.type = URL_TYPE_BASEURL
-            data.url = treeinfo_base_repo_url
-
-        log.debug("Add the base repository at %s.", data.url)
-
-        try:
-            self._dnf_manager.add_repository(data)
-            self._dnf_manager.load_repository(data.name)
-        except DNFManagerError as e:
-            log.error("The base repository is invalid: %s", str(e))
-            self._dnf_manager.remove_repository(data.name)
-            raise e
-
-    def _enable_system_repositories(self):
-        """Enable system repositories.
-
-        * Restore previously disabled system repositories.
-        * Enable or disable system repositories based on the current configuration.
-        """
-        self._dnf_manager.restore_system_repositories()
-
-        log.debug("Enable or disable updates repositories.")
-        updates_enabled = self._get_updates_enabled()
-        self._set_repositories_enabled(conf.payload.updates_repositories, updates_enabled)
-
-        log.debug("Disable repositories based on the Anaconda configuration file.")
-        self._set_repositories_enabled(conf.payload.disabled_repositories, False)
-
-        if constants.isFinal:
-            log.debug("Disable rawhide repositories.")
-            self._set_repositories_enabled(["*rawhide*"], False)
-
-    def _get_updates_enabled(self):
-        """Are latest updates enabled?"""
-        source_proxy = self.get_source_proxy()
-        source_type = source_proxy.Type
-
-        if source_type == SOURCE_TYPE_CLOSEST_MIRROR:
-            return source_proxy.UpdatesEnabled
-        else:
-            return False
-
-    def _set_repositories_enabled(self, patterns, enabled):
-        """Enable or disable matching repositories.
-
-        :param patterns: a list of patterns to match the repo ids
-        :param enabled: True to enable, False to disable
-        """
-        repo_ids = set()
-
-        for pattern in patterns:
-            repo_ids.update(self._dnf_manager.get_matching_repositories(pattern))
-
-        for repo_id in sorted(repo_ids):
-            self.dnf_manager.set_repository_enabled(repo_id, enabled)
-
-    def _include_additional_repositories(self):
-        """Add additional repositories to DNF."""
-        for data in self.get_repo_configurations():
-            log.debug("Add the '%s' repository (%s).", data.name, data)
-
-            # A system repository can be only enabled or disabled.
-            if data.origin == REPO_ORIGIN_SYSTEM:
-                self._handle_system_repository(data)
-                return
-
-            # Set up additional sources.
-            self._set_up_additional_repository(data)
-
-            # Add a new repository.
-            self._dnf_manager.add_repository(data)
-
-            # Load an enabled repository to check its validity.
-            self._dnf_manager.load_repository(data.name)
-
-    def _validate_enabled_repositories(self):
-        """Validate all enabled repositories.
-
-        Collect error messages about invalid repositories.
-        All invalid repositories are disabled.
-
-        The user repositories are validated when we add them
-        to DNF, so this covers invalid system repositories.
-        """
-        for repo_id in self.dnf_manager.enabled_repositories:
-            try:
-                self.dnf_manager.load_repository(repo_id)
-            except MetadataError as e:
-                self._report.warning_messages.append(str(e))
-
-    def _reload_treeinfo_metadata(self, repo_data):
-        """Reload treeinfo metadata.
-
-        :param RepoConfigurationData repo_data: configuration data of the base repo
-        :return: a URL of the base repository
-        """
-        log.debug("Reload treeinfo metadata.")
-        base_repo_url = None
-
-        try:
-            # Load the treeinfo metadata.
-            tree_info_metadata = TreeInfoMetadata()
-            tree_info_metadata.load_data(repo_data)
-
-            # Set up the substitutions.
-            self._dnf_manager.configure_substitution(
-                tree_info_metadata.release_version
-            )
-
-            # Get the new base repo URL.
-            base_repo_url = tree_info_metadata.get_base_repo_url()
-
-            # Add the treeinfo repositories.
-            repositories = generate_treeinfo_repositories(
-                repo_data,
-                tree_info_metadata
-            )
-
-            self._update_treeinfo_repositories(
-                treeinfo_repositories=repositories,
-                existing_urls=[base_repo_url],
-            )
-        except NoTreeInfoError as e:
-            log.debug("No treeinfo metadata to use: %s", str(e))
-            self._remove_treeinfo_repositories()
-
-        except TreeInfoMetadataError as e:
-            log.warning("Couldn't use treeinfo metadata: %s", str(e))
-            self._remove_treeinfo_repositories()
-
-        return base_repo_url
-
-    def _update_treeinfo_repositories(self, treeinfo_repositories, existing_urls):
-        """Add the treeinfo repositories.
-
-        :param [RepoConfigurationData] treeinfo_repositories: a list of treeinfo repositories
-        :param [str] existing_urls: a list of repository URLs that already exist
-        """
-        log.debug("Update treeinfo repositories...")
-
-        # Get the additional repositories.
-        repositories = self.get_repo_configurations()
-
-        # Remember names of disabled treeinfo repositories.
-        disabled_names = [
-            r.name for r in repositories
-            if not r.enabled and r.origin == REPO_ORIGIN_TREEINFO
-        ]
-
-        # Remove the previous treeinfo repositories.
-        log.debug("Remove all treeinfo repositories.")
-
-        repositories = [
-            r for r in repositories
-            if r.origin != REPO_ORIGIN_TREEINFO
-        ]
-
-        # Collect URLs of non-treeinfo repositories.
-        existing_urls += [r.url for r in repositories if r.url]
-
-        # Add the new treeinfo repositories.
-        for repo in treeinfo_repositories:
-            # Skip existing repositories.
-            if repo.url in existing_urls:
-                continue
-
-            # Disable if previously disabled.
-            if repo.name in disabled_names:
-                repo.enabled = False
-
-            repositories.append(repo)
-            log.debug("Add the '%s' treeinfo repository: %s", repo.name, repo)
-
-        # Set the additional repositories.
-        self.set_repo_configurations(repositories)
-
-    def _remove_treeinfo_repositories(self):
-        """Remove all old treeinfo repositories before loading new ones.
-
-        Find all repositories added from treeinfo file and remove them.
-        After this step new repositories will be loaded from the new link.
-        """
-        log.debug("Remove all treeinfo repositories.")
-        repositories = [
-            r for r in self.get_repo_configurations()
-            if r.origin != REPO_ORIGIN_TREEINFO
-        ]
-        self.set_repo_configurations(repositories)
-
-    def post_install(self):
-        """Perform post-installation tasks."""
-        super().post_install()
-
-        # Write selected kickstart repos to target system
-        task = WriteRepositoriesTask(
-            sysroot=conf.target.system_root,
-            dnf_manager=self.dnf_manager,
-            repositories=self.get_repo_configurations(),
-        )
-        task.run()
-
-        # rpm needs importing installed certificates manually, see rhbz#748320 and rhbz#185800
-        task = ImportRPMKeysTask(
-            sysroot=conf.target.system_root,
-            gpg_keys=conf.payload.default_rpm_gpg_keys
-        )
-        task.run()
-
-        # Update the DNF configuration.
-        task = UpdateDNFConfigurationTask(
-            sysroot=conf.target.system_root,
-            data=self.get_packages_configuration()
-        )
-        task.run()
-
-        # Close the DNF base.
-        task = ResetDNFManagerTask(
-            dnf_manager=self.dnf_manager
-        )
-        task.run()
-
     @property
-    def kernel_version_list(self):
-        return get_kernel_version_list()
+    def software_validation_required(self):
+        """Is it necessary to validate the software selection?"""
+        return self._software_validation_required
+
+    def check_software_selection(self, selection):
+        """Check the software selection."""
+        report = check_software_selection(
+            dnf_proxy=self.proxy,
+            selection=selection
+        )
+
+        self._software_validation_required = False
+        return report

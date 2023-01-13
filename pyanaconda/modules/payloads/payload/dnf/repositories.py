@@ -80,6 +80,7 @@ def generate_treeinfo_repositories(repo_data: RepoConfigurationData, tree_info_m
     :param TreeInfoMetadata tree_info_metadata: metadata of the repository
     :return: a list of generated repo configuration data
     """
+    log.debug("Generate treeinfo repositories...")
     repositories = []
 
     for repo_md in tree_info_metadata.repositories:
@@ -96,4 +97,52 @@ def generate_treeinfo_repositories(repo_data: RepoConfigurationData, tree_info_m
 
         repositories.append(repo)
 
+    return repositories
+
+
+def update_treeinfo_repositories(repositories, treeinfo_repositories):
+    """Update the treeinfo repositories.
+
+    :param [RepoConfigurationData] repositories: a list of repositories to update
+    :param [RepoConfigurationData] treeinfo_repositories: a list of treeinfo repositories
+    :return [RepoConfigurationData]: an updated list of repositories
+    """
+    log.debug("Update treeinfo repositories...")
+
+    # Remember previously disabled treeinfo repositories.
+    disabled_names = [
+        r.name for r in repositories
+        if r.origin == REPO_ORIGIN_TREEINFO and not r.enabled
+    ]
+
+    # Remove the previous treeinfo repositories.
+    log.debug("Remove all treeinfo repositories.")
+
+    repositories = [
+        r for r in repositories
+        if r.origin != REPO_ORIGIN_TREEINFO
+    ]
+
+    # Collect urls of non-treeinfo repositories.
+    existing_urls = [
+        r.url for r in repositories if r.url
+    ]
+
+    # Collect URLs of non-treeinfo repositories.
+    existing_urls += [r.url for r in repositories if r.url]
+
+    # Add the new treeinfo repositories.
+    for repo in treeinfo_repositories:
+        # Skip existing repositories.
+        if repo.url in existing_urls:
+            continue
+
+        # Disable if previously disabled.
+        if repo.name in disabled_names:
+            repo.enabled = False
+
+        repositories.append(repo)
+        log.debug("Add the '%s' treeinfo repository: %s", repo.name, repo)
+
+    # Return the updated list of repositories.
     return repositories

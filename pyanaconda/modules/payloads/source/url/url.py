@@ -35,17 +35,10 @@ log = get_module_logger(__name__)
 class URLSourceModule(PayloadSourceBase, RPMSourceMixin):
     """The URL source payload module."""
 
-    REPO_NAME_ID = 0
-
-    def __init__(self):
+    def __init__(self, repo_configuration=None):
         super().__init__()
-        self._url_source_name = ""
-        self._generate_source_name()
-
-        self._repo_configuration = RepoConfigurationData()
+        self._repo_configuration = repo_configuration or RepoConfigurationData()
         self.repo_configuration_changed = Signal()
-
-        self._repo_configuration.name = self._url_source_name
 
     def __repr__(self):
         return "Source(type='URL', url='{}')".format(self._repo_configuration.url)
@@ -53,12 +46,6 @@ class URLSourceModule(PayloadSourceBase, RPMSourceMixin):
     def for_publication(self):
         """Get the interface used to publish this source."""
         return URLSourceInterface(self)
-
-    def _generate_source_name(self):
-        source_id = URLSourceModule.REPO_NAME_ID
-        URLSourceModule.REPO_NAME_ID = URLSourceModule.REPO_NAME_ID + 1
-
-        self._url_source_name = "{}-{}".format(BASE_REPO_NAME, source_id)
 
     def get_state(self):
         """Get state of this source."""
@@ -94,7 +81,6 @@ class URLSourceModule(PayloadSourceBase, RPMSourceMixin):
     def process_kickstart(self, data):
         """Process the kickstart data."""
         repo_data = RepoConfigurationData()
-        repo_data.name = self._url_source_name
 
         if data.url.url:
             repo_data.url = data.url.url
@@ -167,12 +153,7 @@ class URLSourceModule(PayloadSourceBase, RPMSourceMixin):
         """
         self._validate_url(repo_configuration.type)
         self._validate_proxy(repo_configuration.proxy)
-
         self._repo_configuration = repo_configuration
-
-        if not self._repo_configuration.name:
-            self._repo_configuration.name = self._url_source_name
-
         self.repo_configuration_changed.emit(self._repo_configuration)
         log.debug("The repo_configuration is set to %s", self._repo_configuration)
 

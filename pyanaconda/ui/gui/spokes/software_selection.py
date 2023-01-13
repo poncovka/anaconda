@@ -33,7 +33,7 @@ from pyanaconda.ui.gui.spokes.lib.detailederror import DetailedErrorDialog
 from pyanaconda.ui.gui.spokes.lib.software_selection import GroupListBoxRow, SeparatorRow, \
     EnvironmentListBoxRow
 from pyanaconda.ui.lib.software import SoftwareSelectionCache, get_software_selection_status, \
-    is_software_selection_complete
+    is_software_selection_complete, check_software_selection, get_group_data, get_environment_data
 from pyanaconda.ui.lib.subscription import is_cdn_registration_required
 
 import gi
@@ -74,10 +74,9 @@ class SoftwareSelectionSpoke(NormalSpoke):
         super().__init__(*args, **kwargs)
         self._errors = []
         self._warnings = []
-        self._tx_id = None
 
         # Get the packages selection data.
-        self._selection_cache = SoftwareSelectionCache(self._dnf_manager)
+        self._selection_cache = SoftwareSelectionCache(self.payload.proxy)
         self._kickstarted = flags.automatedInstall and self.payload.proxy.PackagesKickstarted
 
         # Get the UI elements.
@@ -94,11 +93,6 @@ class SoftwareSelectionSpoke(NormalSpoke):
         self._addon_list_box.set_focus_vadjustment(
             Gtk.Scrollable.get_vadjustment(addon_viewport)
         )
-
-    @property
-    def _dnf_manager(self):
-        """The DNF manager."""
-        return self.payload.dnf_manager
 
     @property
     def _selection(self):
@@ -137,7 +131,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
         if not self._kickstarted:
             # Use the default environment.
             self._selection_cache.select_environment(
-                self._dnf_manager.default_environment
+                self.payload.proxy.GetDefaultEnvironment()
             )
 
             # Apply the default selection.
@@ -170,7 +164,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
     @property
     def _source_has_changed(self):
         """Has the installation source changed?"""
-        return self._tx_id != self.payload.tx_id
+        return self.payload.software_validation_required
 
     @property
     def _processing_data(self):
@@ -196,7 +190,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
             return _("Warning checking software selection")
 
         return get_software_selection_status(
-            dnf_manager=self._dnf_manager,
+            dnf_proxy=self.payload.proxy,
             selection=self._selection,
             kickstarted=self._kickstarted
         )
@@ -208,7 +202,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
             and not self._errors \
             and not self._source_has_changed \
             and is_software_selection_complete(
-                dnf_manager=self._dnf_manager,
+                dnf_proxy=self.payload.proxy,
                 selection=self._selection,
                 kickstarted=self._kickstarted
             )
@@ -218,7 +212,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
         threadMgr.wait(THREAD_PAYLOAD)
 
         # Create a new software selection cache.
-        self._selection_cache = SoftwareSelectionCache(self._dnf_manager)
+        self._selection_cache = SoftwareSelectionCache(self.payload.proxy)
         self._selection_cache.apply_selection_data(self._selection)
 
         # Refresh up the UI.
@@ -245,7 +239,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
 
         for environment in self._selection_cache.available_environments:
             # Get the environment data.
-            data = self._dnf_manager.get_environment_data(environment)
+            data = get_environment_data(self.payload.proxy, environment)
             selected = self._selection_cache.is_environment_selected(environment)
 
             # Add a new environment row.
@@ -260,8 +254,9 @@ class SoftwareSelectionSpoke(NormalSpoke):
 
         if self._selection_cache.environment:
             # Get the environment data.
-            environment_data = self._dnf_manager.get_environment_data(
-                self._selection_cache.environment
+            environment_data = get_environment_data(
+                dnf_proxy=self.payload.proxy,
+                environment_name=self._selection_cache.environment,
             )
 
             # Add all optional groups.
@@ -284,7 +279,7 @@ class SoftwareSelectionSpoke(NormalSpoke):
     def _add_group_row(self, group):
         """Add a new row for the specified group."""
         # Get the group data.
-        data = self._dnf_manager.get_group_data(group)
+        data = get_group_data(self.payload.proxy, group)
         selected = self._selection_cache.is_group_selected(group)
 
         # Add a new group row.
@@ -317,23 +312,11 @@ class SoftwareSelectionSpoke(NormalSpoke):
 
     def _check_software_selection(self):
         hubQ.send_message(self.__class__.__name__, _(PAYLOAD_STATUS_CHECKING_SOFTWARE))
-        self.payload.bump_tx_id()
-
-        # Run the validation task.
-        from pyanaconda.modules.payloads.payload.dnf.validation import CheckPackagesSelectionTask
-
-        task = CheckPackagesSelectionTask(
-            dnf_manager=self._dnf_manager,
-            selection=self._selection,
-        )
-
-        # Get the validation report.
-        report = task.run()
+        report = self.payload.check_software_selection(self._selection)
 
         log.debug("The selection has been checked: %s", report)
         self._errors = list(report.error_messages)
         self._warnings = list(report.warning_messages)
-        self._tx_id = self.payload.tx_id
 
         hubQ.send_ready(self.__class__.__name__)
         hubQ.send_ready("SourceSpoke")

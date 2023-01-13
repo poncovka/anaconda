@@ -17,6 +17,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+import copy
 import os
 
 from pyanaconda.anaconda_loggers import get_module_logger
@@ -37,7 +38,7 @@ log = get_module_logger(__name__)
 class HardDriveSourceModule(PayloadSourceBase, RPMSourceMixin):
     """The Hard drive source payload module."""
 
-    def __init__(self):
+    def __init__(self, repo_configuration):
         super().__init__()
         self._directory = ""
         self.directory_changed = Signal()
@@ -51,6 +52,7 @@ class HardDriveSourceModule(PayloadSourceBase, RPMSourceMixin):
             self.type.value.lower() + "-iso"
         )
         self._iso_name = ""
+        self._repo_configuration = repo_configuration or RepoConfigurationData()
 
     def __repr__(self):
         result = "Source(type='HDD', partition='{}', directory='{}')".format(
@@ -108,7 +110,9 @@ class HardDriveSourceModule(PayloadSourceBase, RPMSourceMixin):
 
     def generate_repo_configuration(self):
         """Generate RepoConfigurationData structure."""
-        return RepoConfigurationData.from_directory(self.install_tree_path)
+        data = copy.deepcopy(self._repo_configuration)
+        data.url = join_paths("file:///", self.install_tree_path)
+        return data
 
     @property
     def directory(self):

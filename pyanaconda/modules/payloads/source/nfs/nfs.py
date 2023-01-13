@@ -17,7 +17,10 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+import copy
 import os.path
+
+from pyanaconda.core.path import join_paths
 
 from pyanaconda.core.i18n import _
 from pyanaconda.core.payload import create_nfs_url, parse_nfs_url
@@ -43,7 +46,7 @@ class NFSSourceModule(PayloadSourceBase, RPMSourceMixin):
     TODO: Add install_tree_path property.
     """
 
-    def __init__(self):
+    def __init__(self, repo_configuration):
         super().__init__()
         self._url = ""
         self.url_changed = Signal()
@@ -54,6 +57,7 @@ class NFSSourceModule(PayloadSourceBase, RPMSourceMixin):
         self._iso_mount = MountPointGenerator.generate_mount_point(
             self.type.value.lower() + "-iso"
         )
+        self._repo_configuration = repo_configuration or RepoConfigurationData()
 
     def __repr__(self):
         return "Source(type='NFS', url='{}')".format(self.url)
@@ -110,7 +114,9 @@ class NFSSourceModule(PayloadSourceBase, RPMSourceMixin):
 
     def generate_repo_configuration(self):
         """Generate RepoConfigurationData structure."""
-        return RepoConfigurationData.from_directory(self.install_tree_path)
+        data = copy.deepcopy(self._repo_configuration)
+        data.url = join_paths("file:///", self.install_tree_path)
+        return data
 
     @property
     def url(self):
