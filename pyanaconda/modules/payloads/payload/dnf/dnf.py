@@ -28,12 +28,24 @@ from pyanaconda.modules.payloads.kickstart import convert_ks_repo_to_repo_data, 
     convert_packages_selection_to_ksdata, convert_ks_data_to_packages_configuration, \
     convert_packages_configuration_to_ksdata
 from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager
+from pyanaconda.modules.payloads.payload.dnf.initialization import configure_dnf_logging
+from pyanaconda.modules.payloads.payload.dnf.installation import SetRPMMacrosTask, \
+    ResolvePackagesTask, PrepareDownloadLocationTask, DownloadPackagesTask, InstallPackagesTask, \
+    CleanUpDownloadLocationTask, WriteRepositoriesTask, ImportRPMKeysTask, \
+    UpdateDNFConfigurationTask
+from pyanaconda.modules.payloads.payload.dnf.tear_down import ResetDNFManagerTask
+from pyanaconda.modules.payloads.payload.dnf.utils import calculate_required_space, \
+    get_kernel_version_list
 from pyanaconda.modules.payloads.payload.payload_base import PayloadBase
 from pyanaconda.modules.payloads.payload.dnf.dnf_interface import DNFInterface
 from pyanaconda.modules.payloads.source.factory import SourceFactory
 from pyanaconda.modules.payloads.source.utils import has_network_protocol
 
+# Set up the modules logger.
 log = get_module_logger(__name__)
+
+# Configure the DNF logging.
+configure_dnf_logging()
 
 __all__ = ["DNFModule"]
 
@@ -310,6 +322,14 @@ class DNFModule(PayloadBase):
         """
         return self.dnf_manager.verify_repomd_hashes()
 
+    def calculate_required_space(self):
+        """Calculate space required for the installation.
+
+        :return: required size in bytes
+        :rtype: int
+        """
+        return calculate_required_space(self.dnf_manager)
+
     def get_repo_configurations(self):
         """Get RepoConfiguration structures for all sources.
 
@@ -332,13 +352,61 @@ class DNFModule(PayloadBase):
 
         :return: list of tasks
         """
-        # TODO: Implement this method
-        return []
+        tasks = [
+            SetRPMMacrosTask(
+                configuration=self.packages_configuration
+            ),
+            ResolvePackagesTask(
+                dnf_manager=self.dnf_manager,
+                selection=self.packages_selection,
+            ),
+            PrepareDownloadLocationTask(
+                dnf_manager=self.dnf_manager,
+            ),
+            DownloadPackagesTask(
+                dnf_manager=self.dnf_manager,
+            ),
+            InstallPackagesTask(
+                dnf_manager=self.dnf_manager,
+            ),
+            CleanUpDownloadLocationTask(
+                dnf_manager=self.dnf_manager,
+            ),
+        ]
+
+        for task in tasks:
+            if isinstance(task, InstallPackagesTask):
+                task.succeeded_signal.connect(
+                    self._update_kernel_version_list
+                )
+
+        return tasks
+
+    def _update_kernel_version_list(self):
+        """Update the kernel versions list."""
+        kernel_list = get_kernel_version_list()
+        self.set_kernel_version_list(kernel_list)
 
     def post_install_with_tasks(self):
         """Execute post installation steps.
 
         :return: list of tasks
         """
-        # TODO: Implement this method
-        return []
+        return [
+            WriteRepositoriesTask(
+                sysroot=conf.target.system_root,
+                dnf_manager=self.dnf_manager,
+                repositories=self.repositories,
+            ),
+            ImportRPMKeysTask(
+                sysroot=conf.target.system_root,
+                gpg_keys=conf.payload.default_rpm_gpg_keys
+            ),
+            UpdateDNFConfigurationTask(
+                sysroot=conf.target.system_root,
+                configuration=self.packages_configuration,
+            ),
+            ResetDNFManagerTask(
+                dnf_manager=self.dnf_manager
+            )
+        ]

@@ -225,9 +225,7 @@ class PayloadsInterfaceTestCase(TestCase):
         self.payload_module.activate_payload(payload)
 
         tasks_paths = self.payload_interface.InstallWithTasks()
-        check_task_creation_list(tasks_paths, publisher, [
-            PrepareSystemForInstallationTask
-        ])
+        check_task_creation_list(tasks_paths, publisher, [Task] * 7)
 
     @patch_dbus_publish_object
     def test_post_install_with_tasks(self, publisher):
@@ -238,9 +236,7 @@ class PayloadsInterfaceTestCase(TestCase):
         self.payload_module.activate_payload(payload)
 
         tasks_paths = self.payload_interface.PostInstallWithTasks()
-        check_task_creation_list(tasks_paths, publisher, [
-            CopyDriverDisksFilesTask
-        ])
+        check_task_creation_list(tasks_paths, publisher, [Task] * 5)
 
     @patch_dbus_publish_object
     def test_tear_down_with_tasks(self, publisher):

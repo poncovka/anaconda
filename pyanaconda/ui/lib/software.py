@@ -17,15 +17,63 @@
 #
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.i18n import _
+from pyanaconda.modules.common.constants.services import PAYLOADS
+from pyanaconda.modules.common.structures.comps import CompsEnvironmentData, CompsGroupData
 from pyanaconda.modules.common.structures.packages import PackagesSelectionData
+from pyanaconda.modules.common.structures.validation import ValidationReport
+from pyanaconda.modules.common.task import sync_run_task
 
 log = get_module_logger(__name__)
 
 
-def is_software_selection_complete(dnf_manager, selection, kickstarted=False):
+def get_environment_data(dnf_proxy, environment_name):
+    """Get the environment data.
+
+    :param dnf_proxy: a proxy of the DNF payload
+    :param environment_name: an environment name
+    :return CompsEnvironmentData: an environment data
+    """
+    return CompsEnvironmentData.from_structure(
+        dnf_proxy.GetEnvironmentData(environment_name)
+    )
+
+
+def get_group_data(dnf_proxy, group_name):
+    """Get the group data.
+
+    :param dnf_proxy: a proxy of the DNF payload
+    :param group_name: a group name
+    :return CompsGroupData: a group data
+    """
+    return CompsGroupData.from_structure(
+        dnf_proxy.GetGroupData(group_name)
+    )
+
+
+def check_software_selection(dnf_proxy, selection):
+    """Check the software selection.
+
+    :param dnf_proxy: a proxy of the DNF payload
+    :param selection: a packages selection data
+    :return ValidationReport: a validation report
+    """
+    # Run the task.
+    task_path = dnf_proxy.CheckPackagesSelectionWithTask(
+        selection=PackagesSelectionData.to_structure(selection)
+    )
+    task_proxy = PAYLOADS.get_proxy(task_path)
+    sync_run_task(task_proxy)
+
+    # Get the validation report.
+    return ValidationReport.from_structure(
+        task_proxy.GetResults()
+    )
+
+
+def is_software_selection_complete(dnf_proxy, selection, kickstarted=False):
     """Check the completeness of the software selection.
 
-    :param dnf_manager: a DNF manager
+    :param dnf_proxy: a proxy of the DNF payload
     :param selection: a packages selection data
     :param kickstarted: is the selection configured by a kickstart file?
     :return: True if the selection is complete, otherwise False
@@ -35,13 +83,13 @@ def is_software_selection_complete(dnf_manager, selection, kickstarted=False):
         return True
 
     # The selected environment has to be valid.
-    return dnf_manager.is_environment_valid(selection.environment)
+    return bool(dnf_proxy.ResolveEnvironment(selection.environment))
 
 
-def get_software_selection_status(dnf_manager, selection, kickstarted=False):
+def get_software_selection_status(dnf_proxy, selection, kickstarted=False):
     """Get the software selection status.
 
-    :param dnf_manager: a DNF manager
+    :param dnf_proxy: a proxy of the DNF payload
     :param selection: a packages selection data
     :param kickstarted: is the selection configured by a kickstart file?
     :return: a translated string with the selection status
@@ -51,20 +99,23 @@ def get_software_selection_status(dnf_manager, selection, kickstarted=False):
         if not selection.environment:
             return _("Custom software selected")
         # The environment is set to an invalid value.
-        elif not dnf_manager.is_environment_valid(selection.environment):
+        elif not dnf_proxy.ResolveEnvironment(selection.environment):
             return _("Invalid environment specified in kickstart")
     else:
         if not selection.environment:
             # No environment is set.
             return _("Please confirm software selection")
-        elif not dnf_manager.is_environment_valid(selection.environment):
+        elif not dnf_proxy.ResolveEnvironment(selection.environment):
             # Selected environment is not valid, this can happen when a valid environment
             # is selected (by default, manually or from kickstart) and then the installation
             # source is switched to one where the selected environment is no longer valid.
             return _("Selected environment is not valid")
 
     # The valid environment is set.
-    environment_data = dnf_manager.get_environment_data(selection.environment)
+    environment_data = CompsEnvironmentData.from_structure(
+        dnf_proxy.GetEnvironmentData(selection.environment)
+    )
+
     return environment_data.name
 
 
@@ -82,12 +133,12 @@ class SoftwareSelectionCache(object):
     environment are ignored.
     """
 
-    def __init__(self, dnf_manager):
+    def __init__(self, dnf_proxy):
         """Create a new cache.
 
-        :param dnf_manager: a DNF manager
+        :param dnf_proxy: a proxy of the DNF payload
         """
-        self._dnf_manager = dnf_manager
+        self._dnf_proxy = dnf_proxy
         self._environment = ""
         self._available_groups = set()
         self._default_groups = set()
@@ -108,7 +159,7 @@ class SoftwareSelectionCache(object):
 
         :return: a list of environment ids
         """
-        return self._dnf_manager.environments
+        return self._dnf_proxy.GetEnvironments()
 
     @property
     def groups(self):
@@ -143,7 +194,9 @@ class SoftwareSelectionCache(object):
             return
 
         # Get the environment data.
-        environment_data = self._dnf_manager.get_environment_data(environment)
+        environment_data = CompsEnvironmentData.from_structure(
+            self._dnf_proxy.GetEnvironmentData(environment)
+        )
 
         # Select the environment.
         self._environment = environment_data.id
@@ -170,7 +223,9 @@ class SoftwareSelectionCache(object):
         log.debug("Selecting the '%s' group.", group)
 
         # Get the group data.
-        group_data = self._dnf_manager.get_group_data(group)
+        group_data = CompsGroupData.from_structure(
+            self._dnf_proxy.GetGroupData(group)
+        )
 
         # Remove the group from the deselected groups.
         self._deselected_groups.discard(group_data.id)
@@ -187,7 +242,9 @@ class SoftwareSelectionCache(object):
         log.debug("Deselecting the '%s' group.", group)
 
         # Get the group data.
-        group_data = self._dnf_manager.get_group_data(group)
+        group_data = CompsGroupData.from_structure(
+            self._dnf_proxy.GetGroupData(group)
+        )
 
         # Add the group to the deselected groups. We don't need
         # to remove the group from selected or default groups,
@@ -220,18 +277,18 @@ class SoftwareSelectionCache(object):
         :param selection: a packages selection data
         """
         # Select the environment.
-        if self._dnf_manager.resolve_environment(selection.environment):
+        if self._dnf_proxy.ResolveEnvironment(selection.environment):
             self.select_environment(selection.environment)
         else:
             log.warning("The '%s' environment couldn't be selected.", selection.environment)
-            self.select_environment(self._dnf_manager.default_environment)
+            self.select_environment(self._dnf_proxy.GetDefaultEnvironment())
 
         # Select groups.
         self._selected_groups = set()
         self._deselected_groups = set()
 
         for group in selection.groups:
-            if self._dnf_manager.resolve_group(group):
+            if self._dnf_proxy.ResolveGroup(group):
                 self.select_group(group)
                 continue
 

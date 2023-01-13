@@ -41,13 +41,13 @@ log = get_module_logger(__name__)
 class SetRPMMacrosTask(Task):
     """Installation task to set RPM macros."""
 
-    def __init__(self, data: PackagesConfigurationData):
+    def __init__(self, configuration: PackagesConfigurationData):
         """Create a task.
 
-        :param data: a packages configuration data
+        :param configuration: a packages configuration data
         """
         super().__init__()
-        self._data = data
+        self._data = configuration
         self._macros = []
 
     @property
@@ -372,15 +372,15 @@ class ImportRPMKeysTask(Task):
 class UpdateDNFConfigurationTask(Task):
     """The installation task to update the dnf.conf file."""
 
-    def __init__(self, sysroot, data: PackagesConfigurationData):
+    def __init__(self, sysroot, configuration: PackagesConfigurationData):
         """Create a new task.
 
         :param sysroot: a path to the system root
-        :param data: a packages configuration data
+        :param configuration: a packages configuration data
         """
         super().__init__()
         self._sysroot = sysroot
-        self._data = data
+        self._data = configuration
 
     @property
     def name(self):

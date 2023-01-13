@@ -16,32 +16,7 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from pyanaconda.core.path import join_paths
-from pyanaconda.modules.common.errors.installation import NonCriticalInstallationError, \
-    InstallationError
-from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
-from pyanaconda.modules.common.structures.payload import RepoConfigurationData
-from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
-    PackagesSelectionData
-from pyanaconda.modules.common.structures.validation import ValidationReport
-from pyanaconda.modules.payloads.payload.dnf.initialization import configure_dnf_logging
-from pyanaconda.modules.payloads.payload.dnf.installation import ImportRPMKeysTask, \
-    SetRPMMacrosTask, DownloadPackagesTask, InstallPackagesTask, PrepareDownloadLocationTask, \
-    CleanUpDownloadLocationTask, ResolvePackagesTask, UpdateDNFConfigurationTask, \
-    WriteRepositoriesTask
-from pyanaconda.modules.payloads.payload.dnf.repositories import \
-    generate_driver_disk_repositories, generate_treeinfo_repositories
-from pyanaconda.modules.payloads.payload.dnf.tear_down import ResetDNFManagerTask
-from pyanaconda.modules.payloads.payload.dnf.utils import get_kernel_version_list, \
-    calculate_required_space
-from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager, DNFManagerError, \
-    MetadataError
-from pyanaconda.modules.payloads.source.harddrive.initialization import SetUpHardDriveSourceTask
-from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
-from pyanaconda.modules.payloads.source.nfs.initialization import SetUpNFSSourceTask
-from pyanaconda.modules.payloads.source.utils import verify_valid_repository
-from pyanaconda.payload.source import SourceFactory, PayloadSourceTypeUnrecognized
-from pyanaconda.anaconda_loggers import get_packaging_logger
+from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core import constants
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
@@ -49,56 +24,46 @@ from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
     SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL, REPO_ORIGIN_SYSTEM, SOURCE_TYPE_CLOSEST_MIRROR, \
     REPO_ORIGIN_TREEINFO, DRACUT_REPO_DIR
 from pyanaconda.core.i18n import _
+from pyanaconda.core.path import join_paths
 from pyanaconda.core.payload import parse_hdd_url
-from pyanaconda.errors import errorHandler as error_handler, ERROR_RAISE
 from pyanaconda.flags import flags
 from pyanaconda.modules.common.constants.services import SUBSCRIPTION
+from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
+from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
+    PackagesSelectionData
+from pyanaconda.modules.common.structures.payload import RepoConfigurationData
+from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.modules.common.util import is_module_available
-from pyanaconda.payload.base import Payload
+from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManagerError, MetadataError
+from pyanaconda.modules.payloads.payload.dnf.repositories import \
+    generate_driver_disk_repositories, generate_treeinfo_repositories
 from pyanaconda.modules.payloads.payload.dnf.tree_info import TreeInfoMetadata, NoTreeInfoError, \
     TreeInfoMetadataError
-from pyanaconda.ui.lib.payload import get_payload, get_source, create_source, set_source, \
-    set_up_sources, tear_down_sources
+from pyanaconda.modules.payloads.source.harddrive.initialization import SetUpHardDriveSourceTask
+from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
+from pyanaconda.modules.payloads.source.nfs.initialization import SetUpNFSSourceTask
+from pyanaconda.modules.payloads.source.utils import verify_valid_repository
+from pyanaconda.payload.migrated import MigratedDBusPayload
+from pyanaconda.payload.source import SourceFactory, PayloadSourceTypeUnrecognized
+from pyanaconda.ui.lib.payload import create_source, set_source, set_up_sources, tear_down_sources
 
 __all__ = ["DNFPayload"]
 
-log = get_packaging_logger()
+log = get_module_logger(__name__)
 
 
-class DNFPayload(Payload):
+class DNFPayload(MigratedDBusPayload):
+    """The DNF payload class."""
 
     def __init__(self, data):
         super().__init__()
-        self.data = data
-
-        # Validation report from the payload setup.
         self._report = ValidationReport()
-
-        # Get a DBus payload to use.
-        self._payload_proxy = get_payload(self.type)
-
         self.tx_id = None
 
-        self._dnf_manager = DNFManager()
-
-        # List of internal mount points.
-        self._mount_points = []
-
-        # Configure the DNF logging.
-        configure_dnf_logging()
-
     @property
-    def dnf_manager(self):
-        """The DNF manager."""
-        return self._dnf_manager
-
-    @property
-    def _base(self):
-        """Return a DNF base.
-
-        FIXME: This is a temporary property.
-        """
-        return self._dnf_manager._base
+    def type(self):
+        """The DBus type of the payload."""
+        return PAYLOAD_TYPE_DNF
 
     @property
     def report(self):
@@ -249,28 +214,6 @@ class DNFPayload(Payload):
             configuration.multilib_policy = MULTILIB_POLICY_ALL
             self.set_packages_configuration(configuration)
 
-    @property
-    def type(self):
-        """The DBus type of the payload."""
-        return PAYLOAD_TYPE_DNF
-
-    def get_source_proxy(self):
-        """Get the DBus proxy of the RPM source.
-
-        The default source for the DNF payload is set via
-        the default_source option in the payload section
-        of the Anaconda config file.
-
-        :return: a DBus proxy
-        """
-        return get_source(self.proxy)
-
-    @property
-    def source_type(self):
-        """The DBus type of the source."""
-        source_proxy = self.get_source_proxy()
-        return source_proxy.Type
-
     def get_repo_configurations(self) -> [RepoConfigurationData]:
         """Get a list of DBus repo configurations."""
         return RepoConfigurationData.from_structure_list(
@@ -306,7 +249,7 @@ class DNFPayload(Payload):
 
     def is_ready(self):
         """Is the payload ready?"""
-        enabled_repos = self._dnf_manager.enabled_repositories
+        enabled_repos = self.proxy.GetEnabledRepositories()
 
         # If CDN is used as the installation source and we have
         # a subscription attached then any of the enabled repos
@@ -337,13 +280,14 @@ class DNFPayload(Payload):
             or repo_id in constants.DEFAULT_REPOS
 
     def unsetup(self):
-        self._dnf_manager.reset_base()
-        tear_down_sources(self.proxy)
+        """Tear down the sources and the payload."""
+        # Tear down the sources.
+        super().unsetup()
 
-    @property
-    def needs_network(self):
-        """Do the sources require a network?"""
-        return self.service_proxy.IsNetworkRequired()
+        self.tx_id = None
+
+        # FIXME: Reset the DNF base during tear down.
+        self._dnf_manager.reset_base()
 
     def bump_tx_id(self):
         if self.tx_id is None:
@@ -460,60 +404,6 @@ class DNFPayload(Payload):
             mount_point = self._mount_points.pop()
             task = TearDownMountTask(mount_point)
             task.run()
-
-    @property
-    def space_required(self):
-        return calculate_required_space(self._dnf_manager)
-
-    def install(self):
-        self._progress_cb(0, _('Starting package installation process'))
-
-        # Get the packages configuration and selection data.
-        configuration = self.get_packages_configuration()
-        selection = self.get_packages_selection()
-
-        # Add the rpm macros to the global transaction environment
-        task = SetRPMMacrosTask(configuration)
-        task.run()
-
-        try:
-            # Resolve packages.
-            task = ResolvePackagesTask(self._dnf_manager, selection)
-            task.run()
-        except NonCriticalInstallationError as e:
-            # FIXME: This is a temporary workaround.
-            # Allow users to handle the error. If they don't want
-            # to continue with the installation, raise a different
-            # exception to make sure that we will not run the error
-            # handler again.
-            if error_handler.cb(e) == ERROR_RAISE:
-                raise InstallationError(str(e)) from e
-
-        # Set up the download location.
-        task = PrepareDownloadLocationTask(self._dnf_manager)
-        task.run()
-
-        # Download the packages.
-        task = DownloadPackagesTask(self._dnf_manager)
-        task.progress_changed_signal.connect(self._progress_cb)
-        task.run()
-
-        # Install the packages.
-        task = InstallPackagesTask(self._dnf_manager)
-        task.progress_changed_signal.connect(self._progress_cb)
-        task.run()
-
-        # Clean up the download location.
-        task = CleanUpDownloadLocationTask(self._dnf_manager)
-        task.run()
-
-    def _is_source_default(self):
-        """Report if the current source type is the default source type.
-
-        NOTE: If no source was set previously a new default one
-              will be created.
-        """
-        return self.source_type == conf.payload.default_source
 
     # pylint: disable=arguments-differ
     def setup(self, report_progress, only_on_change=False):
@@ -801,39 +691,3 @@ class DNFPayload(Payload):
             if r.origin != REPO_ORIGIN_TREEINFO
         ]
         self.set_repo_configurations(repositories)
-
-    def post_install(self):
-        """Perform post-installation tasks."""
-        super().post_install()
-
-        # Write selected kickstart repos to target system
-        task = WriteRepositoriesTask(
-            sysroot=conf.target.system_root,
-            dnf_manager=self.dnf_manager,
-            repositories=self.get_repo_configurations(),
-        )
-        task.run()
-
-        # rpm needs importing installed certificates manually, see rhbz#748320 and rhbz#185800
-        task = ImportRPMKeysTask(
-            sysroot=conf.target.system_root,
-            gpg_keys=conf.payload.default_rpm_gpg_keys
-        )
-        task.run()
-
-        # Update the DNF configuration.
-        task = UpdateDNFConfigurationTask(
-            sysroot=conf.target.system_root,
-            data=self.get_packages_configuration()
-        )
-        task.run()
-
-        # Close the DNF base.
-        task = ResetDNFManagerTask(
-            dnf_manager=self.dnf_manager
-        )
-        task.run()
-
-    @property
-    def kernel_version_list(self):
-        return get_kernel_version_list()

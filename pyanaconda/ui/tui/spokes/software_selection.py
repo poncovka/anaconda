@@ -20,7 +20,8 @@ from pyanaconda.flags import flags
 from pyanaconda.ui.categories.software import SoftwareCategory
 from pyanaconda.ui.context import context
 from pyanaconda.ui.lib.software import get_software_selection_status, \
-    is_software_selection_complete, SoftwareSelectionCache
+    is_software_selection_complete, SoftwareSelectionCache, check_software_selection, \
+    get_group_data, get_environment_data
 from pyanaconda.ui.tui.spokes import NormalTUISpoke
 from pyanaconda.threading import threadMgr, AnacondaThread
 from pyanaconda.core.i18n import N_, _
@@ -69,15 +70,10 @@ class SoftwareSpoke(NormalTUISpoke):
         self._warnings = []
 
         # Get the packages configuration.
-        self._selection_cache = SoftwareSelectionCache(self._dnf_manager)
+        self._selection_cache = SoftwareSelectionCache(self.payload.proxy)
 
         # Are we taking values (package list) from a kickstart file?
         self._kickstarted = flags.automatedInstall and self.payload.proxy.PackagesKickstarted
-
-    @property
-    def _dnf_manager(self):
-        """The DNF manager."""
-        return self.payload.dnf_manager
 
     @property
     def _selection(self):
@@ -113,7 +109,7 @@ class SoftwareSpoke(NormalTUISpoke):
         if not self._kickstarted:
             # Use the default environment.
             self._selection_cache.select_environment(
-                self._dnf_manager.default_environment
+                self.payload.proxy.GetDefaultEnvironment()
             )
 
             # Apply the default selection.
@@ -170,7 +166,7 @@ class SoftwareSpoke(NormalTUISpoke):
             return _("Warning checking software selection")
 
         return get_software_selection_status(
-            dnf_manager=self._dnf_manager,
+            dnf_proxy=self.payload.proxy,
             selection=self._selection,
             kickstarted=self._kickstarted
         )
@@ -182,7 +178,7 @@ class SoftwareSpoke(NormalTUISpoke):
             and not self._errors \
             and not self._source_has_changed \
             and is_software_selection_complete(
-                dnf_manager=self._dnf_manager,
+                dnf_proxy=self.payload.proxy,
                 selection=self._selection,
                 kickstarted=self._kickstarted
             )
@@ -196,7 +192,7 @@ class SoftwareSpoke(NormalTUISpoke):
         threadMgr.wait(THREAD_PAYLOAD)
 
         # Create a new software selection cache.
-        self._selection_cache = SoftwareSelectionCache(self._dnf_manager)
+        self._selection_cache = SoftwareSelectionCache(self._payload.proxy)
         self._selection_cache.apply_selection_data(self._selection)
 
         return True
@@ -219,7 +215,7 @@ class SoftwareSpoke(NormalTUISpoke):
         )
 
         for environment in self._selection_cache.available_environments:
-            data = self._dnf_manager.get_environment_data(environment)
+            data = get_environment_data(self.payload.proxy, environment)
             selected = self._selection_cache.is_environment_selected(environment)
 
             widget = CheckboxWidget(
@@ -288,16 +284,10 @@ class SoftwareSpoke(NormalTUISpoke):
         """Check the software selection."""
         self.payload.bump_tx_id()
 
-        # Run the validation task.
-        from pyanaconda.modules.payloads.payload.dnf.validation import CheckPackagesSelectionTask
-
-        task = CheckPackagesSelectionTask(
-            dnf_manager=self._dnf_manager,
-            selection=self._selection,
+        report = check_software_selection(
+            payload_proxy=self.payload.proxy,
+            selection=self._selection
         )
-
-        # Get the validation report.
-        report = task.run()
 
         self._errors = list(report.error_messages)
         self._warnings = list(report.warning_messages)
@@ -323,11 +313,6 @@ class AdditionalSoftwareSpoke(NormalTUISpoke):
         self._container = None
         self._selection_cache = selection_cache
 
-    @property
-    def _dnf_manager(self):
-        """The DNF manager."""
-        return self.payload.dnf_manager
-
     def refresh(self, args=None):
         """Refresh the screen."""
         NormalTUISpoke.refresh(self, args)
@@ -339,7 +324,7 @@ class AdditionalSoftwareSpoke(NormalTUISpoke):
         )
 
         for group in self._selection_cache.available_groups:
-            data = self._dnf_manager.get_group_data(group)
+            data = get_group_data(self.payload.proxy, group)
             selected = self._selection_cache.is_group_selected(group)
 
             widget = CheckboxWidget(
