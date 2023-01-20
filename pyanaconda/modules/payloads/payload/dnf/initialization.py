@@ -15,23 +15,23 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-import dnf.logging
 import logging
-import libdnf
-
 DNF_LIBREPO_LOG = "/tmp/dnf.librepo.log"
 DNF_LOGGER = "dnf"
 
 
 def configure_dnf_logging():
     """Configure the DNF logging."""
+
+    # FIXME: Set up the librepo logger.
     # Set up librepo.
     # This is still required even when the librepo has a separate logger because
     # DNF needs to have callbacks that the librepo log is written to be able to
     # process that log.
-    libdnf.repo.LibrepoLog.removeAllHandlers()
-    libdnf.repo.LibrepoLog.addHandler(DNF_LIBREPO_LOG)
+    # libdnf.repo.LibrepoLog.removeAllHandlers()
+    # libdnf.repo.LibrepoLog.addHandler(DNF_LIBREPO_LOG)
 
+    # FIXME: Set up the DNF logger.
     # Set up DNF. Increase the log level to the custom DDEBUG level.
-    dnf_logger = logging.getLogger(DNF_LOGGER)
-    dnf_logger.setLevel(dnf.logging.DDEBUG)
+    # dnf_logger = logging.getLogger(DNF_LOGGER)
+    # dnf_logger.setLevel(dnf.logging.DDEBUG)
