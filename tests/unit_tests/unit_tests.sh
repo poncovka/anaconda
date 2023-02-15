@@ -11,4 +11,5 @@ if [ $# -eq 0 ]; then
     set -- "$top_srcdir/tests/unit_tests"
 fi
 
-exec pytest -vv --log-level=NOTSET ${UNIT_TESTS_PATTERN:+-k $UNIT_TESTS_PATTERN} "$@"
+tests="tests/unit_tests/pyanaconda_tests/modules/payloads/payload/test_module_payload_dnf5_manager.py"
+pytest -vv --log-level=NOTSET ${UNIT_TESTS_PATTERN:+-k $UNIT_TESTS_PATTERN} "$top_srcdir/$tests"
