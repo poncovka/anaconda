@@ -378,6 +378,8 @@ class StorageInterfaceTestCase(unittest.TestCase):
                 'raid',
                 'reqpart',
                 'snapshot',
+                'stratisfs',
+                'stratispool',
                 'volgroup',
                 'zerombr',
                 'zfcp',
@@ -1448,6 +1450,28 @@ class StorageInterfaceTestCase(unittest.TestCase):
         supported.return_value = True
         formattable.return_value = False
         self._test_kickstart(ks_in, ks_out, ks_valid=False)
+
+    @patch_dbus_publish_object
+    def test_stratisfs_kickstart(self, publisher):
+        """Test the stratisfs command."""
+        ks_in = """
+        stratisfs / --name=root --pool=fedora --size=4000
+        """
+        ks_out = ""
+        self._apply_partitioning_when_created()
+        self._test_kickstart(ks_in, ks_out)
+        self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
+
+    @patch_dbus_publish_object
+    def test_stratispool_kickstart(self, publisher):
+        """Test the stratispool command."""
+        ks_in = """
+        stratispool fedora --encrypted --passphrase=123456 sda sdb sdc
+        """
+        ks_out = ""
+        self._apply_partitioning_when_created()
+        self._test_kickstart(ks_in, ks_out)
+        self._check_dbus_partitioning(publisher, PartitioningMethod.CUSTOM)
 
 
 class StorageModuleTestCase(unittest.TestCase):

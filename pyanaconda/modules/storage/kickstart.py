@@ -297,6 +297,8 @@ class StorageKickstartSpecification(KickstartSpecification):
         "raid": COMMANDS.Raid,
         "reqpart": COMMANDS.ReqPart,
         "snapshot": Snapshot,
+        "stratisfs": COMMANDS.StratisFs,
+        "stratispool": COMMANDS.StratisPool,
         "volgroup": COMMANDS.VolGroup,
         "zerombr": COMMANDS.ZeroMbr,
         "zfcp": ZFCP,
@@ -313,6 +315,8 @@ class StorageKickstartSpecification(KickstartSpecification):
         "PartData": COMMANDS.PartData,
         "RaidData": COMMANDS.RaidData,
         "SnapshotData": COMMANDS.SnapshotData,
+        "StratisFsData": COMMANDS.StratisFsData,
+        "StratisPoolData": COMMANDS.StratisPoolData,
         "VolGroupData": COMMANDS.VolGroupData,
         "ZFCPData": COMMANDS.ZFCPData,
     }

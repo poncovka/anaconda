@@ -23,7 +23,7 @@
 
 # Supported kickstart commands.
 from pykickstart.commands.authselect import F28_Authselect as Authselect
-from pykickstart.commands.autopart import F38_AutoPart as AutoPart
+from pykickstart.commands.autopart import F39_AutoPart as AutoPart
 from pykickstart.commands.autostep import F34_AutoStep as AutoStep
 from pykickstart.commands.bootloader import F34_Bootloader as Bootloader
 from pykickstart.commands.btrfs import F23_BTRFS as BTRFS
@@ -69,6 +69,8 @@ from pykickstart.commands.skipx import FC3_SkipX as SkipX
 from pykickstart.commands.snapshot import F26_Snapshot as Snapshot
 from pykickstart.commands.sshpw import F24_SshPw as SshPw
 from pykickstart.commands.sshkey import F22_SshKey as SshKey
+from pykickstart.commands.stratisfs import F39_StratisFs as StratisFs
+from pykickstart.commands.stratispool import F39_StratisPool as StratisPool
 from pykickstart.commands.syspurpose import RHEL8_Syspurpose as Syspurpose
 from pykickstart.commands.timezone import F33_Timezone as Timezone
 from pykickstart.commands.timesource import F33_Timesource as Timesource
@@ -99,6 +101,8 @@ from pykickstart.commands.repo import F30_RepoData as RepoData
 from pykickstart.commands.snapshot import F26_SnapshotData as SnapshotData
 from pykickstart.commands.sshpw import F24_SshPwData as SshPwData
 from pykickstart.commands.sshkey import F38_SshKeyData as SshKeyData
+from pykickstart.commands.stratisfs import F39_StratisFsData as StratisFsData
+from pykickstart.commands.stratispool import F39_StratisPoolData as StratisPoolData
 from pykickstart.commands.timesource import F33_TimesourceData as TimesourceData
 from pykickstart.commands.user import F19_UserData as UserData
 from pykickstart.commands.volgroup import F21_VolGroupData as VolGroupData

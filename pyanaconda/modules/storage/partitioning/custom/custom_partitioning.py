@@ -153,6 +153,8 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         self._execute_raid(storage, data)
         self._execute_volgroup(storage, data)
         self._execute_logvol(storage, data)
+        self._execute_stratis_pool(storage, data)
+        self._execute_stratis_fs(storage, data)
         self._execute_btrfs(storage, data)
 
     def _execute_reqpart(self, storage, data):
@@ -1143,6 +1145,106 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
 
         if add_fstab_swap:
             storage.add_fstab_swap(add_fstab_swap)
+
+    def _execute_stratis_pool(self, storage, data):
+        """Execute the stratispool command.
+
+        :param storage: an instance of the Blivet's storage object
+        :param data: an instance of kickstart data
+        """
+        for pool_data in data.stratispool.pools:
+            self._execute_stratis_pool_data(storage, data, pool_data)
+
+    def _execute_stratis_pool_data(self, storage, data, pool_data):
+        """Execute the stratispool data.
+
+        :param storage: an instance of the Blivet's storage object
+        :param data: an instance of kickstart data
+        :param pool_data: an instance of StratisPoolData
+        """
+        pool_name = pool_data.name
+        devicetree = storage.devicetree
+
+        # Collect block devices.
+        block_devices = []
+
+        for device_name in pool_data.devices:
+            device = devicetree.resolve_device(device_name)
+
+            if not device:
+                raise StorageError(
+                    _("Tried to use undefined block device \"{}\" in Stratis pool "
+                      "specification.").format(device_name)
+                )
+
+            block_devices.append(device)
+
+        if not block_devices:
+            raise StorageError(
+                _("Stratis pool \"{}\" defined without any block devices.").format(pool_name)
+            )
+
+        # Verify the pool name.
+        if pool_name in (pool.name for pool in storage.stratis_pools):
+            raise StorageError(
+                _("The Stratis pool name \"{}\" is already in use.").format(pool_name)
+            )
+
+        # Create a new pool.
+        request = storage.new_stratis_pool(
+            name=pool_name,
+            parents=block_devices,
+            encrypted=pool_data.encrypted,
+            passphrase=pool_data.passphrase,
+        )
+        storage.create_device(request)
+
+        # Remember the real pool name.
+        self._map_device_name(pool_name, request.name)
+
+    def _execute_stratis_fs(self, storage, data):
+        """Execute the stratisfs command.
+
+        :param storage: an instance of the Blivet's storage object
+        :param data: an instance of kickstart data
+        """
+        for fs_data in data.stratisfs.filesystems:
+            self._execute_stratis_fs_data(storage, data, fs_data)
+
+    def _execute_stratis_fs_data(self, storage, data, fs_data):
+        """Execute the stratisfs data.
+
+        :param storage: an instance of the Blivet's storage object
+        :param data: an instance of kickstart data
+        :param fs_data: an instance of StratisFsData
+        """
+        devicetree = storage.devicetree
+
+        # Get the mount point.
+        mount_point = fs_data.mount_point
+        self._check_mount_point(mount_point)
+
+        # Get the file system size.
+        size = self._get_size(fs_data.size, "MiB") if fs_data.size else None
+
+        # Get the pool by its real name.
+        pool_name = self._match_device_name(fs_data.pool)
+        pool = devicetree.get_device_by_name(pool_name)
+
+        if not pool:
+            raise StorageError(
+                _("No Stratis pool exists with the name \"{}\". Specify Stratis "
+                  "pools before Stratis file systems.").format(pool_name)
+            )
+
+        # Create a new file system.
+        request = storage.new_stratis_filesystem(
+            name=fs_data.name,
+            parents=[pool],
+            mountpoint=mount_point,
+            size=size
+        )
+        storage.create_device(request)
 
     def _execute_btrfs(self, storage, data):
         """Execute the btrfs command.
