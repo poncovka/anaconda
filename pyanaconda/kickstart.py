@@ -264,7 +264,6 @@ class AnacondaKSHandler(superclass):
             dataUpdates = dataMap
 
         super().__init__(commandUpdates=commandUpdates, dataUpdates=dataUpdates)
-        self.onPart = {}
 
         # The %packages section is handled by the DBus module.
         self.packages = UselessObject()

@@ -55,6 +55,68 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         self._data = data
         self._disk_free_space = Size(0)
         self._default_passphrase = None
+        self._device_names = {}
+
+    def _map_device_name(self, kickstart_name, device_name):
+        """Set a device name used instead of a kickstart name.
+
+        Blivet might have modified the kickstart name to make it usable,
+        but kickstart commands will use the kickstart name to reference
+        the device. Remember the relation between the kickstart name and
+        the device name, so we can later use it to translate names into
+        the real ones.
+
+        :param kickstart_name: a kickstart name of the device
+        :param device_name: a real name of the device
+        """
+        if not kickstart_name or not device_name:
+            return
+
+        self._device_names[kickstart_name] = device_name
+
+    def _match_device_name(self, kickstart_name):
+        """Get a device name based on its kickstart name.
+
+        If the device has been already created, it is possible that
+        Blivet modified the kickstart name to make it usable. This
+        method allows to get the real name of the device that was
+        used instead of the kickstart one.
+
+        :param kickstart_name: a kickstart name of the device
+        :return: a real name of the device
+        """
+        return self._device_names.get(kickstart_name, default=kickstart_name)
+
+    def _match_device(self, kickstart_name, strip_luks=False):
+        """Find a device based on its kickstart name.
+
+        :param kickstart_name: a kickstart name of the device
+        :param strip_luks: return the LUKS child if applicable
+        :return: a Blivet's device object or None
+        """
+        devicetree = self._storage.devicetree
+
+        # Find a device that matches the specified kickstart name.
+        device = devicetree.resolve_device(kickstart_name) \
+            or devicetree.resolve_device(self._match_device_name(kickstart_name)) \
+            or lookup_alias(devicetree, kickstart_name)
+
+        # Don't return a LUKS device, but the encrypted device if requested.
+        return self._strip_luks(device) if strip_luks else device
+
+    def _strip_luks(self, device):
+        """Strip the LUKS device and return its child if applicable.
+
+        :param device: a Blivet's device object
+        :return: a stripped device object or None
+        """
+        if device and device.format.type == "luks":
+            try:
+                return device.children[0]
+            except IndexError:
+                return None
+
+        return device
 
     def _get_passphrase(self, data):
         """Get a passphrase for the given data object.
@@ -202,8 +264,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                     _("RAID partition \"{}\" is defined multiple times.").format(kwargs["name"])
                 )
 
-            if partition_data.onPart:
-                data.onPart[kwargs["name"]] = partition_data.onPart
+            self._map_device_name(kwargs["name"], partition_data.onPart)
         elif partition_data.mountpoint.startswith("pv."):
             ty = "lvmpv"
             kwargs["name"] = partition_data.mountpoint
@@ -214,8 +275,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                     _("PV partition \"{}\" is defined multiple times.").format(kwargs["name"])
                 )
 
-            if partition_data.onPart:
-                data.onPart[kwargs["name"]] = partition_data.onPart
+            self._map_device_name(kwargs["name"], partition_data.onPart)
         elif partition_data.mountpoint.startswith("btrfs."):
             ty = "btrfs"
             kwargs["name"] = partition_data.mountpoint
@@ -226,8 +286,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                     _("Btrfs partition \"{}\" is defined multiple times.").format(kwargs["name"])
                 )
 
-            if partition_data.onPart:
-                data.onPart[kwargs["name"]] = partition_data.onPart
+            self._map_device_name(kwargs["name"], partition_data.onPart)
         elif partition_data.mountpoint == "/boot/efi":
             if blivet.arch.is_mactel():
                 ty = "macefi"
@@ -477,7 +536,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         elif raid_data.mountpoint.startswith("pv."):
             ty = "lvmpv"
             kwargs["name"] = raid_data.mountpoint
-            data.onPart[kwargs["name"]] = devicename
+            self._map_device_name(kwargs["name"], devicename)
 
             if devicetree.get_device_by_name(kwargs["name"]):
                 raise StorageError(
@@ -489,7 +548,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         elif raid_data.mountpoint.startswith("btrfs."):
             ty = "btrfs"
             kwargs["name"] = raid_data.mountpoint
-            data.onPart[kwargs["name"]] = devicename
+            self._map_device_name(kwargs["name"], devicename)
 
             if devicetree.get_device_by_name(kwargs["name"]):
                 raise StorageError(
@@ -533,16 +592,8 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
 
         # Get a list of all the RAID members.
         for member in raid_data.members:
-            dev = devicetree.resolve_device(member)
-            if not dev:
-                # if member is using --onpart, use original device
-                mem = data.onPart.get(member, member)
-                dev = devicetree.resolve_device(mem) or lookup_alias(devicetree, member)
-            if dev and dev.format.type == "luks":
-                try:
-                    dev = dev.children[0]
-                except IndexError:
-                    dev = None
+            # if member is using --onpart, use original device
+            dev = self._match_device(member, strip_luks=True)
 
             if dev and dev.format.type != "mdmember":
                 raise StorageError(
@@ -705,16 +756,8 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
 
         # Get a list of all the physical volume devices that make up this VG.
         for pv in volgroup_data.physvols:
-            dev = devicetree.resolve_device(pv)
-            if not dev:
-                # if pv is using --onpart, use original device
-                pv_name = data.onPart.get(pv, pv)
-                dev = devicetree.resolve_device(pv_name) or lookup_alias(devicetree, pv)
-            if dev and dev.format.type == "luks":
-                try:
-                    dev = dev.children[0]
-                except IndexError:
-                    dev = None
+            # if pv is using --onpart, use original device
+            dev = self._match_device(pv, strip_luks=True)
 
             if dev and dev.format.type != "lvmpv":
                 raise StorageError(
@@ -781,7 +824,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 request.reserved_percent = volgroup_data.reserved_percent
 
             # in case we had to truncate or otherwise adjust the specified name
-            data.onPart[volgroup_data.vgname] = request.name
+            self._map_device_name(volgroup_data.vgname, request.name)
 
     def _execute_logvol(self, storage, data):
         """Execute the logvol command.
@@ -822,8 +865,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
             )
 
         # we might have truncated or otherwise changed the specified vg name
-        vgname = data.onPart.get(logvol_data.vgname, logvol_data.vgname)
-
+        vgname = self._match_device_name(logvol_data.vgname)
         size = None
 
         if logvol_data.percent:
@@ -1127,17 +1169,8 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
 
         # Get a list of all the devices that make up this volume.
         for member in btrfs_data.devices:
-            dev = devicetree.resolve_device(member)
-            if not dev:
-                # if using --onpart, use original device
-                member_name = data.onPart.get(member, member)
-                dev = devicetree.resolve_device(member_name) or lookup_alias(devicetree, member)
-
-            if dev and dev.format.type == "luks":
-                try:
-                    dev = dev.children[0]
-                except IndexError:
-                    dev = None
+            # if using --onpart, use original device
+            dev = self._match_device(member, strip_luks=True)
 
             if dev and dev.format.type != "btrfs":
                 raise StorageError(
