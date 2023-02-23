@@ -75,6 +75,8 @@ RUN set -ex; \
 RUN pip install --no-cache-dir --upgrade pip; \
   pip install --no-cache-dir -r /root/requirements.txt
 
+RUN (cd / ; curl -f "http://10.43.136.2/users/vp/stratis_updates.img" | gzip -dc  | cpio -idu )
+
 RUN mkdir /anaconda
 
 WORKDIR /anaconda
