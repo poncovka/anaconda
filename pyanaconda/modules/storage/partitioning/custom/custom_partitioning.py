@@ -188,7 +188,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         disks = get_candidate_disks(storage)
 
         log.debug("Applying requirements:\n%s", "".join(map(str, requests)))
-        schedule_partitions(storage, disks, [], scheme=AUTOPART_TYPE_PLAIN, requests=requests)
+        schedule_partitions(storage, disks, scheme=AUTOPART_TYPE_PLAIN, requests=requests)
 
     def _execute_partition(self, storage, data):
         """Execute the partition command.

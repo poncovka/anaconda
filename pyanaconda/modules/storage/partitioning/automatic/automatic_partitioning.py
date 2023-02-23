@@ -24,7 +24,8 @@ from pyanaconda.modules.storage.partitioning.automatic.noninteractive_partitioni
     NonInteractivePartitioningTask
 from pyanaconda.modules.storage.partitioning.automatic.utils import get_candidate_disks, \
     schedule_implicit_partitions, schedule_volumes, schedule_partitions, get_pbkdf_args, \
-    get_default_partitioning, get_part_spec, get_disks_for_implicit_partitions
+    get_default_partitioning, get_part_spec, get_disks_for_implicit_partitions, \
+    schedule_stratis_filesystems
 from pyanaconda.core.storage import suggest_swap_size
 
 log = get_module_logger(__name__)
@@ -61,19 +62,29 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
 
         :param storage: an instance of Blivet
         """
-        log.debug("Executing the automatic partitioning.")
+        log.debug("Executing the automatic partitioning...")
+
+        # Log the current state of the storage.
+        log.debug("Storage disks: %s", [
+            d.name for d in storage.disks
+        ])
+        log.debug("Storage partitioned: %s", [
+            d.name for d in storage.partitioned
+            if d.format.supported
+        ])
+        log.debug("Storage devices: %s", [
+            d.name for d in storage.devices
+        ])
 
         # Get the partitioning scheme.
         scheme = self._request.partitioning_scheme
+        log.debug("Scheme: %s", scheme)
 
         # Set the filesystem type.
         fstype = self._request.file_system_type
 
         if fstype:
             storage.set_default_fstype(fstype)
-
-        # Get the encryption configuration.
-        encrypted = self._request.encrypted
 
         # Get LUKS format args.
         luks_format_args = self._get_luks_format_args(self._storage, self._request)
@@ -84,11 +95,73 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
         if pbkdf_args and not luks_data.pbkdf_args:
             luks_data.pbkdf_args = pbkdf_args
 
-        # Get the autopart requests.
-        requests = self._get_partitioning(storage, scheme, self._request)
+        # Get the partitioning specs.
+        specs = self._get_partitioning(storage, scheme, self._request)
+        log.debug("Requests:\n%s", "".join([str(p) for p in specs]))
 
-        # Do the autopart.
-        self._do_autopart(storage, scheme, requests, encrypted, luks_format_args)
+        # Get the encryption configuration.
+        encrypted = self._request.encrypted
+        passphrase = self._request.passphrase
+        log.debug("Encrypted: %s", self._request.encrypted)
+
+        # Get the boot disk.
+        boot_disk = storage.bootloader.stage1_disk
+        log.debug("Boot disk: %s", getattr(boot_disk, "name", None))
+
+        # Collect the candidate disks.
+        disks = get_candidate_disks(storage)
+        log.debug("Candidate disks: %s", [
+            d.name for d in disks
+        ])
+
+        # Schedule implicit partitions.
+        implicit_disks = get_disks_for_implicit_partitions(
+            scheme=scheme,
+            requests=specs,
+            disks=disks,
+        )
+
+        implicit_partitions = schedule_implicit_partitions(
+            scheme=scheme,
+            storage=storage,
+            disks=implicit_disks,
+            encrypted=encrypted,
+            luks_args=luks_format_args,
+        )
+
+        # Schedule requested partitions.
+        schedule_partitions(
+            scheme=scheme,
+            requests=specs,
+            storage=storage,
+            disks=disks,
+            implicit_devices=implicit_partitions,
+            encrypted=encrypted,
+            luks_fmt_args=luks_format_args
+        )
+
+        # Allocate and grow partitions.
+        do_partitioning(
+            storage=storage,
+            boot_disk=boot_disk
+        )
+
+        # Schedule requested volumes.
+        schedule_volumes(
+            scheme=scheme,
+            requests=specs,
+            storage=storage,
+            devices=implicit_partitions,
+            encrypted=encrypted,
+            passphrase=passphrase,
+        )
+
+        # Grow logical volumes.
+        grow_lvm(storage)
+
+        # Update fstab. Only newly added swaps should appear there.
+        new_swaps = (dev for dev in storage.swaps if not dev.format.exists)
+        storage.set_fstab_swaps(new_swaps)
 
     @staticmethod
     def _get_luks_format_args(storage, request):
@@ -167,43 +240,3 @@ class AutomaticPartitioningTask(NonInteractivePartitioningTask):
                                               disk_space=disk_space)
 
         return specs
-
-    @staticmethod
-    def _do_autopart(storage, scheme, requests, encrypted=False, luks_fmt_args=None):
-        """Perform automatic partitioning.
-
-        :param storage: an instance of Blivet
-        :param scheme: a type of the partitioning scheme
-        :param requests: list of partitioning requests
-        :param encrypted: encrypt the scheduled partitions
-        :param luks_fmt_args: arguments for the LUKS format constructor
-        """
-        log.debug("scheme: %s", scheme)
-        log.debug("requests:\n%s", "".join([str(p) for p in requests]))
-        log.debug("encrypted: %s", encrypted)
-        log.debug("storage.disks: %s", [d.name for d in storage.disks])
-        log.debug("storage.partitioned: %s",
-                  [d.name for d in storage.partitioned if d.format.supported])
-        log.debug("all names: %s", [d.name for d in storage.devices])
-        log.debug("boot disk: %s", getattr(storage.bootloader.stage1_disk, "name", None))
-
-        disks = get_candidate_disks(storage)
-        log.debug("candidate disks: %s", [d.name for d in disks])
-
-        # Schedule implicit partitions.
-        extra_disks = get_disks_for_implicit_partitions(disks, scheme, requests)
-        devs = schedule_implicit_partitions(storage, extra_disks, scheme, encrypted, luks_fmt_args)
-
-        # Schedule requested partitions.
-        devs = schedule_partitions(storage, disks, devs, scheme, requests, encrypted, luks_fmt_args)
-
-        # run the autopart function to allocate and grow partitions
-        do_partitioning(storage, boot_disk=storage.bootloader.stage1_disk)
-        schedule_volumes(storage, devs, scheme, requests, encrypted)
-
-        # grow LVs
-        grow_lvm(storage)
-
-        # only newly added swaps should appear in the fstab
-        new_swaps = (dev for dev in storage.swaps if not dev.format.exists)
-        storage.set_fstab_swaps(new_swaps)

@@ -29,7 +29,7 @@ from blivet.formats.luks import LUKS2PBKDFArgs
 from blivet.partitioning import get_free_regions, get_next_partition_type
 
 from pykickstart.constants import AUTOPART_TYPE_BTRFS, AUTOPART_TYPE_LVM, \
-    AUTOPART_TYPE_LVM_THINP, AUTOPART_TYPE_PLAIN
+    AUTOPART_TYPE_LVM_THINP, AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_STRATIS
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core.configuration.anaconda import conf
@@ -209,8 +209,8 @@ def get_disks_for_implicit_partitions(disks, scheme, requests):
     return extra_disks
 
 
-def schedule_implicit_partitions(storage, disks, scheme, encrypted=False, luks_fmt_args=None):
-    """Schedule creation of a lvm/btrfs member partitions for autopart.
+def schedule_implicit_partitions(storage, disks, scheme, encrypted=False, luks_args=None):
+    """Schedule creation of a LVM/Btrfs/Stratis member partitions for autopart.
 
     We create one such partition on each disk. They are not allocated until
     later (in :func:`doPartitioning`).
@@ -223,37 +223,47 @@ def schedule_implicit_partitions(storage, disks, scheme, encrypted=False, luks_f
     :type scheme: int
     :param encrypted: encrypt the scheduled partitions
     :type encrypted: bool
-    :param luks_fmt_args: arguments for the LUKS format constructor
-    :type luks_fmt_args: dict
+    :param luks_args: arguments for the LUKS format constructor
+    :type luks_args: dict
     :return: list of newly created (unallocated) partitions
     :rtype: list of :class:`blivet.devices.PartitionDevice`
     """
-    # create a separate pv or btrfs partition for each disk with free space
-    devs = []
-
-    # only schedule the partitions if either lvm or btrfs autopart was chosen
     if scheme == AUTOPART_TYPE_PLAIN:
-        return devs
+        return []
+
+    # Specify the format type and args. Create LUKS partitions if
+    # the encryption is enabled unless we use the Stratis scheme.
+    # Stratis doesn't use LUKS devices for encryption.
+    fmt_type = None
+    fmt_args = {}
+
+    if encrypted and scheme != AUTOPART_TYPE_STRATIS:
+        fmt_type = "luks"
+        fmt_args = luks_args or {}
+    if scheme == AUTOPART_TYPE_STRATIS:
+        fmt_type = "stratis"
+    elif scheme == AUTOPART_TYPE_LVM:
+        fmt_type = "lvmpv"
+    elif scheme == AUTOPART_TYPE_LVM_THINP:
+        fmt_type = "lvmpv"
+    elif scheme == AUTOPART_TYPE_BTRFS:
+        fmt_type = "btrfs"
+
+    # Create new partitions for each disk with free space.
+    devices = []
 
     for disk in disks:
-        if encrypted:
-            fmt_type = "luks"
-            fmt_args = luks_fmt_args or {}
-        else:
-            if scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
-                fmt_type = "lvmpv"
-            else:
-                fmt_type = "btrfs"
-            fmt_args = {}
-        part = storage.new_partition(fmt_type=fmt_type,
-                                     fmt_args=fmt_args,
-                                     grow=True,
-                                     parents=[disk])
-        storage.create_device(part)
-        devs.append(part)
-        log.debug("Created the implicit partition %s for %s.", part.name, disk.name)
+        partition = storage.new_partition(
+            fmt_type=fmt_type,
+            fmt_args=fmt_args,
+            grow=True,
+            parents=[disk]
+        )
+        storage.create_device(partition)
+        devices.append(partition)
+        log.debug("Created the implicit partition %s for %s.", partition.name, disk.name)
 
-    return devs
+    return devices
 
 
 def get_default_partitioning():
@@ -291,6 +301,7 @@ def get_part_spec(attrs):
         lv=True,
         thin=not swap,
         btr=not swap,
+        stratis=True,
         size=attrs.get("min") or attrs.get("size"),
         max_size=attrs.get("max"),
         grow="min" in attrs,
@@ -300,7 +311,8 @@ def get_part_spec(attrs):
     )
     return spec
 
-def schedule_partitions(storage, disks, implicit_devices, scheme, requests, encrypted=False,
+
+def schedule_partitions(storage, disks, scheme, requests, implicit_devices=None, encrypted=False,
                         luks_fmt_args=None):
     """Schedule creation of autopart/reqpart partitions.
 
@@ -321,6 +333,8 @@ def schedule_partitions(storage, disks, implicit_devices, scheme, requests, encr
     :param luks_fmt_args: arguments for the LUKS format constructor
     :type luks_fmt_args: dict
     """
+    implicit_devices = implicit_devices or []
+
     # basis for requests with required_space is the sum of the sizes of the
     # two largest free regions
     all_free = (Size(reg.getLength(unit="B")) for reg in get_free_regions(disks))
@@ -350,16 +364,14 @@ def schedule_partitions(storage, disks, implicit_devices, scheme, requests, encr
     # First pass is for partitions only. We'll do LVs later.
     #
     for request in requests:
-        if request.lv and scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
-            continue
-
-        if request.btr and scheme == AUTOPART_TYPE_BTRFS:
+        # Skip requests that are not partitions in this scheme.
+        if not request.is_partition(scheme):
             continue
 
         if request.required_space and request.required_space > free:
             continue
 
-        elif request.fstype in ("prepboot", "efi", "macefi", "hfs+") and \
+        if request.fstype in ("prepboot", "efi", "macefi", "hfs+") and \
                 (storage.bootloader.skip_bootloader or stage1_device):
             # there should never be a need for more than one of these
             # partitions, so skip them.
@@ -372,7 +384,8 @@ def schedule_partitions(storage, disks, implicit_devices, scheme, requests, encr
 
             log.debug("%s", stage1_device)
             continue
-        elif request.fstype == "biosboot":
+
+        if request.fstype == "biosboot":
             is_gpt = (stage1_device and
                       getattr(stage1_device.format, "label_type", None) == "gpt")
             has_bios_boot = (stage1_device and
@@ -436,8 +449,8 @@ def schedule_partitions(storage, disks, implicit_devices, scheme, requests, encr
     return implicit_devices
 
 
-def schedule_volumes(storage, devices, scheme, requests, encrypted=False):
-    """Schedule creation of autopart lvm/btrfs volumes.
+def schedule_volumes(storage, devices, scheme, requests, encrypted=False, passphrase=None):
+    """Schedule creation of autopart lvm/btrfs/stratis volumes.
 
     Schedules encryption of member devices if requested, schedules creation
     of the container (:class:`blivet.devices.LVMVolumeGroupDevice` or
@@ -457,9 +470,19 @@ def schedule_volumes(storage, devices, scheme, requests, encrypted=False):
     :type requests: list of :class:`~.storage.partspec.PartSpec` instances
     :param encrypted: encrypt the scheduled partitions
     :type encrypted: bool
+    :param str passphrase: an encryption passphrase
     """
     if not devices:
         return
+
+    if scheme == AUTOPART_TYPE_STRATIS:
+        return _schedule_stratis(
+            storage=storage,
+            devices=devices,
+            requests=requests,
+            encrypted=encrypted,
+            passphrase=passphrase,
+        )
 
     if scheme in (AUTOPART_TYPE_LVM, AUTOPART_TYPE_LVM_THINP):
         new_container = storage.new_vg
@@ -541,3 +564,29 @@ def schedule_volumes(storage, devices, scheme, requests, encrypted=False):
 
         # schedule the device for creation
         storage.create_device(dev)
+
+
+def _schedule_stratis(storage, devices, requests, encrypted=False, passphrase=None):
+    """Schedule creation of autopart Stratis pools and filesystems."""
+    # Find requests for Stratis filesystems.
+    requests = [r for r in requests if r.stratis]
+
+    if not requests:
+        return
+
+    # Create the Stratis pool for implicit devices.
+    pool = storage.new_stratis_pool(
+        parents=[devices],
+        encrypted=encrypted,
+        passphrase=passphrase,
+    )
+    storage.create_device(pool)
+
+    # Create Stratis filesystems for partitioning requests.
+    for request in requests:
+        device = storage.new_stratis_filesystem(
+            mountpoint=request.mountpoint,
+            size=request.size,
+            parents=[pool],
+        )
+        storage.create_device(device)
