@@ -289,6 +289,17 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
                 )
 
             self._map_device_name(kwargs["name"], partition_data.onPart)
+        elif partition_data.mountpoint.startswith("stratis."):
+            ty = "stratis"
+            kwargs["name"] = partition_data.mountpoint
+            partition_data.mountpoint = ""
+
+            if devicetree.get_device_by_name(kwargs["name"]):
+                raise StorageError(
+                    _("Stratis partition \"{}\" is defined multiple times.").format(kwargs["name"])
+                )
+
+            self._map_device_name(kwargs["name"], partition_data.onPart)
         elif partition_data.mountpoint == "/boot/efi":
             if blivet.arch.is_mactel():
                 ty = "macefi"
