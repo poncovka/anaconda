@@ -22,7 +22,7 @@ from enum import Enum
 from blivet.size import Size
 
 from pykickstart.constants import AUTOPART_TYPE_PLAIN, AUTOPART_TYPE_BTRFS, AUTOPART_TYPE_LVM, \
-    AUTOPART_TYPE_LVM_THINP
+    AUTOPART_TYPE_LVM_THINP, AUTOPART_TYPE_STRATIS
 
 from pyanaconda.core.configuration.base import Section
 from pyanaconda.core.configuration.utils import split_name_and_attributes
@@ -34,6 +34,7 @@ class PartitioningScheme(Enum):
     BTRFS = AUTOPART_TYPE_BTRFS
     LVM = AUTOPART_TYPE_LVM
     LVM_THINP = AUTOPART_TYPE_LVM_THINP
+    STRATIS = AUTOPART_TYPE_STRATIS
 
     @classmethod
     def from_name(cls, value):

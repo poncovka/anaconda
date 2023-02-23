@@ -53,9 +53,10 @@ class PartitioningRequest(DBusData):
 
         Allowed values:
             0  Create regular partitions.
-            1  Use the btrfs scheme.
-            2  Use the lvm scheme.
-            3  Use the lvm thinp scheme.
+            1  Use the Btrfs scheme.
+            2  Use the LVM scheme.
+            3  Use the LVM Thin Pool scheme.
+            4  Use the Stratis scheme.
 
         :return: an number of the partitioning scheme
         """
