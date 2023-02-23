@@ -85,7 +85,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         :param kickstart_name: a kickstart name of the device
         :return: a real name of the device
         """
-        return self._device_names.get(kickstart_name, default=kickstart_name)
+        return self._device_names.get(kickstart_name, kickstart_name)
 
     def _match_device(self, kickstart_name, strip_luks=False):
         """Find a device based on its kickstart name.
