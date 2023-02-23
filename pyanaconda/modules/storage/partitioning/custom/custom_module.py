@@ -62,9 +62,6 @@ class CustomPartitioningModule(PartitioningModule):
         # FIXME: Don't keep everything.
         self._data = data
 
-        # FIXME: Remove this ugly hack.
-        self._data.onPart = {}
-
     def requires_passphrase(self):
         """Is the default passphrase required?
 
