@@ -251,6 +251,9 @@ class DNFPayload(MigratedDBusPayload):
         """Is the payload ready?"""
         enabled_repos = self.proxy.GetEnabledRepositories()
 
+        # FIXME: Use the line below instead.
+        # return self.report.is_valid() and enabled_repos
+
         # If CDN is used as the installation source and we have
         # a subscription attached then any of the enabled repos
         # should be fine as the base repo.
