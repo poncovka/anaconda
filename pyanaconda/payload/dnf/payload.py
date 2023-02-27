@@ -248,38 +248,7 @@ class DNFPayload(MigratedDBusPayload):
 
     def is_ready(self):
         """Is the payload ready?"""
-        enabled_repos = self.proxy.GetEnabledRepositories()
-
-        # FIXME: Use the line below instead.
-        # return self.report.is_valid() and enabled_repos
-
-        # If CDN is used as the installation source and we have
-        # a subscription attached then any of the enabled repos
-        # should be fine as the base repo.
-        # If CDN is used but subscription has not been attached
-        # there will be no redhat.repo file to parse and we
-        # don't need to do anything.
-        if self.source_type == SOURCE_TYPE_CDN:
-            return self._is_cdn_set_up() and enabled_repos
-
-        # Otherwise, a base repository has to be enabled.
-        return any(map(self._is_base_repo, enabled_repos))
-
-    def _is_cdn_set_up(self):
-        """Is the CDN source set up?"""
-        if not self.source_type == SOURCE_TYPE_CDN:
-            return False
-
-        if not is_module_available(SUBSCRIPTION):
-            return False
-
-        subscription_proxy = SUBSCRIPTION.get_proxy()
-        return subscription_proxy.IsSubscriptionAttached
-
-    def _is_base_repo(self, repo_id):
-        """Is it a base repository?"""
-        return repo_id == constants.BASE_REPO_NAME \
-            or repo_id in constants.DEFAULT_REPOS
+        return self.report.is_valid() and self.proxy.GetEnabledRepositories()
 
     def unsetup(self):
         """Tear down the sources and the payload."""
@@ -436,12 +405,6 @@ class DNFPayload(MigratedDBusPayload):
         report_progress(_("Downloading group metadata..."))
         self.dnf_manager.load_packages_metadata()
 
-        # Check if that failed
-        if not self.is_ready():
-            msg = _("No base repository is configured.")
-            self._report.error_messages.append(msg)
-            raise SourceSetupError(msg)
-
         # run payload specific post configuration tasks
         self.dnf_manager.load_repomd_hashes()
 
@@ -467,14 +430,21 @@ class DNFPayload(MigratedDBusPayload):
         set_up_sources(self.proxy)
 
         # Set up the base repo.
-        if self.source_type not in SOURCE_REPO_FILE_TYPES:
-            self._add_base_repository()
-        else:
+        if self.source_type == SOURCE_TYPE_CDN:
             # Remove all treeinfo repositories.
             self._remove_treeinfo_repositories()
-
-            # Otherwise, fall back to the default repos that we disabled above
+            # Enable CDN repositories.
             self._enable_system_repositories()
+
+        elif self.source_type == SOURCE_TYPE_CLOSEST_MIRROR:
+            # Remove all treeinfo repositories.
+            self._remove_treeinfo_repositories()
+            # Enable system repositories.
+            self._enable_system_repositories()
+
+        else:
+            # Add a base repository.
+            self._add_base_repository()
 
         self._include_additional_repositories()
         self._validate_enabled_repositories()
@@ -582,6 +552,11 @@ class DNFPayload(MigratedDBusPayload):
         The user repositories are validated when we add them
         to DNF, so this covers invalid system repositories.
         """
+        # Check if there is at least one enabled repository.
+        if not self.dnf_manager.enabled_repositories:
+            raise SourceSetupError(_("No repository is configured."))
+
+        # Load all enabled repositories and collect warnings if any.
         for repo_id in self.dnf_manager.enabled_repositories:
             try:
                 self.dnf_manager.load_repository(repo_id)
