@@ -26,7 +26,6 @@ from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
 from pyanaconda.core.i18n import _
 from pyanaconda.core.path import join_paths
 from pyanaconda.core.payload import parse_hdd_url
-from pyanaconda.flags import flags
 from pyanaconda.modules.common.constants.services import SUBSCRIPTION
 from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
@@ -473,13 +472,6 @@ class DNFPayload(MigratedDBusPayload):
         else:
             # Remove all treeinfo repositories.
             self._remove_treeinfo_repositories()
-
-            # If this is a kickstart install, just return now as we normally do not
-            # want to read the on media repo files in such a case. On the other hand,
-            # the local repo files are a valid use case if the system is subscribed
-            # and the CDN is selected as the installation source.
-            if flags.automatedInstall and not self._is_cdn_set_up():
-                return
 
             # Otherwise, fall back to the default repos that we disabled above
             self._enable_system_repositories()
