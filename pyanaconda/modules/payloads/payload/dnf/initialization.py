@@ -18,6 +18,9 @@
 import dnf.logging
 import logging
 import libdnf
+from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager
+
+from pyanaconda.modules.payloads.base.initialization import SetUpSourcesTask, TearDownSourcesTask
 
 from pyanaconda.anaconda_loggers import get_module_logger
 
@@ -40,3 +43,37 @@ def configure_dnf_logging():
     dnf_logger = logging.getLogger(DNF_LOGGER)
     dnf_logger.setLevel(dnf.logging.DDEBUG)
 
+
+class SetUpDNFSourcesTask(SetUpSourcesTask):
+    """Set up all the installation source of the DNF payload."""
+
+    def __init__(self, sources):
+        """Create a new task."""
+        super().__init__(sources)
+        self._dnf_manager = DNFManager()
+
+    def run(self):
+        """Run the task."""
+        # Set up the sources.
+        super().run()
+
+        # Return the configured DNF manager.
+        return self._dnf_manager
+
+
+class TearDownDNFSourcesTask(TearDownSourcesTask):
+    """Tear down all the installation sources of the DNF payload."""
+
+    def __init__(self, sources, dnf_manager):
+        """Create a new task."""
+        super().__init__(sources)
+        self._dnf_manager = dnf_manager
+
+    def run(self):
+        """Run the task."""
+        try:
+            # Tear down the sources.
+            super().run()
+        finally:
+            # Close the DNF base.
+            self._dnf_manager.reset_base()

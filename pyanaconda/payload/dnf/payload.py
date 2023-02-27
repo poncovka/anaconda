@@ -250,16 +250,6 @@ class DNFPayload(MigratedDBusPayload):
         """Is the payload ready?"""
         return self.report.is_valid() and self.proxy.GetEnabledRepositories()
 
-    def unsetup(self):
-        """Tear down the sources and the payload."""
-        # Tear down the sources.
-        super().unsetup()
-
-        self.tx_id = None
-
-        # FIXME: Reset the DNF base during tear down.
-        self._dnf_manager.reset_base()
-
     def bump_tx_id(self):
         if self.tx_id is None:
             self.tx_id = 1
