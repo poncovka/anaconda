@@ -257,40 +257,9 @@ class DNFPayload(MigratedDBusPayload):
             self.tx_id += 1
         return self.tx_id
 
-    def _get_proxy_url(self):
-        """Get a proxy of the current source.
-
-        :return: a proxy or None
-        """
-        source_proxy = self.get_source_proxy()
-        source_type = source_proxy.Type
-
-        if source_type != SOURCE_TYPE_URL:
-            return None
-
-        data = RepoConfigurationData.from_structure(
-            source_proxy.RepoConfiguration
-        )
-
-        return data.proxy
-
     ###
     # METHODS FOR WORKING WITH REPOSITORIES
     ###
-
-    def _handle_system_repository(self, data):
-        """Handle a system repository.
-
-        The user is trying to do "repo --name=updates" in a kickstart file.
-        We can only enable or disable the already existing on-disk repo config.
-
-        :raise: SourceSetupError if the system repository is not available
-        """
-        try:
-            self._dnf_manager.set_repository_enabled(data.name, data.enabled)
-        except UnknownRepositoryError:
-            msg = "The '{}' repository is not one of the pre-defined repositories."
-            raise SourceSetupError(msg.format(data.name)) from None
 
     def _set_up_additional_repository(self, data):
         """Set up sources for the additional repository."""
@@ -394,14 +363,6 @@ class DNFPayload(MigratedDBusPayload):
             set_up_sources(self.proxy)
 
             report_progress(_("Downloading package metadata..."))
-            log.debug("Preparing the DNF base")
-
-            self._dnf_manager.clear_cache()
-            self._dnf_manager.reset_substitution()
-            self._dnf_manager.configure_base(self.get_packages_configuration())
-            self._dnf_manager.configure_proxy(self._get_proxy_url())
-            self._dnf_manager.dump_configuration()
-            self._dnf_manager.read_system_repositories()
 
             log.info("Configuring the base repo")
             if self.source_type == SOURCE_TYPE_CDN:
@@ -416,52 +377,16 @@ class DNFPayload(MigratedDBusPayload):
                 # Enable system repositories.
                 self._enable_system_repositories()
 
-            else:
-                # Add a base repository.
-                # Get the repo configuration of the first source.
-                data = RepoConfigurationData.from_structure(
-                    self.proxy.GetRepoConfigurations()[0]
-                )
-
-                log.debug("Using the repo configuration: %s", data)
-                data.name = constants.BASE_REPO_NAME
-
-                # Process the treeinfo metadata.
-                treeinfo_base_repo_url = self._reload_treeinfo_metadata(data)
-
-                if treeinfo_base_repo_url:
-                    data.type = URL_TYPE_BASEURL
-                    data.url = treeinfo_base_repo_url
-
-                log.debug("Add the base repository at %s.", data.url)
-
-                self._dnf_manager.add_repository(data)
-                self._dnf_manager.load_repository(data.name)
-
             # Prepare additional sources.
-            for data in self.get_repo_configurations():
+            for data in self.get_repo_configurations() + treeinfo_repos:
                 log.debug("Add the '%s' repository (%s).", data.name, data)
 
                 # A system repository can be only enabled or disabled.
                 if data.origin == REPO_ORIGIN_SYSTEM:
-                    self._handle_system_repository(data)
                     return
 
                 # Set up additional sources.
                 self._set_up_additional_repository(data)
-
-                # Add a new repository.
-                self._dnf_manager.add_repository(data)
-
-                # Load an enabled repository to check its validity.
-                self._dnf_manager.load_repository(data.name)
-
-            # Validate configured repositories.
-            self._validate_enabled_repositories()
-
-            # Load metadata.
-            report_progress(_("Downloading group metadata..."))
-            self._load_metadata()
 
         except (OSError, SourceSetupError, DNFManagerError) as e:
             self._report.error_messages.append(str(e))
@@ -509,127 +434,3 @@ class DNFPayload(MigratedDBusPayload):
 
         for repo_id in sorted(repo_ids):
             self.dnf_manager.set_repository_enabled(repo_id, enabled)
-
-    def _validate_enabled_repositories(self):
-        """Validate all enabled repositories.
-
-        Collect error messages about invalid repositories.
-        All invalid repositories are disabled.
-
-        The user repositories are validated when we add them
-        to DNF, so this covers invalid system repositories.
-        """
-        # Check if there is at least one enabled repository.
-        if not self.dnf_manager.enabled_repositories:
-            raise SourceSetupError(_("No repository is configured."))
-
-        # Load all enabled repositories and collect warnings if any.
-        for repo_id in self.dnf_manager.enabled_repositories:
-            try:
-                self.dnf_manager.load_repository(repo_id)
-            except MetadataError as e:
-                self._report.warning_messages.append(str(e))
-
-    def _load_metadata(self):
-        """Load metadata of configured repositories."""
-        self.dnf_manager.load_packages_metadata()
-        self.dnf_manager.load_repomd_hashes()
-
-    def _reload_treeinfo_metadata(self, repo_data):
-        """Reload treeinfo metadata.
-
-        :param RepoConfigurationData repo_data: configuration data of the base repo
-        :return: a URL of the base repository
-        """
-        log.debug("Reload treeinfo metadata.")
-        base_repo_url = None
-
-        try:
-            # Load the treeinfo metadata.
-            tree_info_metadata = TreeInfoMetadata()
-            tree_info_metadata.load_data(repo_data)
-
-            # Set up the substitutions.
-            self._dnf_manager.configure_substitution(
-                tree_info_metadata.release_version
-            )
-
-            # Get the new base repo URL.
-            base_repo_url = tree_info_metadata.get_base_repo_url()
-
-            # Add the treeinfo repositories.
-            repositories = generate_treeinfo_repositories(
-                repo_data,
-                tree_info_metadata
-            )
-
-            self._update_treeinfo_repositories(
-                treeinfo_repositories=repositories,
-                existing_urls=[base_repo_url],
-            )
-        except NoTreeInfoError as e:
-            log.debug("No treeinfo metadata to use: %s", str(e))
-            self._remove_treeinfo_repositories()
-
-        except TreeInfoMetadataError as e:
-            log.warning("Couldn't use treeinfo metadata: %s", str(e))
-            self._remove_treeinfo_repositories()
-
-        return base_repo_url
-
-    def _update_treeinfo_repositories(self, treeinfo_repositories, existing_urls):
-        """Add the treeinfo repositories.
-
-        :param [RepoConfigurationData] treeinfo_repositories: a list of treeinfo repositories
-        :param [str] existing_urls: a list of repository URLs that already exist
-        """
-        log.debug("Update treeinfo repositories...")
-
-        # Get the additional repositories.
-        repositories = self.get_repo_configurations()
-
-        # Remember names of disabled treeinfo repositories.
-        disabled_names = [
-            r.name for r in repositories
-            if not r.enabled and r.origin == REPO_ORIGIN_TREEINFO
-        ]
-
-        # Remove the previous treeinfo repositories.
-        log.debug("Remove all treeinfo repositories.")
-
-        repositories = [
-            r for r in repositories
-            if r.origin != REPO_ORIGIN_TREEINFO
-        ]
-
-        # Collect URLs of non-treeinfo repositories.
-        existing_urls += [r.url for r in repositories if r.url]
-
-        # Add the new treeinfo repositories.
-        for repo in treeinfo_repositories:
-            # Skip existing repositories.
-            if repo.url in existing_urls:
-                continue
-
-            # Disable if previously disabled.
-            if repo.name in disabled_names:
-                repo.enabled = False
-
-            repositories.append(repo)
-            log.debug("Add the '%s' treeinfo repository: %s", repo.name, repo)
-
-        # Set the additional repositories.
-        self.set_repo_configurations(repositories)
-
-    def _remove_treeinfo_repositories(self):
-        """Remove all old treeinfo repositories before loading new ones.
-
-        Find all repositories added from treeinfo file and remove them.
-        After this step new repositories will be loaded from the new link.
-        """
-        log.debug("Remove all treeinfo repositories.")
-        repositories = [
-            r for r in self.get_repo_configurations()
-            if r.origin != REPO_ORIGIN_TREEINFO
-        ]
-        self.set_repo_configurations(repositories)

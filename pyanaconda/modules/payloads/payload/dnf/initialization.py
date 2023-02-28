@@ -15,14 +15,22 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-import dnf.logging
 import logging
-import libdnf
-from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager
 
-from pyanaconda.modules.payloads.base.initialization import SetUpSourcesTask, TearDownSourcesTask
+import dnf.logging
+import libdnf
+from pyanaconda.modules.common.structures.payload import RepoConfigurationData
 
 from pyanaconda.anaconda_loggers import get_module_logger
+from pyanaconda.core.constants import BASE_REPO_NAME, REPO_ORIGIN_SYSTEM, SOURCE_REPO_FILE_TYPES, \
+    SOURCE_TYPE_URL
+from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
+from pyanaconda.modules.common.structures.validation import ValidationReport
+from pyanaconda.modules.payloads.base.initialization import SetUpSourcesTask, TearDownSourcesTask
+from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager, MetadataError
+from pyanaconda.modules.payloads.payload.dnf.repositories import update_treeinfo_repositories
+from pyanaconda.modules.payloads.source.repo_tasks import LoadTreeInfoMetadataTask, \
+    LoadTreeInfoMetadataResult
 
 DNF_LIBREPO_LOG = "/tmp/dnf.librepo.log"
 DNF_LOGGER = "dnf"
@@ -47,18 +55,164 @@ def configure_dnf_logging():
 class SetUpDNFSourcesTask(SetUpSourcesTask):
     """Set up all the installation source of the DNF payload."""
 
-    def __init__(self, sources):
+    def __init__(self, sources, repositories, configuration):
         """Create a new task."""
         super().__init__(sources)
-        self._dnf_manager = DNFManager()
+        self._repositories = repositories
+        self._configuration = configuration
+        self._validation_report = ValidationReport()
+        self._treeinfo_repositories = []
+        self._repository_data = None
+        self._release_version = None
+        self._proxy = None
+
+    @property
+    def _source(self):
+        return self._sources[0]
 
     def run(self):
         """Run the task."""
         # Set up the sources.
         super().run()
 
-        # Return the configured DNF manager.
-        return self._dnf_manager
+        # Process the configuration of the main source.
+        self._process_source(self._source)
+
+        # Process treeinfo metadata of the main source.
+        # FIXME: Move to a new method in sources.
+        self._process_treeinfo_metadata(self._source)
+
+        # Update treeinfo repositories.
+        # FIXME: Separate the method in a new pull request.
+        self._repositories = update_treeinfo_repositories(
+            self._repositories,
+            self._treeinfo_repositories
+        )
+
+        # Set up additional sources.
+        # FIXME: Use sources to handle additional repositories.
+        for data in self._repositories:
+            self._set_up_additional_repository(data)
+
+        # Configure the DNF manager.
+        dnf_manager = self._configure_dnf_manager()
+
+        # Handle the main repository.
+        # FIXME: Move this to sources.
+        self._process_source_repository(dnf_manager, self._source)
+
+        # Add and load repositories.
+        for data in self._repositories:
+            self._process_repository_data(dnf_manager, data)
+
+        # Validate configured repositories.
+        self._validate_repositories(dnf_manager)
+
+        # Load metadata.
+        self.report_progress(_("Downloading group metadata..."))
+        self._load_metadata(dnf_manager)
+
+        # Return the configured DNF manager and an updated list of repositories.
+        # FIXME: Remember the DNF manager and updated repositories.
+        return dnf_manager, repositories
+
+    def _process_source(self, source):
+        if source.type in SOURCE_REPO_FILE_TYPES:
+            return
+
+        self._repository_data = source.generate_repo_configuration()
+        self._repository_data.name = BASE_REPO_NAME
+
+        if source.type != SOURCE_TYPE_URL:
+            return
+
+        self._proxy = self._repository_data.proxy
+
+    def _process_treeinfo_metadata(self, source):
+        """Load treeinfo metadata of the source."""
+        if source.type in SOURCE_REPO_FILE_TYPES:
+            return
+
+        task = LoadTreeInfoMetadataTask(self._repository_data)
+        result = task.run()
+
+        self._repository_data = result.repository_data
+        self._release_version = result.release_version
+
+    def _configure_dnf_manager(self):
+        """Initialize and configure the DNF manager."""
+        log.debug("Preparing the DNF base...")
+        dnf_manager = DNFManager()
+        dnf_manager.clear_cache()
+        dnf_manager.configure_substitution(self._release_version)
+        dnf_manager.configure_base(self._configuration)
+        dnf_manager.configure_proxy(self._proxy)
+        dnf_manager.dump_configuration()
+        dnf_manager.read_system_repositories()
+        # DNF5: LOCK THE DNF BASE HERE!
+        return dnf_manager
+
+    def _process_source_repository(self, dnf_manager, source):
+        # FIXME: Use sources to set up repositories?
+        if source.type in SOURCE_REPO_FILE_TYPES:
+            self._enable_system_repositories(dnf_manager)
+        else:
+            self._add_and_load_repository(dnf_manager, self._repository_data)
+
+    def _process_repository_data(self, dnf_manager, data):
+        """Process a repository data."""
+        log.debug("Add the '%s' repository (%s).", data.name, data)
+
+        if data.origin == REPO_ORIGIN_SYSTEM:
+            self._set_system_repository(dnf_manager, data)
+        else:
+            self._add_and_load_repository(dnf_manager, data)
+
+    def _set_system_repository(self, dnf_manager, data):
+        """Handle a system repository.
+
+        The user is trying to do "repo --name=updates" in a kickstart file.
+        We can only enable or disable the already existing on-disk repo config.
+
+        :raise: SourceSetupError if the system repository is not available
+        """
+        try:
+            dnf_manager.set_repository_enabled(data.name, data.enabled)
+        except UnknownRepositoryError:
+            msg = "The '{}' repository is not one of the pre-defined repositories."
+            raise SourceSetupError(msg.format(data.name)) from None
+
+    def _add_and_load_repository(self, dnf_manager, data):
+        # Add a new repository.
+        dnf_manager.add_repository(data)
+
+        # Load an enabled repository to check its validity.
+        dnf_manager.load_repository(data.name)
+
+    def _validate_repositories(self, dnf_manager):
+        """Validate all enabled repositories.
+
+        Collect error messages about invalid repositories.
+        All invalid repositories are disabled.
+
+        The user repositories are validated when we add them
+        to DNF, so this covers invalid system repositories.
+        """
+        # Check if there is at least one enabled repository.
+        if not dnf_manager.enabled_repositories:
+            raise SourceSetupError(_("No repository is configured."))
+
+        # Load all enabled repositories and collect warnings if any.
+        for repo_id in dnf_manager.enabled_repositories:
+            try:
+                dnf_manager.load_repository(repo_id)
+            except MetadataError as e:
+                self._validation_report.warning_messages.append(str(e))
+
+    def _load_metadata(self, dnf_manager):
+        """Load metadata of configured repositories."""
+        dnf_manager.load_packages_metadata()
+        dnf_manager.load_repomd_hashes()
 
 
 class TearDownDNFSourcesTask(TearDownSourcesTask):
