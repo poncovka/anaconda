@@ -82,6 +82,8 @@ class SetUpDNFSourcesTask(SetUpSourcesTask):
         # FIXME: Move to a new method in sources.
         self._process_treeinfo_metadata(self._source)
 
+        # FIXME: Add the repo data to the list of repositories?
+
         # Update treeinfo repositories.
         # FIXME: Separate the method in a new pull request.
         self._repositories = update_treeinfo_repositories(
