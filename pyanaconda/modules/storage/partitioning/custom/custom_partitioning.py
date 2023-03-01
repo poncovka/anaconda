@@ -1180,7 +1180,7 @@ class CustomPartitioningTask(NonInteractivePartitioningTask):
         block_devices = []
 
         for device_name in pool_data.devices:
-            device = devicetree.resolve_device(device_name)
+            device = self._match_device(device_name)
 
             if not device:
                 raise StorageError(
