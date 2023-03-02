@@ -65,7 +65,6 @@ class SoftwareSpoke(NormalTUISpoke):
         super().__init__(data, storage, payload)
         self.title = N_("Software selection")
         self._container = None
-        self._tx_id = None
         self._errors = []
         self._warnings = []
 
@@ -142,7 +141,7 @@ class SoftwareSpoke(NormalTUISpoke):
     @property
     def _source_has_changed(self):
         """Has the installation source changed?"""
-        return self._tx_id != self.payload.tx_id
+        return self.payload.software_validation_required
 
     @property
     def _processing_data(self):
@@ -282,17 +281,9 @@ class SoftwareSpoke(NormalTUISpoke):
 
     def _check_software_selection(self):
         """Check the software selection."""
-        self.payload.bump_tx_id()
-
-        report = check_software_selection(
-            payload_proxy=self.payload.proxy,
-            selection=self._selection
-        )
-
+        report = self.payload.check_software_selection(self._selection)
         self._errors = list(report.error_messages)
         self._warnings = list(report.warning_messages)
-        self._tx_id = self.payload.tx_id
-
         print("\n".join(report.get_messages()))
 
     def closed(self):

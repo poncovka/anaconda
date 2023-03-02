@@ -19,15 +19,10 @@
 from dasbus.typing import unwrap_variant
 
 from pyanaconda.anaconda_loggers import get_module_logger
-from pyanaconda.core import constants
 from pyanaconda.core.configuration.anaconda import conf
-from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
+from pyanaconda.core.constants import PAYLOAD_TYPE_DNF, \
     SOURCE_TYPE_URL, SOURCE_TYPE_REPO_PATH, \
-    SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL, REPO_ORIGIN_SYSTEM, SOURCE_TYPE_CLOSEST_MIRROR, \
-    DRACUT_REPO_DIR
-from pyanaconda.core.i18n import _
-from pyanaconda.core.path import join_paths
-from pyanaconda.core.payload import parse_hdd_url
+    MULTILIB_POLICY_ALL, DRACUT_REPO_DIR
 from pyanaconda.modules.common.constants.services import PAYLOADS
 from pyanaconda.modules.common.errors.payload import SourceSetupError
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
@@ -38,13 +33,12 @@ from pyanaconda.modules.common.task import sync_run_task
 from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManagerError
 from pyanaconda.modules.payloads.payload.dnf.repositories import \
     generate_driver_disk_repositories
-from pyanaconda.modules.payloads.source.harddrive.initialization import SetUpHardDriveSourceTask
 from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
-from pyanaconda.modules.payloads.source.nfs.initialization import SetUpNFSSourceTask
 from pyanaconda.modules.payloads.source.utils import verify_valid_repository
 from pyanaconda.payload.migrated import MigratedDBusPayload
 from pyanaconda.payload.source import SourceFactory, PayloadSourceTypeUnrecognized
 from pyanaconda.ui.lib.payload import create_source, set_source, set_up_sources, tear_down_sources
+from pyanaconda.ui.lib.software import check_software_selection
 
 __all__ = ["DNFPayload"]
 
@@ -57,17 +51,12 @@ class DNFPayload(MigratedDBusPayload):
     def __init__(self, data):
         super().__init__()
         self._report = ValidationReport()
-        self.tx_id = None
+        self._software_validation_required = True
 
     @property
     def type(self):
         """The DBus type of the payload."""
         return PAYLOAD_TYPE_DNF
-
-    @property
-    def report(self):
-        """The latest report from the payload setup."""
-        return self._report
 
     def set_from_opts(self, opts):
         """Set the payload from the Anaconda cmdline options.
@@ -250,81 +239,6 @@ class DNFPayload(MigratedDBusPayload):
         """Is the payload ready?"""
         return self.report.is_valid() and self.proxy.GetEnabledRepositories()
 
-    def bump_tx_id(self):
-        if self.tx_id is None:
-            self.tx_id = 1
-        else:
-            self.tx_id += 1
-        return self.tx_id
-
-    ###
-    # METHODS FOR WORKING WITH REPOSITORIES
-    ###
-
-    def _set_up_additional_repository(self, data):
-        """Set up sources for the additional repository."""
-        # Check the validity of the repository.
-        if not data.url:
-            msg = _("The '{repository_name}' repository has no mirror, baseurl or metalink set.")
-            raise SourceSetupError(msg.format(repository_name=data.name)) from None
-
-        # There is nothing to set up for sources natively supported by DNF.
-        if any(data.url.startswith(p) for p in ["file:", "http:", "https:", "ftp:"]):
-            return
-
-        # Set up the NFS source with a substituted URL.
-        if data.url.startswith("nfs:"):
-            device_mount = self._create_mount_point(
-                constants.MOUNT_DIR,
-                data.name + "-nfs-device"
-            )
-            iso_mount = self._create_mount_point(
-                constants.MOUNT_DIR,
-                data.name + "-nfs-iso"
-            )
-            task = SetUpNFSSourceTask(
-                device_mount=device_mount,
-                iso_mount=iso_mount,
-                url=self._dnf_manager.substitute(data.url)
-            )
-            mount_point = task.run()
-            data.url = "file://" + mount_point
-            return
-
-        # Set up the HDD source.
-        if data.url.startswith("hd:"):
-            device_mount = self._create_mount_point(
-                ISO_DIR + "-" + data.name + "-hdd-device"
-            )
-            iso_mount = self._create_mount_point(
-                INSTALL_TREE + "-" + data.name + "-hdd-iso"
-            )
-
-            partition, directory = parse_hdd_url(data.url)
-
-            task = SetUpHardDriveSourceTask(
-                device_mount=device_mount,
-                iso_mount=iso_mount,
-                partition=partition,
-                directory=directory,
-            )
-            result = task.run()
-            data.url = "file://" + result.install_tree_path
-            return
-
-        # Otherwise, raise an error.
-        msg = _("The '{repository_name}' repository uses an unsupported protocol.")
-        raise SourceSetupError(msg.format(repository_name=data.name)) from None
-
-    def _create_mount_point(self, *paths):
-        """Create a mount point from specified paths.
-
-        FIXME: This is a temporary workaround.
-        """
-        mount_point = join_paths(*paths)
-        self._mount_points.append(mount_point)
-        return mount_point
-
     def _tear_down_additional_sources(self):
         """Tear down sources of additional repositories.
 
@@ -335,6 +249,11 @@ class DNFPayload(MigratedDBusPayload):
             task = TearDownMountTask(mount_point)
             task.run()
 
+    @property
+    def report(self):
+        """The latest report from the payload setup."""
+        return self._report
+
     # pylint: disable=arguments-differ
     def setup(self, report_progress, only_on_change=False):
         """Set up the payload.
@@ -342,8 +261,6 @@ class DNFPayload(MigratedDBusPayload):
         :param function report_progress: a callback for a progress reporting
         :param bool only_on_change: restart thread only if existing repositories changed
         """
-        self._report = ValidationReport()
-
         # Test if any repository changed from the last update.
         if only_on_change:
             log.debug("Testing repositories availability")
@@ -358,39 +275,34 @@ class DNFPayload(MigratedDBusPayload):
                 log.debug("Payload isn't restarted, repositories are still available.")
                 return
 
+        # It will be necessary to validate the software selection again.
+        self._software_validation_required = True
+
         # Set up repositories and download their metadata.
-        self.tx_id = None
+        self._report = ValidationReport()
 
         try:
             log.debug("Tearing down sources")
             tear_down_sources(self.proxy)
-            self._tear_down_additional_sources()
 
             log.debug("Setting up sources")
             set_up_sources(self.proxy)
 
-            report_progress(_("Downloading package metadata..."))
-
-            log.info("Configuring the base repo")
-            if self.source_type == SOURCE_TYPE_CDN:
-                # Enable CDN repositories.
-                self._enable_system_repositories()
-
-            elif self.source_type == SOURCE_TYPE_CLOSEST_MIRROR:
-                # Enable system repositories.
-                self._enable_system_repositories()
-
-            # Prepare additional sources.
-            for data in self.get_repo_configurations() + treeinfo_repos:
-                log.debug("Add the '%s' repository (%s).", data.name, data)
-
-                # A system repository can be only enabled or disabled.
-                if data.origin == REPO_ORIGIN_SYSTEM:
-                    return
-
-                # Set up additional sources.
-                self._set_up_additional_repository(data)
-
         except (OSError, SourceSetupError, DNFManagerError) as e:
             self._report.error_messages.append(str(e))
             raise SourceSetupError(str(e)) from e
+
+    @property
+    def software_validation_required(self):
+        """Is it necessary to validate the software selection?"""
+        return self._software_validation_required
+
+    def check_software_selection(self, selection):
+        """Check the software selection."""
+        report = check_software_selection(
+            dnf_proxy=self.proxy,
+            selection=selection
+        )
+
+        self._software_validation_required = False
+        return report
