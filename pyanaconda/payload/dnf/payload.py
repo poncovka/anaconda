@@ -16,32 +16,28 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
-from dasbus.typing import get_native, unwrap_variant
-
-from pyanaconda.modules.common.task import sync_run_task
+from dasbus.typing import unwrap_variant
 
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core import constants
 from pyanaconda.core.configuration.anaconda import conf
 from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
-    SOURCE_TYPE_URL, URL_TYPE_BASEURL, SOURCE_REPO_FILE_TYPES, SOURCE_TYPE_REPO_PATH, \
+    SOURCE_TYPE_URL, SOURCE_TYPE_REPO_PATH, \
     SOURCE_TYPE_CDN, MULTILIB_POLICY_ALL, REPO_ORIGIN_SYSTEM, SOURCE_TYPE_CLOSEST_MIRROR, \
-    REPO_ORIGIN_TREEINFO, DRACUT_REPO_DIR
+    DRACUT_REPO_DIR
 from pyanaconda.core.i18n import _
 from pyanaconda.core.path import join_paths
 from pyanaconda.core.payload import parse_hdd_url
-from pyanaconda.modules.common.constants.services import SUBSCRIPTION, PAYLOADS
-from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
+from pyanaconda.modules.common.constants.services import PAYLOADS
+from pyanaconda.modules.common.errors.payload import SourceSetupError
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
     PackagesSelectionData
 from pyanaconda.modules.common.structures.payload import RepoConfigurationData
 from pyanaconda.modules.common.structures.validation import ValidationReport
-from pyanaconda.modules.common.util import is_module_available
-from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManagerError, MetadataError
+from pyanaconda.modules.common.task import sync_run_task
+from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManagerError
 from pyanaconda.modules.payloads.payload.dnf.repositories import \
-    generate_driver_disk_repositories, generate_treeinfo_repositories
-from pyanaconda.modules.payloads.payload.dnf.tree_info import TreeInfoMetadata, NoTreeInfoError, \
-    TreeInfoMetadataError
+    generate_driver_disk_repositories
 from pyanaconda.modules.payloads.source.harddrive.initialization import SetUpHardDriveSourceTask
 from pyanaconda.modules.payloads.source.mount_tasks import TearDownMountTask
 from pyanaconda.modules.payloads.source.nfs.initialization import SetUpNFSSourceTask
@@ -377,14 +373,10 @@ class DNFPayload(MigratedDBusPayload):
 
             log.info("Configuring the base repo")
             if self.source_type == SOURCE_TYPE_CDN:
-                # Remove all treeinfo repositories.
-                self._remove_treeinfo_repositories()
                 # Enable CDN repositories.
                 self._enable_system_repositories()
 
             elif self.source_type == SOURCE_TYPE_CLOSEST_MIRROR:
-                # Remove all treeinfo repositories.
-                self._remove_treeinfo_repositories()
                 # Enable system repositories.
                 self._enable_system_repositories()
 
@@ -402,46 +394,3 @@ class DNFPayload(MigratedDBusPayload):
         except (OSError, SourceSetupError, DNFManagerError) as e:
             self._report.error_messages.append(str(e))
             raise SourceSetupError(str(e)) from e
-
-    def _enable_system_repositories(self):
-        """Enable system repositories.
-
-        * Restore previously disabled system repositories.
-        * Enable or disable system repositories based on the current configuration.
-        """
-        self._dnf_manager.restore_system_repositories()
-
-        log.debug("Enable or disable updates repositories.")
-        updates_enabled = self._get_updates_enabled()
-        self._set_repositories_enabled(conf.payload.updates_repositories, updates_enabled)
-
-        log.debug("Disable repositories based on the Anaconda configuration file.")
-        self._set_repositories_enabled(conf.payload.disabled_repositories, False)
-
-        if constants.isFinal:
-            log.debug("Disable rawhide repositories.")
-            self._set_repositories_enabled(["*rawhide*"], False)
-
-    def _get_updates_enabled(self):
-        """Are latest updates enabled?"""
-        source_proxy = self.get_source_proxy()
-        source_type = source_proxy.Type
-
-        if source_type == SOURCE_TYPE_CLOSEST_MIRROR:
-            return source_proxy.UpdatesEnabled
-        else:
-            return False
-
-    def _set_repositories_enabled(self, patterns, enabled):
-        """Enable or disable matching repositories.
-
-        :param patterns: a list of patterns to match the repo ids
-        :param enabled: True to enable, False to disable
-        """
-        repo_ids = set()
-
-        for pattern in patterns:
-            repo_ids.update(self._dnf_manager.get_matching_repositories(pattern))
-
-        for repo_id in sorted(repo_ids):
-            self.dnf_manager.set_repository_enabled(repo_id, enabled)
