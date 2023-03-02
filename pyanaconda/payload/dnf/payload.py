@@ -16,6 +16,10 @@
 # License and may only be used or replicated with the express permission of
 # Red Hat, Inc.
 #
+from dasbus.typing import get_native, unwrap_variant
+
+from pyanaconda.modules.common.task import sync_run_task
+
 from pyanaconda.anaconda_loggers import get_module_logger
 from pyanaconda.core import constants
 from pyanaconda.core.configuration.anaconda import conf
@@ -26,7 +30,7 @@ from pyanaconda.core.constants import INSTALL_TREE, ISO_DIR, PAYLOAD_TYPE_DNF, \
 from pyanaconda.core.i18n import _
 from pyanaconda.core.path import join_paths
 from pyanaconda.core.payload import parse_hdd_url
-from pyanaconda.modules.common.constants.services import SUBSCRIPTION
+from pyanaconda.modules.common.constants.services import SUBSCRIPTION, PAYLOADS
 from pyanaconda.modules.common.errors.payload import UnknownRepositoryError, SourceSetupError
 from pyanaconda.modules.common.structures.packages import PackagesConfigurationData, \
     PackagesSelectionData
@@ -347,7 +351,14 @@ class DNFPayload(MigratedDBusPayload):
         # Test if any repository changed from the last update.
         if only_on_change:
             log.debug("Testing repositories availability")
-            if self.dnf_manager.verify_repomd_hashes():
+            task_path = self.proxy.VerifyRepomdHashesWithTask()
+            task_proxy = PAYLOADS.get_proxy(task_path)
+            sync_run_task(task_proxy)
+
+            result = unwrap_variant(task_proxy.GetResult())
+            report = ValidationReport.from_structure(result)
+
+            if not report.is_valid():
                 log.debug("Payload isn't restarted, repositories are still available.")
                 return
 
