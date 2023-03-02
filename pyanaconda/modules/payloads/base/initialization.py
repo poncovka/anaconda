@@ -49,14 +49,15 @@ class SetUpSourcesTask(Task):
         if not self._sources:
             raise SourceSetupError("No sources specified for set up!")
 
-        for source in self._sources:
+        self._set_up_sources(self._sources)
+
+    def _set_up_sources(self, sources):
+        for source in sources:
+            log.debug("Setting up a source: %s", str(source))
             tasks = source.set_up_with_tasks()
-            log.debug("Collected %s tasks from %s source",
-                      [task.name for task in tasks],
-                      source.type)
 
             for task in tasks:
-                log.debug("Running task %s", task.name)
+                log.debug("Running the '%s' task.", task.name)
                 task.run_with_signals()
 
 

@@ -29,8 +29,7 @@ from pyanaconda.modules.common.structures.validation import ValidationReport
 from pyanaconda.modules.payloads.base.initialization import SetUpSourcesTask, TearDownSourcesTask
 from pyanaconda.modules.payloads.payload.dnf.dnf_manager import DNFManager, MetadataError
 from pyanaconda.modules.payloads.payload.dnf.repositories import update_treeinfo_repositories
-from pyanaconda.modules.payloads.source.repo_tasks import LoadTreeInfoMetadataTask, \
-    LoadTreeInfoMetadataResult
+from pyanaconda.modules.payloads.source.repo_tasks import LoadTreeInfoMetadataTask
 
 DNF_LIBREPO_LOG = "/tmp/dnf.librepo.log"
 DNF_LOGGER = "dnf"
@@ -72,21 +71,14 @@ class SetUpDNFSourcesTask(SetUpSourcesTask):
 
     def run(self):
         """Run the task."""
-        # Set up the sources.
+        # Set up the sources. It will fail if there are no sources to set up.
         super().run()
 
         # Process the configuration of the main source.
         self._process_source(self._source)
 
-        # Process treeinfo metadata of the main source.
-        # FIXME: Move to a new method in sources.
-        self._process_treeinfo_metadata(self._source)
-
-        # FIXME: Add the repo data to the list of repositories?
-
-        # Update treeinfo repositories.
-        # FIXME: Separate the method in a new pull request.
-        self._repositories = update_treeinfo_repositories(
+        # Update the treeinfo repositories if any.
+        repositories = update_treeinfo_repositories(
             self._repositories,
             self._treeinfo_repositories
         )
@@ -100,18 +92,16 @@ class SetUpDNFSourcesTask(SetUpSourcesTask):
         dnf_manager = self._configure_dnf_manager()
 
         # Handle the main repository.
-        # FIXME: Move this to sources.
         self._process_source_repository(dnf_manager, self._source)
 
         # Add and load repositories.
-        for data in self._repositories:
+        for data in repositories:
             self._process_repository_data(dnf_manager, data)
 
         # Validate configured repositories.
         self._validate_repositories(dnf_manager)
 
         # Load metadata.
-        self.report_progress(_("Downloading group metadata..."))
         self._load_metadata(dnf_manager)
 
         # Return the configured DNF manager and an updated list of repositories.
@@ -119,43 +109,51 @@ class SetUpDNFSourcesTask(SetUpSourcesTask):
         return dnf_manager, repositories
 
     def _process_source(self, source):
+        """Process the DNF source."""
         if source.type in SOURCE_REPO_FILE_TYPES:
             return
 
+        # Generate the initial repository configuration.
         self._repository_data = source.generate_repo_configuration()
-        self._repository_data.name = BASE_REPO_NAME
 
-        if source.type != SOURCE_TYPE_URL:
-            return
-
-        self._proxy = self._repository_data.proxy
-
-    def _process_treeinfo_metadata(self, source):
-        """Load treeinfo metadata of the source."""
-        if source.type in SOURCE_REPO_FILE_TYPES:
-            return
-
+        # Load and process treeinfo metadata of the source if any.
         task = LoadTreeInfoMetadataTask(self._repository_data)
         result = task.run()
 
-        self._repository_data = result.repository_data
-        self._release_version = result.release_version
+        if result.repository_data:
+            self._repository_data = result.repository_data
+
+        if result.treeinfo_repositories:
+            self._treeinfo_repositories = result.treeinfo_repositories
+
+        if result.release_version:
+            self._release_version = result.release_version
+
+        # Change the default proxy configuration.
+        if self._repository_data.proxy:
+            self._proxy = self._repository_data.proxy
+
+        # Rename and enable the chosen repository.
+        self._repository_data.name = BASE_REPO_NAME
+        self._repository_data.enabled = True
+
+    def _generate_sources(self, repositories):
+        
 
     def _configure_dnf_manager(self):
         """Initialize and configure the DNF manager."""
         log.debug("Preparing the DNF base...")
         dnf_manager = DNFManager()
         dnf_manager.clear_cache()
-        dnf_manager.configure_substitution(self._release_version)
         dnf_manager.configure_base(self._configuration)
         dnf_manager.configure_proxy(self._proxy)
+        dnf_manager.configure_substitution(self._release_version)
         dnf_manager.dump_configuration()
         dnf_manager.read_system_repositories()
         # DNF5: LOCK THE DNF BASE HERE!
         return dnf_manager
 
     def _process_source_repository(self, dnf_manager, source):
-        # FIXME: Use sources to set up repositories?
         if source.type in SOURCE_REPO_FILE_TYPES:
             self._enable_system_repositories(dnf_manager)
         else:
@@ -213,6 +211,7 @@ class SetUpDNFSourcesTask(SetUpSourcesTask):
 
     def _load_metadata(self, dnf_manager):
         """Load metadata of configured repositories."""
+        self.report_progress(_("Downloading group metadata..."))
         dnf_manager.load_packages_metadata()
         dnf_manager.load_repomd_hashes()
 
